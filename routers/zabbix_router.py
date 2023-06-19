@@ -77,3 +77,14 @@ def get_problems_filter(municipalityId: str, tech: str = "", hostType: str = "")
 )
 def get_hosts_filter(municipalityId: str, tech: str = "", hostType: str = ""):
     return zabbix_service.get_host_filter(municipalityId, tech, hostType)
+
+
+@zabbix_router.get(
+    "/db/hosts/relations/{municipalityId}",
+    tags=["Zabbix - Hosts"],
+    status_code=status.HTTP_200_OK,
+    summary="Get host corelations filtered by municipality ID",
+    dependencies=[Depends(auth_service.get_current_user)]
+)
+def get_host_relations(municipalityId: str):
+    return zabbix_service.get_host_correlation_filter(municipalityId)

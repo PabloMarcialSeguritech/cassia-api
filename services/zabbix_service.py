@@ -85,3 +85,29 @@ def get_host_filter(municipalityId, tech, hostType):
     data = pd.DataFrame(hosts)
     data = data.replace(np.nan, "")
     return JSONResponse(content=jsonable_encoder(data.to_dict(orient="records")))
+
+
+def get_host_correlation_filter(host_group_id):
+    db_zabbix = DB_Zabbix()
+    statement = text(
+        f"""
+        SELECT hc.correlarionid,
+        hc.hostidP,
+        hc.hostidC,
+        (SELECT location_lat from host_inventory where hostid=hc.hostidP) as init_lat,
+        (SELECT location_lon from host_inventory where hostid=hc.hostidP) as init_lon,
+        (SELECT location_lat from host_inventory where hostid=hc.hostidC) as end_lat,
+        (SELECT location_lon from host_inventory where hostid=hc.hostidC) as end_lon
+        from host_correlation hc
+        where (SELECT location_lat from host_inventory where hostid=hc.hostidP) IS NOT NULL 
+        and
+        (
+        {host_group_id} in (SELECT groupid from hosts_groups hg where hg.hostid=hc.hostidP)
+        or {host_group_id} in (SELECT groupid from hosts_groups hg where hg.hostid=hc.hostidC)
+        )
+        """
+    )
+    corelations = db_zabbix.Session().execute(statement)
+    data = pd.DataFrame(corelations)
+    data = data.replace(np.nan, "")
+    return JSONResponse(content=jsonable_encoder(data.to_dict(orient="records")))
