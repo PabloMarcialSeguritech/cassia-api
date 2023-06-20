@@ -68,7 +68,7 @@ def get_problems():
 def get_problems_filter(municipalityId, tech, hostType):
     db_zabbix = DB_Zabbix()
     statement = text(
-        f"call sp_problemView('{municipalityId}','{tech}','{hostType}')")
+        f"call sp_viewProblem('{municipalityId}','{tech}','{hostType}')")
     problems = db_zabbix.Session().execute(statement)
     # print(problems)
     data = pd.DataFrame(problems)
