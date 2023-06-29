@@ -11,9 +11,9 @@ from models.user_model import User as UserModel
 from schemas.token_schema import TokenData
 from utils.settings import Settings
 
-from utils.db import DB_Auth
+from utils.db import DB_Auth, DB_Zabbix
 from sqlalchemy import or_
-
+from utils.traits import success_response
 
 settings = Settings()
 
@@ -23,7 +23,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = settings.token_expire
 REFRESH_TOKEN_EXPIRE_MINUTES = settings.refresh_token_expire
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login/swagger",)
 
 
 def verify_password(plain_password, password):
@@ -35,8 +35,11 @@ def get_password_hash(password):
 
 
 def get_user(username: str):
-    db = DB_Auth.Session()
-    return db.query(UserModel).filter(or_(UserModel.email == username, UserModel.username == username)).first()
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    user = session.query(UserModel).filter(
+        or_(UserModel.mail == username, UserModel.username == username)).first()
+    return user
 
 
 def authenticate_user(username: str, password: str):

@@ -1,20 +1,36 @@
-from fastapi import FastAPI
-from routers.user_router import auth_router
-from routers.zabbix_router import zabbix_router
-from middleware.error_handler import ErrorHandler
-from fastapi.middleware.cors import CORSMiddleware
-app = FastAPI()
+import asyncio
+import logging
 
-origins = ["*"]
+import uvicorn
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+from api import app as app_fastapi
+from scheduler import app as app_rocketry
 
-app.add_middleware(ErrorHandler)
-app.include_router(auth_router)
-app.include_router(zabbix_router)
+
+class Server(uvicorn.Server):
+    """Customized uvicorn.Server
+
+    Uvicorn server overrides signals and we need to include
+    Rocketry to the signals."""
+
+    def handle_exit(self, sig: int, frame) -> None:
+        app_rocketry.session.shut_down()
+        return super().handle_exit(sig, frame)
+
+
+async def main():
+    "Run Rocketry and FastAPI"
+    server = Server(config=uvicorn.Config(
+        app_fastapi, workers=2, loop="asyncio", reload=True))
+    api = asyncio.create_task(server.serve())
+    sched = asyncio.create_task(app_rocketry.serve())
+
+    await asyncio.wait([sched, api])
+
+if __name__ == "__main__":
+    # Print Rocketry's logs to terminal
+    logger = logging.getLogger("rocketry.task")
+    logger.addHandler(logging.StreamHandler())
+
+    # Run both applications
+    asyncio.run(main())
