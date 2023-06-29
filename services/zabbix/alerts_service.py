@@ -19,16 +19,30 @@ settings = Settings()
 
 def get_problems_filter(municipalityId, tech, hostType):
     db_zabbix = DB_Zabbix()
-    statement = text(
-        f"call sp_viewProblem('{municipalityId}','{tech}','{hostType}')")
-    problems = db_zabbix.Session().execute(statement)
 
+    statement = text(
+        "SELECT problemid,estatus FROM problem_records where estatus!='Cerrado'")
+    problem_records = db_zabbix.Session().execute(statement)
+    problem_records = pd.DataFrame(problem_records).replace(np.nan, "")
+    problemids = problem_records["problemid"].values.tolist()
+    problemids = tuple(problemids)
+
+    statement = text(
+        f"call sp_verificationProblem('{municipalityId}','{tech}','{hostType}','{problemids}')")
+    problems = db_zabbix.Session().execute(statement)
+    # call sp_verificationProblem('0','','','(1,2,3,4)');
     db_zabbix.Session().close()
     db_zabbix.stop()
 
     # print(problems)
     data = pd.DataFrame(problems)
     data = data.replace(np.nan, "")
+    data["estatus"] = ""
+    for ind in data.index:
+        record = problem_records.loc[problem_records['problemid']
+                                     == data['eventid'][ind]]
+        data['estatus'][ind] = record.iloc[0]['estatus']
+
     return success_response(data=data.to_dict(orient="records"))
 
 
@@ -136,7 +150,7 @@ def create_exception(exception: exception_schema.ExceptionsBase, current_user_id
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     problem_record = session.query(ProblemRecord).filter(
-        ProblemRecord.problemrecord_id == exception.problemrecord_id).first()
+        ProblemRecord.problemid == exception.problemid).first()
     if not problem_record:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -148,7 +162,7 @@ def create_exception(exception: exception_schema.ExceptionsBase, current_user_id
             detail="Exception already exists",
         )
     new_exception = ExceptionModel(
-        problemrecord_id=exception.problemrecord_id,
+        problemrecord_id=problem_record.problemrecord_id,
         exception_agency_id=exception.exception_agency_id,
         description=exception.description,
         created_at=datetime.now(),
