@@ -17,6 +17,8 @@ def get_host_filter(municipalityId, tech, hostType):
     # print(problems)
     data = pd.DataFrame(hosts)
     data = data.replace(np.nan, "")
+    hostids = data["hostid"].values.tolist()
+    hostids = tuple(hostids)
     statement2 = text(
         f"""
         SELECT hc.correlarionid,
@@ -30,9 +32,8 @@ def get_host_filter(municipalityId, tech, hostType):
         where (SELECT location_lat from host_inventory where hostid=hc.hostidP) IS NOT NULL 
         and
         (
-        {municipalityId} in (SELECT groupid from hosts_groups hg where hg.hostid=hc.hostidP)
-        or {municipalityId} in (SELECT groupid from hosts_groups hg where hg.hostid=hc.hostidC)
-        )
+        hc.hostidP in {hostids}
+        or hc.hostidC in {hostids})
         """
     )
     corelations = db_zabbix.Session().execute(statement2)

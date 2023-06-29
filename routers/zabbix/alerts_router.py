@@ -2,6 +2,7 @@ from fastapi import APIRouter
 import services.zabbix.alerts_service as alerts_service
 import schemas.exception_agency_schema as exception_agency_schemas
 import schemas.exceptions_schema as exception_schema
+import schemas.problem_record_schema as problem_record_schema
 from fastapi import Depends, status
 from services import auth_service
 from fastapi import Body
@@ -100,6 +101,17 @@ def get_agencies():
 )
 def create_agency(exception: exception_schema.ExceptionsBase = Body(...), current_user: User = Depends(auth_service.get_current_user)):
     return alerts_service.create_exception(exception=exception, current_user_id=current_user.user_id)
+
+
+@alerts_router.post(
+    '/problemrecords/change-status/{problemid}',
+    tags=["Zabbix - Problems(Alerts) - ProblemRecords"],
+    status_code=status.HTTP_200_OK,
+    summary="Change status of one Problem Record",
+    dependencies=[Depends(auth_service.get_current_user)]
+)
+def create_agency(problemid: int, estatus: problem_record_schema.ProblemRecordBase = Body(...), current_user: User = Depends(auth_service.get_current_user)):
+    return alerts_service.change_status(estatus=estatus.estatus, problemid=problemid, current_user_id=current_user.user_id)
 
 
 """ @alerts_router.put(
