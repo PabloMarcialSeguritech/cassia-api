@@ -6,6 +6,11 @@ load_dotenv()
 
 
 class Settings(BaseSettings):
+    dbp_name: str = os.getenv("DBP_NAME")
+    dbp_user: str = os.getenv('DBP_USER')
+    dbp_pass: str = os.getenv('DBP_PASS')
+    dbp_host: str = os.getenv('DBP_HOST')
+    dbp_port: str = os.getenv('DBP_PORT')
 
     db_name: str = os.getenv("DB_NAME")
     db_user: str = os.getenv('DB_USER')

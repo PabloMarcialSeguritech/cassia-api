@@ -4,9 +4,9 @@ from pydantic import EmailStr
 
 
 class UserBase(BaseModel):
-    email: EmailStr = Field(
+    mail: EmailStr = Field(
         ...,
-        example="myemail@cosasdedevs.com"
+        example="email@securitech.com"
     )
     username: str = Field(
         ...,
@@ -17,7 +17,7 @@ class UserBase(BaseModel):
 
 
 class User(UserBase):
-    id: int = Field(
+    user_id: int = Field(
         ...,
         example="5"
     )

@@ -17,6 +17,7 @@ pyzabbix = "*"
 pandas = "*"
 sshtunnel = "*"
 mysqlclient = "*"
+rocketry = "*"
 
 [dev-packages]
 
@@ -24,4 +25,4 @@ mysqlclient = "*"
 python_version = "3.11"
 
 [scripts]
-server = "uvicorn main:app --reload"
+server = "python main.py"
