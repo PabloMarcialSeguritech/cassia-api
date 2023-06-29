@@ -10,7 +10,7 @@ from fastapi import status
 
 
 class ExceptionsBase(BaseModel):
-    problemrecord_id: int = Field(
+    problemid: int = Field(
         ...,
         example="1"
     )
