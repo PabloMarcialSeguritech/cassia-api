@@ -14,6 +14,7 @@ class ProblemRecord(DB_Zabbix().Base):
     hostid = Column(Integer)
     problemid = Column(Integer)
     created_at = Column(DateTime, default=datetime.now)
+    taken_at = Column(DateTime, default=None, nullable=True)
     closed_at = Column(DateTime, default=None, nullable=True)
     estatus = Column(Enum("Creado", "En curso", "Cerrado",
                           "Soporte 2do Nivel", "Excepcion",

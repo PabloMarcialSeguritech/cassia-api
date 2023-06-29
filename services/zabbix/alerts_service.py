@@ -212,3 +212,42 @@ def delete_exception(exception_agency_id: int):
     session.close()
     db_zabbix.stop()
     return success_response(message="Exception Agency Deleted")
+
+
+""" Change status """
+
+
+def change_status(problemid: int, estatus: str, current_user_id: int):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    problem_record = session.query(ProblemRecord).filter(
+        ProblemRecord.problemid == problemid).first()
+    if not problem_record:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Problem Record not exists",
+        )
+    match estatus:
+        case "En curso":
+            problem_record.estatus = "En curso"
+            problem_record.taken_at = datetime.now()
+            problem_record.user_id = current_user_id
+        case "Cerrado":
+            if problem_record.estatus == "Creado":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Problem Record must be first taken or pass to status 'En curso' to change the status to 'Cerrado'",
+                )
+            problem_record.closed_at = datetime.now()
+            problem_record.estatus = "Cerrado"
+        case "Soporte 2do Nivel":
+            if problem_record.estatus != "En curso":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Problem Record must be first taken or pass to status 'En curso' to change the status to 'Soporte 2do Nivel'",
+                )
+            problem_record.estatus = "Soporte 2do Nivel"
+    session.commit()
+    session.refresh(problem_record)
+    return success_response(message="Estatus actualizado correctamente",
+                            data=problem_record)
