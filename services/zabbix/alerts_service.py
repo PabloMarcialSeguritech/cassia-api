@@ -246,8 +246,10 @@ def change_status(problemid: int, estatus: str, current_user_id: int):
         )
     if problem_record.estatus == "Excepcion":
         excepcion = session.query(ExceptionModel).filter(
-            ExceptionModel.problemrecord_id == problem_record.problemid).first()
-        excepcion.deleted_at == datetime.now()
+            ExceptionModel.problemrecord_id == problem_record.problemrecord_id).first()
+        excepcion.deleted_at = datetime.now()
+        print(problem_record.estatus)
+        print(excepcion.deleted_at)
         session.commit()
         session.refresh(excepcion)
     match estatus:
