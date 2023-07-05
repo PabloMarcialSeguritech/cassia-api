@@ -5,42 +5,37 @@ from sqlalchemy import text
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from utils.traits import success_response
+import numpy as np
 settings = Settings()
 
 
 def get_municipios():
-    # t0 = time.time()
     db_zabbix = DB_Zabbix()
 
-    # db = DB_Zabbix.Session()
-    statement = text("SELECT * FROM vw_municipio")
+    statement = text("call sp_catCity()")
 
     municipios = db_zabbix.Session().execute(statement)
-    data = pd.DataFrame(municipios)
-    # t1 = time.time()
-    # total = t1-t0
-    # print(total)
+    data = pd.DataFrame(municipios).replace(np.nan, "")
     db_zabbix.Session().close()
     db_zabbix.stop()
     return success_response(data=data.to_dict(orient="records"))
-    # return JSONResponse(content=jsonable_encoder(data.to_dict(orient="records")))
 
 
 def get_devices():
     db_zabbix = DB_Zabbix()
-    statement = text("SELECT * FROM vw_divice")
+    statement = text("call sp_catDevice()")
     devices = db_zabbix.Session().execute(statement)
     db_zabbix.Session().close()
     db_zabbix.stop()
-    data = pd.DataFrame(devices)
+    data = pd.DataFrame(devices).replace(np.nan, "")
     return success_response(data=data.to_dict(orient="records"))
 
 
 def get_technologies():
     db_zabbix = DB_Zabbix()
-    statement = text("SELECT * FROM vw_tecnologia")
+    statement = text("call sp_catTecnologie()")
     technologies = db_zabbix.Session().execute(statement)
     db_zabbix.Session().close()
     db_zabbix.stop()
-    data = pd.DataFrame(technologies)
+    data = pd.DataFrame(technologies).replace(np.nan, "")
     return success_response(data=data.to_dict(orient="records"))
