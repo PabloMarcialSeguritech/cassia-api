@@ -37,11 +37,22 @@ def get_host_filter(municipalityId, tech, hostType):
         """
     )
     corelations = db_zabbix.Session().execute(statement2)
+    statement3 = text(
+        f"CALL sp_problembySev('{municipalityId}','{tech}','{hostType}')")
+    problems_by_sev = db_zabbix.Session().execute(statement3)
+    data3 = pd.DataFrame(problems_by_sev).replace(np.nan, "")
+    statement4 = text(
+        f"call sp_hostAvailPingLoss('{municipalityId}','{tech}','{hostType}')")
+    hostAvailables = db_zabbix.Session().execute(statement4)
+    data4 = pd.DataFrame(hostAvailables).replace(np.nan, "")
     db_zabbix.Session().close()
     data2 = pd.DataFrame(corelations)
     data2 = data2.replace(np.nan, "")
     response = {"hosts": data.to_dict(
-        orient="records"), "relations": data2.to_dict(orient="records")}
+        orient="records"), "relations": data2.to_dict(orient="records"),
+        "problems_by_severity": data3.to_dict(orient="records"),
+        "host_availables": data4.to_dict(orient="records"),
+    }
     # print(response)
     return success_response(data=response)
 

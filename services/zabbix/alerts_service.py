@@ -24,8 +24,11 @@ def get_problems_filter(municipalityId, tech, hostType):
         "SELECT problemid,estatus FROM problem_records where estatus!='Cerrado'")
     problem_records = db_zabbix.Session().execute(statement)
     problem_records = pd.DataFrame(problem_records).replace(np.nan, "")
-    problemids = problem_records["problemid"].values.tolist()
-    problemids = tuple(problemids)
+    if len(problem_records) < 1:
+        problemids = "(0)"
+    else:
+        problemids = problem_records["problemid"].values.tolist()
+        problemids = tuple(problemids)
 
     statement = text(
         f"call sp_verificationProblem('{municipalityId}','{tech}','{hostType}','{problemids}')")
@@ -150,7 +153,7 @@ def create_exception(exception: exception_schema.ExceptionsBase, current_user_id
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     problem_record = session.query(ProblemRecord).filter(
-        ProblemRecord.problemid == exception.problemid).first()
+        ProblemRecord.problemid == exception.problemid and exception.deleted_at is None).first()
     if not problem_record:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -241,26 +244,30 @@ def change_status(problemid: int, estatus: str, current_user_id: int):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Problem Record not exists",
         )
+    if problem_record.estatus == "Excepcion":
+        excepcion = session.query(ExceptionModel).filter(
+            ExceptionModel.problemrecord_id == problem_record.problemid).first()
+        excepcion.deleted_at == datetime.now()
+        session.commit()
+        session.refresh(excepcion)
     match estatus:
         case "En curso":
             problem_record.estatus = "En curso"
-            problem_record.taken_at = datetime.now()
-            problem_record.user_id = current_user_id
+            if problem_record.taken_at is None:
+                problem_record.taken_at = datetime.now()
+                problem_record.user_id = current_user_id
         case "Cerrado":
-            if problem_record.estatus == "Creado":
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Problem Record must be first taken or pass to status 'En curso' to change the status to 'Cerrado'",
-                )
             problem_record.closed_at = datetime.now()
+            if problem_record.taken_at is None:
+                problem_record.taken_at = datetime.now()
+                problem_record.user_id = current_user_id
             problem_record.estatus = "Cerrado"
         case "Soporte 2do Nivel":
-            if problem_record.estatus != "En curso":
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Problem Record must be first taken or pass to status 'En curso' to change the status to 'Soporte 2do Nivel'",
-                )
+            if problem_record.taken_at is None:
+                problem_record.taken_at = datetime.now()
+                problem_record.user_id = current_user_id
             problem_record.estatus = "Soporte 2do Nivel"
+
     session.commit()
     session.refresh(problem_record)
     return success_response(message="Estatus actualizado correctamente",
