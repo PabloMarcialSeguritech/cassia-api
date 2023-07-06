@@ -27,9 +27,11 @@ def get_problems_filter(municipalityId, tech, hostType):
     if len(problem_records) < 1:
         problemids = "(0)"
     else:
-        problemids = problem_records["problemid"].values.tolist()
-        problemids = tuple(problemids)
-
+        if len(problem_records) == 1:
+            problemids = f"({problem_records.iloc[0]['problemid']})"
+        else:
+            problemids = problem_records["problemid"].values.tolist()
+            problemids = tuple(problemids)
     statement = text(
         f"call sp_verificationProblem('{municipalityId}','{tech}','{hostType}','{problemids}')")
     problems = db_zabbix.Session().execute(statement)
