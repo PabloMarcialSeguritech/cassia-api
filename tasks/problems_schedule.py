@@ -18,7 +18,7 @@ async def get_problems():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     statement = text(
-        f"call sp_viewProblem('0','','')")
+        f"call sp_viewProblem('0','','','')")
     """ try: """
     problems = session.execute(statement)
     """ finally: """

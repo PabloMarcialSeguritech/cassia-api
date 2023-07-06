@@ -48,6 +48,7 @@ def get_host_filter(municipalityId, tech, hostType):
     db_zabbix.Session().close()
     data2 = pd.DataFrame(corelations)
     data2 = data2.replace(np.nan, "")
+
     response = {"hosts": data.to_dict(
         orient="records"), "relations": data2.to_dict(orient="records"),
         "problems_by_severity": data3.to_dict(orient="records"),
