@@ -3,10 +3,12 @@ import services.zabbix.alerts_service as alerts_service
 import schemas.exception_agency_schema as exception_agency_schemas
 import schemas.exceptions_schema as exception_schema
 import schemas.problem_record_schema as problem_record_schema
+import schemas.problem_record_history_schema as problem_records_history_schema
 from fastapi import Depends, status
 from services import auth_service
 from fastapi import Body
 from models.user_model import User
+from fastapi import File, UploadFile, Form
 alerts_router = APIRouter()
 
 
@@ -17,8 +19,8 @@ alerts_router = APIRouter()
     summary="Get problems by municipality ID, technology, and dispId",
     dependencies=[Depends(auth_service.get_current_user)]
 )
-def get_problems_filter(municipalityId: str, tech: str = "", hostType: str = ""):
-    return alerts_service.get_problems_filter(municipalityId, tech, hostType)
+def get_problems_filter(municipalityId: str, tech_host_type: str = ""):
+    return alerts_service.get_problems_filter(municipalityId, tech_host_type)
 
 
 """ @alerts_router.get(
@@ -135,3 +137,14 @@ def create_agency(exception_agency_id, exception_agency:  exception_agency_schem
 def create_agency(exception_agency_id):
     return alerts_service.delete_exception_agency(exception_agency_id=exception_agency_id)
  """
+
+
+@alerts_router.post(
+    '/problemrecords/history/{problemid}',
+    tags=["Zabbix - Problems(Alerts) - ProblemRecords"],
+    status_code=status.HTTP_200_OK,
+    summary="Register a message or log in problem record",
+    dependencies=[Depends(auth_service.get_current_user)]
+)
+async def create_message(problemid: int, message: str | None = Form(), current_user: User = Depends(auth_service.get_current_user), file: UploadFile | None = None):
+    return await alerts_service.create_message(problemid=problemid, current_user_id=current_user.user_id, message=message, file=file)

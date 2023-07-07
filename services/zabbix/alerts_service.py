@@ -8,16 +8,19 @@ from fastapi.exceptions import HTTPException
 from models.exception_agency import ExceptionAgency
 from models.exceptions import Exceptions as ExceptionModel
 from models.problem_record import ProblemRecord
+from models.problem_records_history import ProblemRecordHistory
 import schemas.exception_agency_schema as exception_agency_schema
 import schemas.exceptions_schema as exception_schema
 import numpy as np
 from datetime import datetime
 from utils.traits import success_response
-from fastapi import status
+from fastapi import status, File, UploadFile
+import os
+import shutil
 settings = Settings()
 
 
-def get_problems_filter(municipalityId, tech, hostType):
+def get_problems_filter(municipalityId, tech_host_type):
     db_zabbix = DB_Zabbix()
 
     statement = text(
@@ -33,7 +36,7 @@ def get_problems_filter(municipalityId, tech, hostType):
             problemids = problem_records["problemid"].values.tolist()
             problemids = tuple(problemids)
     statement = text(
-        f"call sp_verificationProblem('{municipalityId}','{tech}','{hostType}','{problemids}')")
+        f"call sp_verificationProblem('{municipalityId}','{tech_host_type}','{problemids}')")
     problems = db_zabbix.Session().execute(statement)
     # call sp_verificationProblem('0','','','(1,2,3,4)');
     db_zabbix.Session().close()
@@ -274,3 +277,48 @@ def change_status(problemid: int, estatus: str, current_user_id: int):
     session.refresh(problem_record)
     return success_response(message="Estatus actualizado correctamente",
                             data=problem_record)
+
+
+async def create_message(problemid: int, message: str | None, current_user_id: int, file: UploadFile | None):
+    if message is None and file is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The request must contain a message or a File",
+        )
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    problem = session.query(ProblemRecord).filter(
+        ProblemRecord.problemid == problemid).first()
+    if not problem:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The Problem not exists",
+        )
+    file_dest = None
+    if file:
+        upload_dir = os.path.join(os.getcwd(), "uploads")
+        # Create the upload directory if it doesn't exist
+        if not os.path.exists(upload_dir):
+            os.makedirs(upload_dir)
+
+            # get the destination path
+        file_dest = os.path.join(upload_dir, file.filename)
+        print(file_dest)
+
+        # copy the file contents
+        with open(file_dest, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+    prh = ProblemRecordHistory(
+        problemrecord_id=problem.problemrecord_id,
+        user_id=current_user_id,
+        message=message,
+        file_route=file_dest,
+        created_at=datetime.now()
+    )
+    session.add(prh)
+    session.commit()
+    session.refresh(prh)
+    print("assssssssssssssssssssssssss")
+    return success_response(message="Mensaje guardado correctamente",
+                            data=prh)
