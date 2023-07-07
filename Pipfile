@@ -18,6 +18,7 @@ pandas = "*"
 sshtunnel = "*"
 mysqlclient = "*"
 rocketry = "*"
+aiofiles = "*"
 
 [dev-packages]
 
