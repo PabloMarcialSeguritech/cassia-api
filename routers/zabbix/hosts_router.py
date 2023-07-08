@@ -1,7 +1,8 @@
 from fastapi import APIRouter
 import services.zabbix.hosts_service as hosts_service
-from fastapi import Depends, status
+from fastapi import Depends, status, Path
 from services import auth_service
+import services.zabbix.interface_service as interface_service
 
 hosts_router = APIRouter(prefix="/hosts")
 
@@ -26,3 +27,12 @@ def get_hosts_filter(municipalityId: str, tech: str = "", hostType: str = ""):
 )
 def get_host_relations(municipalityId: str):
     return hosts_service.get_host_correlation_filter(municipalityId)
+
+
+@hosts_router.post('/ping/{hostId}',
+                       tags=["Zabbix - Hosts"],
+                       status_code=status.HTTP_200_OK,
+                       summary="Create a ping over a device",
+                       dependencies=[Depends(auth_service.get_current_user)])
+def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596")):
+    return interface_service.create_ping(hostId)

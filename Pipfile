@@ -19,6 +19,7 @@ sshtunnel = "*"
 mysqlclient = "*"
 rocketry = "*"
 aiofiles = "*"
+pythonping = "*"
 
 [dev-packages]
 
