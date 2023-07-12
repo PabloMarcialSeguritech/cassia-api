@@ -11,11 +11,11 @@ hosts_router = APIRouter(prefix="/hosts")
     '/{municipalityId}',
     tags=["Zabbix - Hosts"],
     status_code=status.HTTP_200_OK,
-    summary="Get host by municipality ID, technology, and dispId",
+    summary="Get host by municipality ID, technology or device type, and subtype",
     dependencies=[Depends(auth_service.get_current_user)]
 )
-def get_hosts_filter(municipalityId: str, tech: str = "", hostType: str = ""):
-    return hosts_service.get_host_filter(municipalityId, tech, hostType)
+def get_hosts_filter(municipalityId: str, dispId: str = "", subtype_id: str = ""):
+    return hosts_service.get_host_filter(municipalityId, dispId, subtype_id)
 
 
 @hosts_router.get(
@@ -30,9 +30,9 @@ def get_host_relations(municipalityId: str):
 
 
 @hosts_router.post('/ping/{hostId}',
-                       tags=["Zabbix - Hosts"],
-                       status_code=status.HTTP_200_OK,
-                       summary="Create a ping over a device",
-                       dependencies=[Depends(auth_service.get_current_user)])
+                   tags=["Zabbix - Hosts"],
+                   status_code=status.HTTP_200_OK,
+                   summary="Create a ping over a device",
+                   dependencies=[Depends(auth_service.get_current_user)])
 def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596")):
     return interface_service.create_ping(hostId)

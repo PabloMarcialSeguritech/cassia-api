@@ -9,6 +9,7 @@ from services import auth_service
 from fastapi import Body
 from models.user_model import User
 from fastapi import File, UploadFile, Form
+from typing import Optional
 alerts_router = APIRouter()
 
 
@@ -16,11 +17,11 @@ alerts_router = APIRouter()
     '/problems/{municipalityId}',
     tags=["Zabbix - Problems(Alerts)"],
     status_code=status.HTTP_200_OK,
-    summary="Get problems by municipality ID, technology, and dispId",
+    summary="Get problems by municipality ID, device type and technology, and subtype",
     dependencies=[Depends(auth_service.get_current_user)]
 )
-def get_problems_filter(municipalityId: str, tech_host_type: str = ""):
-    return alerts_service.get_problems_filter(municipalityId, tech_host_type)
+def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: str = ""):
+    return alerts_service.get_problems_filter(municipalityId, tech_host_type, subtype)
 
 
 """ @alerts_router.get(
@@ -146,5 +147,5 @@ def create_agency(exception_agency_id):
     summary="Register a message or log in problem record",
     dependencies=[Depends(auth_service.get_current_user)]
 )
-async def create_message(problemid: int, message: str | None = Form(), current_user: User = Depends(auth_service.get_current_user), file: UploadFile | None = None):
+async def create_message(problemid: int, message: Optional[str] = Form(None), current_user: User = Depends(auth_service.get_current_user), file: UploadFile | None = None):
     return await alerts_service.create_message(problemid=problemid, current_user_id=current_user.user_id, message=message, file=file)
