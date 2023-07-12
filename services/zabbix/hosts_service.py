@@ -13,7 +13,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     db_zabbix = DB_Zabbix()
     """ Agregar el subtype cuando funcione """
     statement1 = text(
-        f"call sp_hostView('{municipalityId}','{dispId}','')")
+        f"call sp_hostView('{municipalityId}','{dispId}','{subtype_id}')")
     hosts = db_zabbix.Session().execute(statement1)
     # print(problems)
     data = pd.DataFrame(hosts)
@@ -34,7 +34,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         and
         (
         hc.hostidP in {hostids}
-        or hc.hostidC in {hostids})
+        and hc.hostidC in {hostids})
         """
     )
     corelations = db_zabbix.Session().execute(statement2)
