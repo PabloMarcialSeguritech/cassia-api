@@ -31,11 +31,11 @@ def get_devices():
     return success_response(data=data.to_dict(orient="records"))
 
 
-def get_technologies():
+def get_subtypes():
     db_zabbix = DB_Zabbix()
-    statement = text("call sp_catTecnologie()")
-    technologies = db_zabbix.Session().execute(statement)
+    statement = text("call sp_catSubtype()")
+    subtypes = db_zabbix.Session().execute(statement)
     db_zabbix.Session().close()
     db_zabbix.stop()
-    data = pd.DataFrame(technologies).replace(np.nan, "")
+    data = pd.DataFrame(subtypes).replace(np.nan, "")
     return success_response(data=data.to_dict(orient="records"))

@@ -20,10 +20,13 @@ import shutil
 settings = Settings()
 
 
-def get_problems_filter(municipalityId, tech_host_type):
+def get_problems_filter(municipalityId, tech_host_type, subtype):
     db_zabbix = DB_Zabbix()
-
     statement = text(
+        f"call sp_viewProblem('{municipalityId}','{tech_host_type}','{subtype}')")
+    problems = db_zabbix.Session().execute(statement)
+    data = pd.DataFrame(problems).replace(np.nan, "")
+    """ statement = text(
         "SELECT problemid,estatus FROM problem_records where estatus!='Cerrado'")
     problem_records = db_zabbix.Session().execute(statement)
     problem_records = pd.DataFrame(problem_records).replace(np.nan, "")
@@ -36,7 +39,7 @@ def get_problems_filter(municipalityId, tech_host_type):
             problemids = problem_records["problemid"].values.tolist()
             problemids = tuple(problemids)
     statement = text(
-        f"call sp_verificationProblem('{municipalityId}','{tech_host_type}','{problemids}')")
+        f"call sp_verificationProblem('{municipalityId}','{tech_host_type}','{subtype}','{problemids}')")
     problems = db_zabbix.Session().execute(statement)
     # call sp_verificationProblem('0','','','(1,2,3,4)');
     db_zabbix.Session().close()
@@ -50,7 +53,7 @@ def get_problems_filter(municipalityId, tech_host_type):
         record = problem_records.loc[problem_records['problemid']
                                      == data['eventid'][ind]]
         data['estatus'][ind] = record.iloc[0]['estatus']
-
+ """
     return success_response(data=data.to_dict(orient="records"))
 
 

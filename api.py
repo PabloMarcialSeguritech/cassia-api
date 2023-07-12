@@ -4,8 +4,9 @@ from routers.zabbix import zabbix_router
 from middleware.error_handler import ErrorHandler
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
-
+app = FastAPI(
+)
+app.version = '0.8'
 origins = ["*"]
 
 app.add_middleware(

@@ -9,10 +9,11 @@ import numpy as np
 settings = Settings()
 
 
-def get_host_filter(municipalityId, tech, hostType):
+def get_host_filter(municipalityId, dispId, subtype_id):
     db_zabbix = DB_Zabbix()
+    """ Agregar el subtype cuando funcione """
     statement1 = text(
-        f"call sp_hostView('{municipalityId}','{tech}','{hostType}')")
+        f"call sp_hostView('{municipalityId}','{dispId}','')")
     hosts = db_zabbix.Session().execute(statement1)
     # print(problems)
     data = pd.DataFrame(hosts)
@@ -38,11 +39,11 @@ def get_host_filter(municipalityId, tech, hostType):
     )
     corelations = db_zabbix.Session().execute(statement2)
     statement3 = text(
-        f"CALL sp_problembySev('{municipalityId}','{tech}','{hostType}')")
+        f"CALL sp_problembySev('{municipalityId}','{dispId}','{subtype_id}')")
     problems_by_sev = db_zabbix.Session().execute(statement3)
     data3 = pd.DataFrame(problems_by_sev).replace(np.nan, "")
     statement4 = text(
-        f"call sp_hostAvailPingLoss('{municipalityId}','{tech}','{hostType}')")
+        f"call sp_hostAvailPingLoss('{municipalityId}','{dispId}','{subtype_id}')")
     hostAvailables = db_zabbix.Session().execute(statement4)
     data4 = pd.DataFrame(hostAvailables).replace(np.nan, "")
     db_zabbix.Session().close()

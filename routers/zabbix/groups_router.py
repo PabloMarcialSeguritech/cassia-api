@@ -22,7 +22,7 @@ def get_municipios():
     '/groups/devices',
     tags=["Zabbix - Groups"],
     status_code=status.HTTP_200_OK,
-    summary="Get all device types",
+    summary="Get all device types and technologies",
     dependencies=[Depends(auth_service.get_current_user)]
 )
 def get_devices():
@@ -30,11 +30,11 @@ def get_devices():
 
 
 @groups_router.get(
-    '/groups/technologies',
+    '/groups/subtypes',
     tags=["Zabbix - Groups"],
     status_code=status.HTTP_200_OK,
-    summary="Get all device technologies",
+    summary="Get all device subtypes",
     dependencies=[Depends(auth_service.get_current_user)]
 )
-def get_technologies():
-    return group_service.get_technologies()
+def get_subtypes():
+    return group_service.get_subtypes()
