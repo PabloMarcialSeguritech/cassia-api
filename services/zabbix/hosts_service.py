@@ -49,9 +49,15 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     db_zabbix.Session().close()
     data2 = pd.DataFrame(corelations)
     data2 = data2.replace(np.nan, "")
-    statement5 = text(
-        f"CALL sp_viewAlignment('{municipalityId}','{dispId}','{subtype_id}')")
-    subgroup_data = db_zabbix.Session().execute(statement5)
+    # aditional data
+    subgroup_data = []
+    statement5 = ""
+    match subtype_id:
+        case "376276":
+            statement5 = text(
+                f"CALL sp_viewAlignment('{municipalityId}','{dispId}','{subtype_id}')")
+    if statement5 != "":
+        subgroup_data = db_zabbix.Session().execute(statement5)
     data5 = pd.DataFrame(subgroup_data).replace(np.nan, "")
     response = {"hosts": data.to_dict(
         orient="records"), "relations": data2.to_dict(orient="records"),
