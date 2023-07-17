@@ -19,6 +19,17 @@ def get_hosts_filter(municipalityId: str, dispId: str = "", subtype_id: str = ""
 
 
 @hosts_router.get(
+    '/{municipalityId}',
+    tags=["Zabbix - Hosts"],
+    status_code=status.HTTP_200_OK,
+    summary="Get host by municipality ID, technology or device type, and subtype",
+    dependencies=[Depends(auth_service.get_current_user)]
+)
+def get_hosts_filter(municipalityId: str, dispId: str = "", subtype_id: str = ""):
+    return hosts_service.get_host_filter(municipalityId, dispId, subtype_id)
+
+
+@hosts_router.get(
     "/relations/{municipalityId}",
     tags=["Zabbix - Hosts"],
     status_code=status.HTTP_200_OK,
