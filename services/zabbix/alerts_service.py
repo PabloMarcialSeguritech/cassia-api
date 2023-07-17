@@ -15,7 +15,9 @@ import numpy as np
 from datetime import datetime
 from utils.traits import success_response
 from fastapi import status, File, UploadFile
+from fastapi.responses import FileResponse
 import os
+import ntpath
 import shutil
 settings = Settings()
 
@@ -299,7 +301,8 @@ async def create_message(problemid: int, message: str | None, current_user_id: i
         )
     file_dest = None
     if file:
-        upload_dir = os.path.join(os.getcwd(), "uploads")
+        upload_dir = os.path.join(
+            os.getcwd(), f"uploads/{problem.problemrecord_id}")
         # Create the upload directory if it doesn't exist
         if not os.path.exists(upload_dir):
             os.makedirs(upload_dir)
@@ -322,6 +325,59 @@ async def create_message(problemid: int, message: str | None, current_user_id: i
     session.add(prh)
     session.commit()
     session.refresh(prh)
-    print("assssssssssssssssssssssssss")
     return success_response(message="Mensaje guardado correctamente",
                             data=prh)
+
+
+async def get_messages(problemid: int):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    problem = session.query(ProblemRecord).filter(
+        ProblemRecord.problemid == problemid).first()
+    if not problem:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The Problem not exists",
+        )
+    history = session.query(ProblemRecordHistory).filter(
+        ProblemRecordHistory.problemrecord_id == problem.problemrecord_id,
+        ProblemRecordHistory.deleted_at == None
+    ).all()
+    session.close()
+    db_zabbix.stop()
+    return success_response(
+        data=history)
+
+
+async def download_file(message_id: str):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    message_file = session.query(ProblemRecordHistory).filter(
+        ProblemRecordHistory.problemsHistory_id == message_id).first()
+
+    if not message_file:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The message not exists",
+        )
+
+    if not message_file.file_route:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The file not exists",
+        )
+
+    if os.path.exists(message_file.file_route):
+        filename = path_leaf(message_file.file_route)
+        return FileResponse(path=message_file.file_route, filename=filename)
+
+    return success_response(
+        message="File not found",
+        success=False,
+        status_code=status.HTTP_404_NOT_FOUND
+    )
+
+
+def path_leaf(path):
+    head, tail = ntpath.split(path)
+    return tail or ntpath.basename(head)

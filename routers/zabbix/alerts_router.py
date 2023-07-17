@@ -149,3 +149,25 @@ def create_agency(exception_agency_id):
 )
 async def create_message(problemid: int, message: Optional[str] = Form(None), current_user: User = Depends(auth_service.get_current_user), file: UploadFile | None = None):
     return await alerts_service.create_message(problemid=problemid, current_user_id=current_user.user_id, message=message, file=file)
+
+
+@alerts_router.get(
+    '/problemrecords/history/{problemid}',
+    tags=["Zabbix - Problems(Alerts) - ProblemRecords"],
+    status_code=status.HTTP_200_OK,
+    summary="Get all messages or log of one problem record",
+    dependencies=[Depends(auth_service.get_current_user)]
+)
+async def get_messages(problemid: int):
+    return await alerts_service.get_messages(problemid=problemid)
+
+
+@alerts_router.get(
+    '/problemrecords/history/files/download/{message_id}',
+    tags=["Zabbix - Problems(Alerts) - ProblemRecords"],
+    status_code=status.HTTP_200_OK,
+    summary="Return file upload in history",
+    dependencies=[Depends(auth_service.get_current_user)]
+)
+async def download_file(message_id: str):
+    return await alerts_service.download_file(message_id=message_id)
