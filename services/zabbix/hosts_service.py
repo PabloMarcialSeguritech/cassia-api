@@ -54,7 +54,6 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     statement5 = ""
     match subtype_id:
         case "376276":
-            print("entraaa")
             statement5 = text(
                 f"CALL sp_viewAlignment('{municipalityId}','{dispId}','{subtype_id}')")
     if statement5 != "":
