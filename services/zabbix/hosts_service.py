@@ -12,8 +12,12 @@ settings = Settings()
 def get_host_filter(municipalityId, dispId, subtype_id):
     db_zabbix = DB_Zabbix()
     """ Agregar el subtype cuando funcione """
+
     statement1 = text(
         f"call sp_hostView('{municipalityId}','{dispId}','{subtype_id}')")
+    if dispId == "11":
+        statement1 = text(
+            f"call sp_hostView('{municipalityId}','{dispId},2','{subtype_id}')")
     hosts = db_zabbix.Session().execute(statement1)
     # print(problems)
     data = pd.DataFrame(hosts)
