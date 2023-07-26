@@ -56,18 +56,30 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     # aditional data
     subgroup_data = []
     statement5 = ""
+    statement5 = text(
+        f"CALL sp_viewAlignment('{municipalityId}','{dispId}','{subtype_id}')")
+    subgroup_data = db_zabbix.Session().execute(statement5)
+    data5 = pd.DataFrame(subgroup_data).replace(np.nan, "")
+
+    alineaciones = data5[["hostid", "Alineacion"]]
+    nuevo = data2
+    if not data2.empty:
+        nuevo = data2.merge(alineaciones, left_on="hostidC",
+                            right_on="hostid", how="left").replace(np.nan, 0)
+
+    statement6 = ""
     match subtype_id:
         case "376276":
-            statement5 = text(
+            statement6 = text(
                 f"CALL sp_viewAlignment('{municipalityId}','{dispId}','{subtype_id}')")
-    if statement5 != "":
-        subgroup_data = db_zabbix.Session().execute(statement5)
-    data5 = pd.DataFrame(subgroup_data).replace(np.nan, "")
+    if statement6 != "":
+        subgroup_data = db_zabbix.Session().execute(statement6)
+    data6 = pd.DataFrame(subgroup_data).replace(np.nan, "")
     response = {"hosts": data.to_dict(
-        orient="records"), "relations": data2.to_dict(orient="records"),
+        orient="records"), "relations": nuevo.to_dict(orient="records"),
         "problems_by_severity": data3.to_dict(orient="records"),
         "host_availables": data4.to_dict(orient="records",),
-        "subgroup_info": data5.to_dict(orient="records")
+        "subgroup_info": data6.to_dict(orient="records")
     }
     # print(response)
     return success_response(data=response)
