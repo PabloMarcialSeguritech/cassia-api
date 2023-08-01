@@ -57,16 +57,14 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     subgroup_data = []
     statement5 = ""
     statement5 = text(
-        f"CALL sp_viewAlignment('{municipalityId}','{dispId}','{subtype_id}')")
+        f"CALL sp_viewAlignment('{municipalityId}','11','376276')")
     subgroup_data = db_zabbix.Session().execute(statement5)
     data5 = pd.DataFrame(subgroup_data).replace(np.nan, "")
-
     alineaciones = data5[["hostid", "Alineacion"]]
     nuevo = data2
     if not data2.empty:
         nuevo = data2.merge(alineaciones, left_on="hostidC",
                             right_on="hostid", how="left").replace(np.nan, 0)
-
     statement6 = ""
     match subtype_id:
         case "376276":
