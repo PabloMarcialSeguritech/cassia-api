@@ -60,6 +60,9 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         f"CALL sp_viewAlignment('{municipalityId}','11','376276')")
     subgroup_data = db_zabbix.Session().execute(statement5)
     data5 = pd.DataFrame(subgroup_data).replace(np.nan, "")
+    if data5.empty:
+        data5["hostid"] = [0]
+        data5["Alineacion"] = [0]
     alineaciones = data5[["hostid", "Alineacion"]]
     nuevo = data2
     if not data2.empty:
