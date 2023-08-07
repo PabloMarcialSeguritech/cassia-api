@@ -12,9 +12,9 @@ problems_schedule = Grouper()
 # Creating some tasks
 
 
-#@problems_schedule.task(every("40 seconds"), execution="thread")
+# @problems_schedule.task(every("40 seconds"), execution="thread")
 async def get_problems():
-    print("Getting problems")
+    """ print("Getting problems") """
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     statement = text(
