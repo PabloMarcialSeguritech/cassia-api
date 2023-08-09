@@ -12,9 +12,15 @@ from schemas.token_schema import TokenData
 from utils.settings import Settings
 
 from utils.db import DB_Auth, DB_Zabbix
-from sqlalchemy import or_
+from sqlalchemy import or_, and_, text
 from utils.traits import success_response
 
+from models.user_has_roles import UserHasRole
+from models.cassia_roles import CassiaRole
+from models.cassia_permissions import CassiaPermission
+from models.role_has_permissions import RoleHasPermission
+import pandas as pd
+import numpy as np
 settings = Settings()
 
 SECRET_KEY = settings.secret_key
@@ -81,19 +87,67 @@ def generate_token(username, password):
             detail="Incorrect email/username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
+    roles = get_roles(user.user_id)
+    print(roles)
     return {
         'access_token': create_access_token(
             data={"sub": user.username}
         ),
         'refresh_token': create_refresh_token(
             data={"sub": user.username}
-        )
+        ),
+        "roles": roles["roles"],
+        "permissions": roles["permissions"]
     }
 
 
+def get_roles(user_id):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text(
+        f"select role_id from user_has_roles where user_id={user_id}")
+    roles = session.execute(statement)
+    roles = pd.DataFrame(roles).replace(np.nan, "")
+    if not roles.empty:
+        if len(roles["role_id"]) > 1:
+            rol_ids = tuple(roles['role_id'].values.tolist())
+        else:
+            rol_ids = f"({roles['role_id'][0]})"
+        statement = text(
+            f"select rol_id,name from cassia_roles where rol_id in{rol_ids} and deleted_at IS NULL")
+        roles = session.execute(statement)
+        roles = pd.DataFrame(roles).replace(np.nan, "")
+
+        if not roles.empty:
+
+            statement = text(
+                f"select permission_id,cassia_rol_id from role_has_permissions where cassia_rol_id in{rol_ids}")
+            permissions = session.execute(statement)
+            permissions = pd.DataFrame(permissions).replace(np.nan, "")
+            """ print(permissions.head()) """
+            if not permissions.empty:
+                if len(permissions["permission_id"]) > 1:
+                    permission_ids = tuple(
+                        permissions['permission_id'].values.tolist())
+                else:
+                    permission_ids = f"({permissions['permission_id'][0]})"
+                """ print(permission_ids) """
+                statement = text(
+                    f"select permission_id,module_name, name from cassia_permissions where permission_id in{permission_ids}")
+                permissions = session.execute(statement)
+                permissions = pd.DataFrame(permissions).replace(np.nan, "")
+                return {"roles": roles.to_dict(orient="records"), "permissions": permissions.to_dict(orient="records")}
+            else:
+                return {"roles": roles.to_dict(orient="records"), "permissions": []}
+        else:
+            return {"roles": roles.to_dict(orient="records"), "permissions": []}
+    else:
+        return {"roles": [], "permissions": []}
+
 # Get the current user decodign the JWT
 # Act like a middleware to verify if the request has a token and is valid
+
+
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
