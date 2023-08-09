@@ -5,6 +5,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from utils.settings import Settings
 from sshtunnel import SSHTunnelForwarder
 from sqlalchemy.pool import NullPool
+
 settings = Settings()
 
 
@@ -58,18 +59,23 @@ class DB_Zabbix():  # Zabbix DB connection class
     Base = declarative_base()
 
     def __init__(self) -> None:
-        self.server = SSHTunnelForwarder((settings.ssh_host, int(settings.ssh_port)),
-                                         ssh_password=settings.ssh_pass,
-                                         ssh_username=settings.ssh_user,
-                                         remote_bind_address=(settings.ssh_remote_bind_address, int(
-                                             settings.ssh_remote_bind_port)),
-                                         local_bind_address=("127.0.0.1", 3306))
-        self.server.start()
 
-        self.connection_string = f"mysql+mysqldb://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.server.local_bind_port }/{self.DB_NAME}"
+        if settings.env == "dev":
+            self.server = SSHTunnelForwarder((settings.ssh_host, int(settings.ssh_port)),
+                                             ssh_password=settings.ssh_pass,
+                                             ssh_username=settings.ssh_user,
+                                             remote_bind_address=(settings.ssh_remote_bind_address, int(
+                                                 settings.ssh_remote_bind_port)),
+                                             local_bind_address=("127.0.0.1", 3306))
+            self.server.start()
+            self.connection_string = f"mysql+mysqldb://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.server.local_bind_port}/{self.DB_NAME}"
+        else:
+            self.connection_string = f"mysql+mysqldb://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
         self.engine = create_engine(
             self.connection_string, echo=False, poolclass=NullPool, pool_recycle=1800)
         self.Session = sessionmaker(bind=self.engine)
 
     def stop(self) -> None:
-        self.server.stop()
+        if settings.env == "dev":
+            self.server.stop()
