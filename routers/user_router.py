@@ -51,8 +51,15 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     """
     access_token = auth_service.generate_token(
         form_data.username, form_data.password)
-
-    return success_response(data=Token(access_token=access_token['access_token'], refresh_token=access_token["refresh_token"], token_type="bearer"))
+    print(access_token["roles"])
+    response = {
+        "access_token": access_token['access_token'],
+        "refresh_token": access_token["refresh_token"],
+        "token_type": "bearer",
+        "roles": access_token["roles"],
+        "permissions": access_token["permissions"]
+    }
+    return success_response(data=response)
 
 
 @auth_router.post(
