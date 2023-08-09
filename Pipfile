@@ -9,7 +9,7 @@ uvicorn = "*"
 sqlalchemy = "*"
 python-dotenv = "*"
 mysql-connector-python = "*"
-pydantic = "<v2"
+pydantic = {extras = ["email"], version = "<2"}
 passlib = {extras = ["bcrypt"], version = "*"}
 python-jose = {extras = ["cryptography"], version = "*"}
 python-multipart = "*"
@@ -21,6 +21,7 @@ rocketry = "*"
 aiofiles = "*"
 pythonping = "*"
 websockets = "*"
+paramiko = "*"
 
 [dev-packages]
 
