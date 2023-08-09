@@ -57,7 +57,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     subgroup_data = []
     statement5 = ""
     statement5 = text(
-        f"CALL sp_viewAlignment('{municipalityId}','11','376276')")
+        f"CALL sp_viewAlignment('{municipalityId}','11','376276,375090')")
     subgroup_data = db_zabbix.Session().execute(statement5)
     data5 = pd.DataFrame(subgroup_data).replace(np.nan, "")
     if data5.empty:
@@ -72,7 +72,10 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     match subtype_id:
         case "376276":
             statement6 = text(
-                f"CALL sp_viewAlignment('{municipalityId}','{dispId}','{subtype_id}')")
+                f"CALL sp_viewAlignment('{municipalityId}','{dispId}','376276,375090')")
+        case "375090":
+            statement6 = text(
+                f"CALL sp_viewAlignment('{municipalityId}','{dispId}','376276,375090')")
     if statement6 != "":
         subgroup_data = db_zabbix.Session().execute(statement6)
     data6 = pd.DataFrame(subgroup_data).replace(np.nan, "")
