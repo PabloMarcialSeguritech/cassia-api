@@ -6,7 +6,7 @@ from fastapi import Body
 from models.user_model import User
 from fastapi import File, UploadFile, Form
 from typing import Optional
-from schemas import user_schema
+from schemas import user_schema, update_user_password
 users_router = APIRouter()
 
 
@@ -57,6 +57,7 @@ async def create_user(user: user_schema.UserRegister = Body(...)):
     - email: A valid email
     - username: Unique username
     - password: Strong password for authentication
+    - roles: Id of roles separated by comma. Example: 1,2,3
 
     ### Returns
     - user: User info
@@ -78,8 +79,19 @@ async def create_user(user_id: int, user: user_schema.UserRegister = Body(...)):
     - email: A valid email
     - username: Unique username
     - password: Strong password for authentication
+    - roles: Id of roles separated by comma. Example: 1,2,3
 
     ### Returns
     - user: User info
     """
     return await users_service.update_user(user_id, user)
+
+
+@users_router.delete(
+    '/{user_id}',
+    tags=["Cassia - Users"],
+    status_code=status.HTTP_201_CREATED,
+    summary="Delete an user",
+    dependencies=[Depends(auth_service.get_current_user)])
+async def delete_user(user_id: int):
+    return await users_service.delete_user(user_id)

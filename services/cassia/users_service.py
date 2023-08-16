@@ -15,7 +15,7 @@ from utils.traits import success_response
 from fastapi import status, File, UploadFile
 from fastapi.responses import FileResponse
 from schemas import user_schema
-from services.auth_service import get_password_hash
+from services.auth_service import get_password_hash, verify_password
 import secrets
 import string
 import os
@@ -23,6 +23,7 @@ import ntpath
 import shutil
 from fastapi import BackgroundTasks
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
+from schemas import update_user_password
 settings = Settings()
 
 
@@ -35,13 +36,13 @@ def get_users():
     data = pd.DataFrame(users)
     roles = []
     for ind in data.index:
-        roles.append(get_roles(data['user_id'][ind]))
+        roles.append(get_roles_user(data['user_id'][ind]))
     print(roles)
     data['roles'] = roles
     return success_response(data=data.to_dict(orient="records"))
 
 
-def get_roles(user_id):
+def get_roles_user(user_id):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     statement = text(
@@ -351,3 +352,40 @@ async def update_user(user_id, user: user_schema.UserRegister):
         username=actual_user.username,
         mail=actual_user.mail
     ))
+
+
+async def delete_user(user_id):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    actual_user = session.query(User).filter(User.user_id == user_id).first()
+    if not actual_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    roles_actual = session.query(UserHasRole).filter(
+        UserHasRole.user_id == actual_user.user_id
+    ).all()
+    for role_model in roles_actual:
+        session.delete(role_model)
+    actual_user.deleted_at = datetime.now()
+    session.commit()
+    session.refresh(actual_user)
+
+    return success_response(message=f"User deleted successfully")
+
+
+async def update_password(data: update_user_password.UpdateUserPassword, user_id):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    actual_user = session.query(User).filter(User.user_id == user_id).first()
+    if not verify_password(data.old_password, actual_user.password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The old password is incorrectly"
+        )
+    actual_user.password = get_password_hash(data.new_password)
+    actual_user.updated_at = datetime.now()
+    session.commit()
+    session.refresh(actual_user)
+    return success_response(message=f"Password updated correctly")

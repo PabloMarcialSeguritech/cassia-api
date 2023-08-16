@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 import asyncio
 app = FastAPI(
 )
-app.version = '0.8'
+app.version = '1.2'
 origins = ["*"]
 
 app.add_middleware(
