@@ -1,6 +1,7 @@
 from fastapi import FastAPI, WebSocket
 from routers.user_router import auth_router
 from routers.zabbix import zabbix_router
+from routers.cassia import cassia_router
 from middleware.error_handler import ErrorHandler
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -21,7 +22,7 @@ app.add_middleware(
 """ app.add_middleware(ErrorHandler) """
 app.include_router(auth_router)
 app.include_router(zabbix_router)
-
+app.include_router(cassia_router)
 
 html = """
 <!DOCTYPE html>

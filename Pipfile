@@ -22,6 +22,7 @@ aiofiles = "*"
 pythonping = "*"
 websockets = "*"
 paramiko = "*"
+fastapi-mail = "*"
 
 [dev-packages]
 
