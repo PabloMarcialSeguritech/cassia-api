@@ -87,6 +87,15 @@ def generate_token(username, password):
             detail="Incorrect email/username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if not user.verified_at:
+        db_zabbix = DB_Zabbix()
+        session = db_zabbix.Session()
+        user_temp = session.query(UserModel).filter(
+            UserModel.user_id == user.user_id).first()
+        user_temp.verified_at = datetime.now()
+        session.commit()
+        session.refresh(user_temp)
+        user = user_temp
     roles = get_roles(user.user_id)
     print(roles)
     return {
