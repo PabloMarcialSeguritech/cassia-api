@@ -17,4 +17,5 @@ class User(DB_Zabbix.Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now)
     deleted_at = Column(DateTime, default=None, nullable=True)
+    verified_at = Column(DateTime, default=None, nullable=True)
     problem_records: Mapped[List['ProblemRecord']] = relationship()

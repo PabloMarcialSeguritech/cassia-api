@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from pydantic import Field
 from pydantic import EmailStr
+from typing import Optional
 
 
 class UserBase(BaseModel):
@@ -24,9 +25,10 @@ class User(UserBase):
 
 
 class UserRegister(UserBase):
-    password: str = Field(
+    """ password: str = Field(
         ...,
         min_length=8,
         max_length=64,
         example="strongpass"
-    )
+    ) """
+    roles: Optional[str]
