@@ -14,8 +14,11 @@ services:
       - 8000:8000
     expose:
       - 8000
+    networks:
+      - api_network
 networks:
   api_network:
+    driver: host
     external: true
     name: api_backend_qa_network
 # If running behind a proxy like Nginx or Traefik add --proxy-headers
