@@ -15,7 +15,7 @@ services:
     expose:
       - 8000
     networks:
-      - api_network
+      - api_backend_qa_network
 networks:
   api_network:
     driver: host
