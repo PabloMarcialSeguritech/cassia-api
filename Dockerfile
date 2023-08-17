@@ -16,6 +16,5 @@ COPY . /code/
 #It will expose the FastAPI application on port `8000` inside the container
 EXPOSE 8000
 
-
 #It is the command that will start and run the FastAPI application container
 CMD ["python", "main.py"]
