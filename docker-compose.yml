@@ -6,6 +6,7 @@ services:
   backend:
     container_name: cassia-api-backend-qa
     image: cassia-api-backend-qa
+    network_mode: "host"
     build: .
     command: python main.py
     volumes:
@@ -14,12 +15,6 @@ services:
       - 8000:8000
     expose:
       - 8000
-    networks:
-      - api_backend_qa_network
-networks:
-  api_network:
-    driver: host
-    external: true
-    name: api_backend_qa_network
+
 # If running behind a proxy like Nginx or Traefik add --proxy-headers
 # CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--proxy-headers"]
