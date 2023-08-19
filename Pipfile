@@ -23,6 +23,7 @@ pythonping = "*"
 websockets = "*"
 paramiko = "*"
 fastapi-mail = "*"
+httpx = "*"
 
 [dev-packages]
 
