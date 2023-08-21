@@ -386,6 +386,8 @@ async def update_password(data: update_user_password.UpdateUserPassword, user_id
         )
     actual_user.password = get_password_hash(data.new_password)
     actual_user.updated_at = datetime.now()
+    if not actual_user.verified_at:
+        actual_user.verified_at = datetime.now()
     session.commit()
     session.refresh(actual_user)
     return success_response(message=f"Password updated correctly")
