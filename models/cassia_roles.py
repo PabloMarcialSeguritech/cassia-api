@@ -1,7 +1,9 @@
 from utils.db import DB_Zabbix
 from sqlalchemy import Column, String, Integer, DateTime
 from datetime import datetime
-
+from sqlalchemy.orm import relationship
+from models.cassia_permissions import CassiaPermission
+from models.role_has_permissions import RoleHasPermission
 
 class CassiaRole(DB_Zabbix.Base):
     __tablename__ = "cassia_roles"
@@ -11,3 +13,5 @@ class CassiaRole(DB_Zabbix.Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now)
     deleted_at = Column(DateTime, default=None, nullable=True)
+
+    permissions = relationship('CassiaPermission', secondary="role_has_permissions", lazy="subquery")

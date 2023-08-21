@@ -12,6 +12,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from services import auth_service
 from schemas import update_user_password
 import services.cassia.users_service as users_service
+import services.cat_service as cat_service
 
 auth_router = APIRouter(prefix="/api/v1")
 
@@ -119,3 +120,13 @@ return user_service.get_users() """
     dependencies=[Depends(auth_service.get_current_user)])
 async def delete_user(data: update_user_password.UpdateUserPassword = Body(...), current_user: UserModel = Depends(auth_service.get_current_user)):
     return await users_service.update_password(data, current_user.user_id)
+
+@auth_router.get(
+    "/cat/roles",
+    tags=["Catalogs"],
+    status_code=status.HTTP_200_OK,
+    summary="Get all roles and permissions",
+    dependencies=[Depends(auth_service.get_current_user)]
+)
+def get_roles():
+    return cat_service.get_roles()
