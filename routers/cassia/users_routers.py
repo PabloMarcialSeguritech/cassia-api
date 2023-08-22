@@ -55,8 +55,7 @@ async def create_user(user: user_schema.UserRegister = Body(...)):
     ### Args
     The app can recive next fields into a JSON
     - email: A valid email
-    - username: Unique username
-    - password: Strong password for authentication
+    - name: The name of the user
     - roles: Id of roles separated by comma. Example: 1,2,3
 
     ### Returns
@@ -77,8 +76,7 @@ async def create_user(user_id: int, user: user_schema.UserRegister = Body(...)):
     ### Args
     The app can recive next fields into a JSON
     - email: A valid email
-    - username: Unique username
-    - password: Strong password for authentication
+    - name: The name of the user
     - roles: Id of roles separated by comma. Example: 1,2,3
 
     ### Returns

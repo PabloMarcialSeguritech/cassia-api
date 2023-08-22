@@ -19,7 +19,7 @@ def create_user(user: user_schema.UserRegister):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     get_user = session.query(UserModel).filter(
-        or_(UserModel.mail == user.mail, UserModel.username == user.username)
+        or_(UserModel.mail == user.mail)
     ).first()
     # get_user = UserModel.filter((UserModel.email == user.email) | (
     #    UserModel.username == user.username)).first()
