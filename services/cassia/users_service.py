@@ -31,7 +31,7 @@ def get_users():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     statement = text(
-        "SELECT user_id, mail, username FROM cassia_users where deleted_at IS NULL")
+        "SELECT user_id, mail, name FROM cassia_users where deleted_at IS NULL")
     users = session.execute(statement)
     data = pd.DataFrame(users)
     roles = []
@@ -93,7 +93,7 @@ def get_user(user_id):
     data = {
         "user_id": user.user_id,
         "mail": user.mail,
-        "username": user.username,
+        "name": user.name,
         "created_at": user.created_at,
         "updated_": user.updated_at,
         "deleted_at": user.deleted_at,
@@ -154,14 +154,12 @@ async def create_user(user: user_schema.UserRegister):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     get_user = session.query(User).filter(
-        or_(User.mail == user.mail, User.username == user.username)
+        or_(User.mail == user.mail)
     ).first()
     # get_user = UserModel.filter((UserModel.email == user.email) | (
     #    UserModel.username == user.username)).first()
-    if get_user:
+    if get_user and not get_user.deleted_at:
         msg = "Email already registered"
-        if get_user.username == user.username:
-            msg = "Username already registered"
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=msg
@@ -190,14 +188,30 @@ async def create_user(user: user_schema.UserRegister):
         )
     password = create_password(8)
     print(password)
-    db_user = User(
-        username=user.username,
-        mail=user.mail,
-        password=get_password_hash(password),
-    )
-    session.add(db_user)
-    session.commit()
-    session.refresh(db_user)
+    if get_user and get_user.deleted_at:
+        get_user.mail = user.mail
+        get_user.name = user.name
+        get_user.deleted_at = None
+        get_user.password = get_password_hash(password)
+        session.commit()
+        session.refresh(get_user)
+        roles_actual = session.query(UserHasRole).filter(
+            UserHasRole.user_id == get_user.user_id
+        ).all()
+        for role_model in roles_actual:
+            session.delete(role_model)
+        session.commit()
+        db_user = get_user
+    else:
+        db_user = User(
+            name=user.name,
+            mail=user.mail,
+            password=get_password_hash(password),
+        )
+        session.add(db_user)
+        session.commit()
+        session.refresh(db_user)
+
     for role in roles:
         role_user = UserHasRole(
             user_id=db_user.user_id,
@@ -215,7 +229,7 @@ async def create_user(user: user_schema.UserRegister):
     else:
         url = "http://172.18.200.14:8001/"
     body = {
-        "username": db_user.username,
+        "name": db_user.name,
         "password": password,
         "url": url
     }
@@ -226,7 +240,7 @@ async def create_user(user: user_schema.UserRegister):
 
     return success_response(message=f"User created", data=user_schema.User(
         user_id=db_user.user_id,
-        username=db_user.username,
+        name=db_user.name,
         mail=db_user.mail
     ))
 
@@ -274,39 +288,39 @@ async def update_user(user_id, user: user_schema.UserRegister):
             detail="User not found"
         )
     get_user = session.query(User).filter(
-        or_(User.mail == user.mail, User.username == user.username)
+        or_(User.mail == user.mail)
     ).first()
     if get_user and not actual_user.user_id == get_user.user_id:
         msg = "Email already registered"
-        if get_user.username == user.username:
-            msg = "Username already registered"
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=msg
         )
-    try:
-        roles = [int(role) for role in user.roles.split(",")]
-        roles = set(roles)
-    except:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="The role_ids values are not a valid numbers"
-        )
-    statement = text(
-        f"SELECT rol_id from cassia_roles where deleted_at IS NULL")
-    roles_ids = session.execute(statement)
-    roles_ids = pd.DataFrame(roles_ids)
-    invalid_roles = []
-    for role in roles:
-        if role not in roles_ids.values:
-            invalid_roles.append(role)
-    if len(invalid_roles):
-        invalid_roles = ','.join(str(e) for e in invalid_roles)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"The next role_ids values are not a valid role_id: {invalid_roles} "
-        )
-    actual_user.username = user.username
+    if user.roles:
+        try:
+            roles = [int(role) for role in user.roles.split(",")]
+            roles = set(roles)
+        except:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The role_ids values are not a valid numbers"
+            )
+        statement = text(
+            f"SELECT rol_id from cassia_roles where deleted_at IS NULL")
+        roles_ids = session.execute(statement)
+        roles_ids = pd.DataFrame(roles_ids)
+        invalid_roles = []
+        for role in roles:
+            if role not in roles_ids.values:
+                invalid_roles.append(role)
+        if len(invalid_roles):
+            invalid_roles = ','.join(str(e) for e in invalid_roles)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"The next role_ids values are not a valid role_id: {invalid_roles} "
+            )
+
+    actual_user.name = user.name
     mail_nuevo = False
     if actual_user.mail != user.mail:
         actual_user.mail = user.mail
@@ -331,25 +345,26 @@ async def update_user(user_id, user: user_schema.UserRegister):
     roles_actual = session.query(UserHasRole).filter(
         UserHasRole.user_id == actual_user.user_id
     ).all()
-    for role_model in roles_actual:
-        session.delete(role_model)
-    for role in roles:
-        role_user = UserHasRole(
-            user_id=actual_user.user_id,
-            role_id=role,
-            created_at=datetime.now(),
-            updated_at=datetime.now()
-        )
-        session.add(role_user)
-        session.commit()
-        session.refresh(role_user)
+    if user.roles:
+        for role_model in roles_actual:
+            session.delete(role_model)
+        for role in roles:
+            role_user = UserHasRole(
+                user_id=actual_user.user_id,
+                role_id=role,
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            session.add(role_user)
+            session.commit()
+            session.refresh(role_user)
     if mail_nuevo:
         await send_email(email_to=actual_user.mail, body=body)
     # db_user.save()
 
     return success_response(message=f"User updated successfully", data=user_schema.User(
         user_id=actual_user.user_id,
-        username=actual_user.username,
+        name=actual_user.name,
         mail=actual_user.mail
     ))
 
