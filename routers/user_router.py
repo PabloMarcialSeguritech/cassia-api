@@ -61,7 +61,8 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         "refresh_token": access_token["refresh_token"],
         "token_type": "bearer",
         "roles": access_token["roles"],
-        "permissions": access_token["permissions"]
+        "permissions": access_token["permissions"],
+        "verified_at": access_token['verified_at']
     }
     return success_response(data=response)
 
@@ -120,6 +121,7 @@ return user_service.get_users() """
     dependencies=[Depends(auth_service.get_current_user)])
 async def delete_user(data: update_user_password.UpdateUserPassword = Body(...), current_user: UserModel = Depends(auth_service.get_current_user)):
     return await users_service.update_password(data, current_user.user_id)
+
 
 @auth_router.get(
     "/cat/roles",
