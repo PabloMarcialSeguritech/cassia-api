@@ -56,7 +56,7 @@ def get_users():
     # db = DB_Auth.Session()
     """ users = db.query(UserModel).options(
         load_only(UserModel.id, UserModel.email, UserModel.username)).all() """
-    statement = text("SELECT id, mail, username FROM users")
+    statement = text("SELECT id, mail, name FROM users")
     users = session.execute(statement)
     # us = []
     # for user in users:

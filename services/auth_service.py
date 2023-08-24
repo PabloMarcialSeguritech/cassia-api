@@ -44,7 +44,7 @@ def get_user(username: str):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     user = session.query(UserModel).filter(
-        or_(UserModel.mail == username, UserModel.username == username)).first()
+        or_(UserModel.mail == username, UserModel.name == username)).first()
     return user
 
 
@@ -91,10 +91,10 @@ def generate_token(username, password):
     print(roles)
     return {
         'access_token': create_access_token(
-            data={"sub": user.username}
+            data={"sub": user.mail}
         ),
         'refresh_token': create_refresh_token(
-            data={"sub": user.username}
+            data={"sub": user.mail}
         ),
         "roles": roles["roles"],
         "permissions": roles["permissions"]

@@ -8,7 +8,7 @@ class UserBase(BaseModel):
         ...,
         example="email@securitech.com"
     )
-    username: str = Field(
+    name: str = Field(
         ...,
         min_length=3,
         max_length=50,
