@@ -23,12 +23,12 @@ def get_users():
 
 @users_router.get(
     '/roles',
-    tags=["Cassia - Users"],
+    tags=["Cassia - Roles"],
     status_code=status.HTTP_200_OK,
     summary="Get all cassia roles",
     dependencies=[Depends(auth_service.get_current_user)]
 )
-def get_users():
+def get_roles():
     return users_service.get_roles()
 
 
@@ -39,7 +39,7 @@ def get_users():
     summary="Get user by id",
     dependencies=[Depends(auth_service.get_current_user)]
 )
-def get_users(user_id: int):
+def get_user(user_id: int):
     return users_service.get_user(user_id)
 
 
@@ -69,7 +69,7 @@ async def create_user(user: user_schema.UserRegister = Body(...)):
                   status_code=status.HTTP_201_CREATED,
                   summary="Update an user",
                   dependencies=[Depends(auth_service.get_current_user)])
-async def create_user(user_id: int, user: user_schema.UserRegister = Body(...)):
+async def update_user(user_id: int, user: user_schema.UserRegister = Body(...)):
     """
     ## Create a new user in the app
 
