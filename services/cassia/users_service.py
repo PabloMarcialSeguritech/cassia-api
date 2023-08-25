@@ -154,7 +154,8 @@ async def create_user(user: user_schema.UserRegister):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     get_user = session.query(User).filter(
-        or_(User.mail == user.mail)
+        User.mail == user.mail,
+        User.deleted_at == None
     ).first()
     # get_user = UserModel.filter((UserModel.email == user.email) | (
     #    UserModel.username == user.username)).first()
@@ -281,7 +282,8 @@ async def send_email(email_to: str, body: dict):
 async def update_user(user_id, user: user_schema.UserRegister):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-    actual_user = session.query(User).filter(User.user_id == user_id).first()
+    actual_user = session.query(User).filter(
+        User.user_id == user_id, User.deleted_at == None).first()
     if not actual_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
