@@ -22,8 +22,13 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     # print(problems)
     data = pd.DataFrame(hosts)
     data = data.replace(np.nan, "")
-    hostids = data["hostid"].values.tolist()
-    hostids = tuple(hostids)
+    if len(data["hostid"]) > 1:
+        hostids = tuple(data['hostid'].values.tolist())
+    else:
+        if len(data["hostid"]) == 1:
+            hostids = f"({data['hostid'][0]})"
+        else:
+            hostids = "(0)"
     statement2 = text(
         f"""
         SELECT hc.correlarionid,
