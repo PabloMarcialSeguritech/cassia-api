@@ -21,19 +21,20 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     if dispId == "11":
         statement1 = text(
             f"call sp_hostView('{municipalityId}','{dispId},2','{subtype_host_filter}')")
+        print("entraaa")
     hosts = db_zabbix.Session().execute(statement1)
+
     # print(problems)
     data = pd.DataFrame(hosts)
     data = data.replace(np.nan, "")
     if len(data["hostid"]) > 1:
         hostids = tuple(data['hostid'].values.tolist())
-        print(hostids)
+
     else:
         if len(data["hostid"]) == 1:
             hostids = f"({data['hostid'][0]})"
         else:
             hostids = "(0)"
-    print(hostids)
     statement2 = text(
         f"""
         SELECT hc.correlarionid,
@@ -48,7 +49,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         and
         (
         hc.hostidP in {hostids}
-        and hc.hostidC in {hostids})
+        or hc.hostidC in {hostids})
         """
     )
     corelations = db_zabbix.Session().execute(statement2)
