@@ -12,23 +12,28 @@ settings = Settings()
 def get_host_filter(municipalityId, dispId, subtype_id):
     db_zabbix = DB_Zabbix()
     """ Agregar el subtype cuando funcione """
-
+    if subtype_id == "376276" or subtype_id == "375090":
+        subtype_host_filter = '376276,375090'
+    else:
+        subtype_host_filter = subtype_id
     statement1 = text(
-        f"call sp_hostView('{municipalityId}','{dispId}','{subtype_id}')")
+        f"call sp_hostView('{municipalityId}','{dispId}','{subtype_host_filter}')")
     if dispId == "11":
         statement1 = text(
-            f"call sp_hostView('{municipalityId}','{dispId},2','{subtype_id}')")
+            f"call sp_hostView('{municipalityId}','{dispId},2','{subtype_host_filter}')")
     hosts = db_zabbix.Session().execute(statement1)
     # print(problems)
     data = pd.DataFrame(hosts)
     data = data.replace(np.nan, "")
     if len(data["hostid"]) > 1:
         hostids = tuple(data['hostid'].values.tolist())
+        print(hostids)
     else:
         if len(data["hostid"]) == 1:
             hostids = f"({data['hostid'][0]})"
         else:
             hostids = "(0)"
+    print(hostids)
     statement2 = text(
         f"""
         SELECT hc.correlarionid,
