@@ -20,8 +20,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         f"call sp_hostView('{municipalityId}','{dispId}','{subtype_host_filter}')")
     if dispId == "11":
         statement1 = text(
-            f"call sp_hostView('{municipalityId}','{dispId},2','{subtype_host_filter}')")
-        print("entraaa")
+            f"call sp_hostView('{municipalityId}','{dispId},2','')")
     hosts = db_zabbix.Session().execute(statement1)
 
     # print(problems)
@@ -49,7 +48,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         and
         (
         hc.hostidP in {hostids}
-        or hc.hostidC in {hostids})
+        and hc.hostidC in {hostids})
         """
     )
     corelations = db_zabbix.Session().execute(statement2)
