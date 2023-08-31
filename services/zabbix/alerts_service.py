@@ -22,12 +22,20 @@ import shutil
 settings = Settings()
 
 
-def get_problems_filter(municipalityId, tech_host_type, subtype):
+def get_problems_filter(municipalityId, tech_host_type=0, subtype=""):
     db_zabbix = DB_Zabbix()
+    if subtype == "376276" or subtype == "375090":
+        subtype = '376276,375090'
+    if tech_host_type == "11":
+        tech_host_type = "11,2"
+    if subtype != "" and tech_host_type == "":
+        tech_host_type = "0"
     statement = text(
         f"call sp_viewProblem('{municipalityId}','{tech_host_type}','{subtype}')")
+    print(statement)
     problems = db_zabbix.Session().execute(statement)
     data = pd.DataFrame(problems).replace(np.nan, "")
+    print(data.shape[0])
     """ statement = text(
         "SELECT problemid,estatus FROM problem_records where estatus!='Cerrado'")
     problem_records = db_zabbix.Session().execute(statement)
