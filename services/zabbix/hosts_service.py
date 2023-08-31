@@ -11,11 +11,14 @@ settings = Settings()
 
 def get_host_filter(municipalityId, dispId, subtype_id):
     db_zabbix = DB_Zabbix()
-    """ Agregar el subtype cuando funcione """
     if subtype_id == "376276" or subtype_id == "375090":
         subtype_host_filter = '376276,375090'
     else:
         subtype_host_filter = subtype_id
+    if dispId == "11":
+        dispId_filter = "11,2"
+    else:
+        dispId_filter = dispId
     statement1 = text(
         f"call sp_hostView('{municipalityId}','{dispId}','{subtype_host_filter}')")
     if dispId == "11":
@@ -53,11 +56,11 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     )
     corelations = db_zabbix.Session().execute(statement2)
     statement3 = text(
-        f"CALL sp_problembySev('{municipalityId}','{dispId}','{subtype_id}')")
+        f"CALL sp_problembySev('{municipalityId}','{dispId_filter}','{subtype_host_filter}')")
     problems_by_sev = db_zabbix.Session().execute(statement3)
     data3 = pd.DataFrame(problems_by_sev).replace(np.nan, "")
     statement4 = text(
-        f"call sp_hostAvailPingLoss('{municipalityId}','{dispId}','{subtype_id}')")
+        f"call sp_hostAvailPingLoss('{municipalityId}','{dispId_filter}','')")
     hostAvailables = db_zabbix.Session().execute(statement4)
     data4 = pd.DataFrame(hostAvailables).replace(np.nan, "")
     db_zabbix.Session().close()
@@ -65,7 +68,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     data2 = data2.replace(np.nan, "")
     # aditional data
     subgroup_data = []
-    statement5 = ""
+    """ statement5 = ""
     statement5 = text(
         f"CALL sp_viewAlignment('{municipalityId}','11','376276,375090')")
     subgroup_data = db_zabbix.Session().execute(statement5)
@@ -77,7 +80,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     nuevo = data2
     if not data2.empty:
         nuevo = data2.merge(alineaciones, left_on="hostidC",
-                            right_on="hostid", how="left").replace(np.nan, 0)
+                            right_on="hostid", how="left").replace(np.nan, 0) """
     statement6 = ""
     match subtype_id:
         case "376276":
@@ -90,7 +93,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         subgroup_data = db_zabbix.Session().execute(statement6)
     data6 = pd.DataFrame(subgroup_data).replace(np.nan, "")
     response = {"hosts": data.to_dict(
-        orient="records"), "relations": nuevo.to_dict(orient="records"),
+        orient="records"), "relations": data2.to_dict(orient="records"),
         "problems_by_severity": data3.to_dict(orient="records"),
         "host_availables": data4.to_dict(orient="records",),
         "subgroup_info": data6.to_dict(orient="records")
