@@ -62,7 +62,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     problems_by_sev = session.execute(statement3)
     data3 = pd.DataFrame(problems_by_sev).replace(np.nan, "")
     statement4 = text(
-        f"call sp_hostAvailPingLoss('{municipalityId}','{dispId_filter}','')")
+        f"call sp_hostAvailPingLoss('{municipalityId}','{dispId}','')")
     hostAvailables = session.execute(statement4)
     data4 = pd.DataFrame(hostAvailables).replace(np.nan, "")
     data2 = pd.DataFrame(corelations)
@@ -93,7 +93,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     if statement6 != "":
         subgroup_data = session.execute(statement6)
     data6 = pd.DataFrame(subgroup_data).replace(np.nan, "")
-
+    print(data6.shape[0])
     global_host_available = text(
         f"call sp_hostAvailPingLoss('0','{dispId}','')")
     global_host_available = pd.DataFrame(
