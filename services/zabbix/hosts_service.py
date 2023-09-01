@@ -11,6 +11,7 @@ settings = Settings()
 
 def get_host_filter(municipalityId, dispId, subtype_id):
     db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
     if subtype_id == "376276" or subtype_id == "375090":
         subtype_host_filter = '376276,375090'
     else:
@@ -24,19 +25,22 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     if dispId == "11":
         statement1 = text(
             f"call sp_hostView('{municipalityId}','{dispId},2','')")
-    hosts = db_zabbix.Session().execute(statement1)
+    hosts = session.execute(statement1)
 
     # print(problems)
     data = pd.DataFrame(hosts)
     data = data.replace(np.nan, "")
-    if len(data["hostid"]) > 1:
+    print(len(data))
+    print(data.shape[0])
+    if len(data) > 1:
         hostids = tuple(data['hostid'].values.tolist())
-
     else:
-        if len(data["hostid"]) == 1:
+        if len(data) == 1:
             hostids = f"({data['hostid'][0]})"
         else:
             hostids = "(0)"
+    print(data.head())
+    print(hostids)
     statement2 = text(
         f"""
         SELECT hc.correlarionid,
@@ -54,16 +58,15 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         and hc.hostidC in {hostids})
         """
     )
-    corelations = db_zabbix.Session().execute(statement2)
+    corelations = session.execute(statement2)
     statement3 = text(
         f"CALL sp_problembySev('{municipalityId}','{dispId_filter}','{subtype_host_filter}')")
-    problems_by_sev = db_zabbix.Session().execute(statement3)
+    problems_by_sev = session.execute(statement3)
     data3 = pd.DataFrame(problems_by_sev).replace(np.nan, "")
     statement4 = text(
         f"call sp_hostAvailPingLoss('{municipalityId}','{dispId_filter}','')")
-    hostAvailables = db_zabbix.Session().execute(statement4)
+    hostAvailables = session.execute(statement4)
     data4 = pd.DataFrame(hostAvailables).replace(np.nan, "")
-    db_zabbix.Session().close()
     data2 = pd.DataFrame(corelations)
     data2 = data2.replace(np.nan, "")
     # aditional data
@@ -90,13 +93,20 @@ def get_host_filter(municipalityId, dispId, subtype_id):
             statement6 = text(
                 f"CALL sp_viewAlignment('{municipalityId}','{dispId}','376276,375090')")
     if statement6 != "":
-        subgroup_data = db_zabbix.Session().execute(statement6)
+        subgroup_data = session.execute(statement6)
     data6 = pd.DataFrame(subgroup_data).replace(np.nan, "")
+
+    global_host_available = text(
+        f"call sp_hostAvailPingLoss('0','{dispId}','')")
+    global_host_available = pd.DataFrame(
+        session.execute(global_host_available))
+
     response = {"hosts": data.to_dict(
         orient="records"), "relations": data2.to_dict(orient="records"),
         "problems_by_severity": data3.to_dict(orient="records"),
         "host_availables": data4.to_dict(orient="records",),
-        "subgroup_info": data6.to_dict(orient="records")
+        "subgroup_info": data6.to_dict(orient="records"),
+        "global_host_availables": global_host_available.to_dict(orient="records")
     }
     # print(response)
     return success_response(data=response)
