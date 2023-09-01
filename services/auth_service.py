@@ -45,6 +45,7 @@ def get_user(username: str):
     session = db_zabbix.Session()
     user = session.query(UserModel).filter(
         or_(UserModel.mail == username)).first()
+    session.close()
     return user
 
 
@@ -65,7 +66,11 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    token = {
+        "token": encoded_jwt,
+        "expires": expire
+    }
+    return token
 
 
 def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -76,7 +81,11 @@ def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None):
         expire = datetime.utcnow() + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    token = {
+        "token": encoded_jwt,
+        "expires": expire
+    }
+    return token
 
 
 def generate_token(username, password):
@@ -98,13 +107,19 @@ def generate_token(username, password):
         user = user_temp """
     roles = get_roles(user.user_id)
     """ print(roles) """
+    access_token = create_access_token(
+        data={"sub": user.mail}
+    )
+    refresh_token = create_refresh_token(
+        data={"sub": user.mail}
+    )
+    print(datetime.utcnow())
+    print()
     return {
-        'access_token': create_access_token(
-            data={"sub": user.mail}
-        ),
-        'refresh_token': create_refresh_token(
-            data={"sub": user.mail}
-        ),
+        'access_token': access_token["token"],
+        'access_token_expires': access_token["expires"],
+        'refresh_token': refresh_token["token"],
+        'refresh_token_expires': refresh_token["expires"],
         "roles": roles["roles"],
         "permissions": roles["permissions"],
         "verified_at": user.verified_at
@@ -146,12 +161,16 @@ def get_roles(user_id):
                     f"select permission_id,module_name, name from cassia_permissions where permission_id in{permission_ids}")
                 permissions = session.execute(statement)
                 permissions = pd.DataFrame(permissions).replace(np.nan, "")
+                session.close()
                 return {"roles": roles.to_dict(orient="records"), "permissions": permissions.to_dict(orient="records")}
             else:
+                session.close()
                 return {"roles": roles.to_dict(orient="records"), "permissions": []}
         else:
+            session.close()
             return {"roles": roles.to_dict(orient="records"), "permissions": []}
     else:
+        session.close()
         return {"roles": [], "permissions": []}
 
 # Get the current user decodign the JWT

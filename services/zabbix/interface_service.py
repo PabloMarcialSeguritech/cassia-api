@@ -10,9 +10,10 @@ settings = Settings()
 def create_ping(hostid):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-    interface = session.query(InterfaceModel).filter(InterfaceModel.hostid == hostid).first()
+    interface = session.query(InterfaceModel).filter(
+        InterfaceModel.hostid == hostid).first()
     if interface is None:
-        return success_response(message= "Host no encontrado")
+        return success_response(message="Host no encontrado")
     else:
         result = ping(interface.ip, count=1)
         data = {
@@ -22,5 +23,5 @@ def create_ping(hostid):
         }
         if result.success():
             data['online'] = 'true'
-
+    session.close()
     return success_response(data=data)

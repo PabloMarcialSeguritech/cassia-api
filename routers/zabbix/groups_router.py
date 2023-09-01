@@ -30,6 +30,17 @@ def get_devices():
 
 
 @groups_router.get(
+    '/groups/devices/{municipalityId}',
+    tags=["Zabbix - Groups"],
+    status_code=status.HTTP_200_OK,
+    summary="Get all device types and technologies by municipality",
+    dependencies=[Depends(auth_service.get_current_user)]
+)
+async def get_devices(municipalityId=0):
+    return await group_service.get_devices_by_municipality(municipalityId)
+
+
+@groups_router.get(
     '/groups/subtypes',
     tags=["Zabbix - Groups"],
     status_code=status.HTTP_200_OK,
