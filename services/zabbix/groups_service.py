@@ -15,6 +15,8 @@ def get_municipios():
     statement = text("call sp_catCity()")
     municipios = session.execute(statement)
     data = pd.DataFrame(municipios).replace(np.nan, "")
+    if len(data) > 0:
+        data["id"] = data["groupid"]
     session.close()
     return success_response(data=data.to_dict(orient="records"))
 
@@ -25,6 +27,8 @@ def get_devices():
     statement = text("call sp_catDevice('0')")
     devices = session.execute(statement)
     data = pd.DataFrame(devices).replace(np.nan, "")
+    if len(data) > 0:
+        data["id"] = data["dispId"]
     session.close()
     return success_response(data=data.to_dict(orient="records"))
 
@@ -35,6 +39,8 @@ async def get_devices_by_municipality(municipalityId):
     statement = text(f"call sp_catDevice('{municipalityId}')")
     devices = db_zabbix.Session().execute(statement)
     data = pd.DataFrame(devices).replace(np.nan, "")
+    if len(data) > 0:
+        data["id"] = data["dispId"]
     session.close()
     return success_response(data=data.to_dict(orient="records"))
 
@@ -45,5 +51,7 @@ def get_subtypes():
     statement = text("call sp_catSubtype()")
     subtypes = db_zabbix.Session().execute(statement)
     data = pd.DataFrame(subtypes).replace(np.nan, "")
+    if len(data) > 0:
+        data["id"] = data["templateId"]
     session.close()
     return success_response(data=data.to_dict(orient="records"))
