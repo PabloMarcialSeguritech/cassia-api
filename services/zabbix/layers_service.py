@@ -11,10 +11,11 @@ settings = Settings()
 
 def get_aps_layer(municipality_id):
     db_zabbix = DB_Zabbix()
-    statement = text(f"call sp_hostView('{municipality_id}','2','')")
     session = db_zabbix.Session()
+    statement = text(f"call sp_hostView('{municipality_id}','2','')")
     aps = session.execute(statement)
     data = pd.DataFrame(aps).replace(np.nan, "")
+    session.close()
     response = {"aps": data.to_dict(
         orient="records")
     }
@@ -31,4 +32,5 @@ def get_downs_layer(municipality_id, dispId, subtype_id):
     response = {"downs": data.to_dict(
         orient="records")
     }
+    session.close()
     return success_response(data=response)

@@ -37,8 +37,8 @@ def get_users():
     roles = []
     for ind in data.index:
         roles.append(get_roles_user(data['user_id'][ind]))
-    print(roles)
     data['roles'] = roles
+    session.close()
     return success_response(data=data.to_dict(orient="records"))
 
 
@@ -58,8 +58,10 @@ def get_roles_user(user_id):
             f"select rol_id,name from cassia_roles where rol_id in{rol_ids} and deleted_at IS NULL")
         roles = session.execute(statement)
         roles = pd.DataFrame(roles).replace(np.nan, "")
+        session.close()
         return roles.to_dict(orient="records")
     else:
+        session.close()
         return []
 
 
@@ -75,6 +77,7 @@ def get_roles():
         for ind in roles.index:
             permissions.append(get_permissions(roles['rol_id'][ind]))
         roles['permissions'] = permissions
+    session.close()
     return success_response(data=roles.to_dict(orient="records"))
 
 
@@ -85,6 +88,7 @@ def get_user(user_id):
         User.user_id == user_id, User.deleted_at == None
     ).first()
     if user is None:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
@@ -99,6 +103,7 @@ def get_user(user_id):
         "deleted_at": user.deleted_at,
         "roles": data_roles
     }
+    session.close()
     return success_response(data=data)
 
 
@@ -124,10 +129,13 @@ def get_roles_permissions(user_id):
             for ind in roles.index:
                 permissions.append(get_permissions(roles['rol_id'][ind]))
             roles['permissions'] = permissions
+            session.close()
             return roles.to_dict(orient="records")
         else:
+            session.close()
             return []
     else:
+        session.close()
         return []
 
 
@@ -147,6 +155,7 @@ def get_permissions(role_id):
         f"select permission_id,module_name, name from cassia_permissions where permission_id in{permission_ids}")
     permissions = session.execute(statement)
     permissions = pd.DataFrame(permissions).replace(np.nan, "")
+    session.close()
     return permissions.to_dict(orient="records")
 
 
@@ -161,6 +170,7 @@ async def create_user(user: user_schema.UserRegister):
     #    UserModel.username == user.username)).first()
     if get_user and not get_user.deleted_at:
         msg = "Email already registered"
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=msg
@@ -169,6 +179,7 @@ async def create_user(user: user_schema.UserRegister):
         roles = [int(role) for role in user.roles.split(",")]
         roles = set(roles)
     except:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="The role_ids values are not a valid numbers"
@@ -183,12 +194,12 @@ async def create_user(user: user_schema.UserRegister):
             invalid_roles.append(role)
     if len(invalid_roles):
         invalid_roles = ','.join(str(e) for e in invalid_roles)
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"The next role_ids values are not a valid role_id: {invalid_roles} "
         )
     password = create_password(8)
-    print(password)
     if get_user and get_user.deleted_at:
         get_user.mail = user.mail
         get_user.name = user.name
@@ -236,6 +247,7 @@ async def create_user(user: user_schema.UserRegister):
     }
     print(password)
     print(body, type(body))
+    session.close()
     await send_email(email_to=db_user.mail, body=body)
     # db_user.save()
 
@@ -285,6 +297,7 @@ async def update_user(user_id, user: user_schema.UserRegister):
     actual_user = session.query(User).filter(
         User.user_id == user_id, User.deleted_at == None).first()
     if not actual_user:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
@@ -294,6 +307,7 @@ async def update_user(user_id, user: user_schema.UserRegister):
     ).first()
     if get_user and not actual_user.user_id == get_user.user_id:
         msg = "Email already registered"
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=msg
@@ -303,6 +317,7 @@ async def update_user(user_id, user: user_schema.UserRegister):
             roles = [int(role) for role in user.roles.split(",")]
             roles = set(roles)
         except:
+            session.close()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="The role_ids values are not a valid numbers"
@@ -317,6 +332,7 @@ async def update_user(user_id, user: user_schema.UserRegister):
                 invalid_roles.append(role)
         if len(invalid_roles):
             invalid_roles = ','.join(str(e) for e in invalid_roles)
+            session.close()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"The next role_ids values are not a valid role_id: {invalid_roles} "
@@ -363,7 +379,7 @@ async def update_user(user_id, user: user_schema.UserRegister):
     if mail_nuevo:
         await send_email(email_to=actual_user.mail, body=body)
     # db_user.save()
-
+    session.close()
     return success_response(message=f"User updated successfully", data=user_schema.User(
         user_id=actual_user.user_id,
         name=actual_user.name,
@@ -376,6 +392,7 @@ async def delete_user(user_id):
     session = db_zabbix.Session()
     actual_user = session.query(User).filter(User.user_id == user_id).first()
     if not actual_user:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
@@ -388,7 +405,7 @@ async def delete_user(user_id):
     actual_user.deleted_at = datetime.now()
     session.commit()
     session.refresh(actual_user)
-
+    session.close()
     return success_response(message=f"User deleted successfully")
 
 
@@ -397,6 +414,7 @@ async def update_password(data: update_user_password.UpdateUserPassword, user_id
     session = db_zabbix.Session()
     actual_user = session.query(User).filter(User.user_id == user_id).first()
     if not verify_password(data.old_password, actual_user.password):
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="The old password is incorrectly"
@@ -407,4 +425,5 @@ async def update_password(data: update_user_password.UpdateUserPassword, user_id
         actual_user.verified_at = datetime.now()
     session.commit()
     session.refresh(actual_user)
+    session.close()
     return success_response(message=f"Password updated correctly")

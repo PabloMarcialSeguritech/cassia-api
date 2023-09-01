@@ -24,6 +24,7 @@ settings = Settings()
 
 def get_problems_filter(municipalityId, tech_host_type=0, subtype=""):
     db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
     if subtype == "376276" or subtype == "375090":
         subtype = '376276,375090'
     if tech_host_type == "11":
@@ -33,7 +34,7 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype=""):
     statement = text(
         f"call sp_viewProblem('{municipalityId}','{tech_host_type}','{subtype}')")
 
-    problems = db_zabbix.Session().execute(statement)
+    problems = session.execute(statement)
     data = pd.DataFrame(problems).replace(np.nan, "")
 
     """ statement = text(
@@ -64,6 +65,7 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype=""):
                                      == data['eventid'][ind]]
         data['estatus'][ind] = record.iloc[0]['estatus']
  """
+    session.close()
     return success_response(data=data.to_dict(orient="records"))
 
 
@@ -114,11 +116,13 @@ def update_exception_agency(exception_agency_id: int, exception_agency: exceptio
     exception_agency_search = session.query(ExceptionAgency).filter(
         ExceptionAgency.exception_agency_id == exception_agency_id).first()
     if not exception_agency_search:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exception Agency Not Found"
         )
     if exception_agency_search.name == exception_agency.name:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Update at least one field"
@@ -139,6 +143,7 @@ def delete_exception_agency(exception_agency_id: int):
     exception_agency_search = session.query(ExceptionAgency).filter(
         ExceptionAgency.exception_agency_id == exception_agency_id).first()
     if not exception_agency_search:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exception Agency Not Found"
@@ -173,11 +178,13 @@ def create_exception(exception: exception_schema.ExceptionsBase, current_user_id
     problem_record = session.query(ProblemRecord).filter(
         ProblemRecord.problemid == exception.problemid and exception.deleted_at is None).first()
     if not problem_record:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Problem Record not exists",
         )
     if problem_record.estatus == "Excepcion":
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Exception already exists",
@@ -212,11 +219,13 @@ def update_exception(exception_agency_id: int, exception_agency: exception_agenc
     exception_agency_search = session.query(ExceptionAgency).filter(
         ExceptionAgency.exception_agency_id == exception_agency_id).first()
     if not exception_agency_search:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exception Agency Not Found"
         )
     if exception_agency_search.name == exception_agency.name:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Update at least one field"
@@ -237,6 +246,7 @@ def delete_exception(exception_agency_id: int):
     exception_agency_search = session.query(ExceptionAgency).filter(
         ExceptionAgency.exception_agency_id == exception_agency_id).first()
     if not exception_agency_search:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exception Agency Not Found"
@@ -258,6 +268,7 @@ def change_status(problemid: int, estatus: str, current_user_id: int):
     problem_record = session.query(ProblemRecord).filter(
         ProblemRecord.problemid == problemid).first()
     if not problem_record:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Problem Record not exists",
@@ -288,12 +299,14 @@ def change_status(problemid: int, estatus: str, current_user_id: int):
 
     session.commit()
     session.refresh(problem_record)
+    session.close()
     return success_response(message="Estatus actualizado correctamente",
                             data=problem_record)
 
 
 async def create_message(problemid: int, message: str | None, current_user_id: int, file: UploadFile | None):
     if message is None and file is None:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="The request must contain a message or a File",
@@ -303,6 +316,7 @@ async def create_message(problemid: int, message: str | None, current_user_id: i
     problem = session.query(ProblemRecord).filter(
         ProblemRecord.problemid == problemid).first()
     if not problem:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="The Problem not exists",
@@ -333,6 +347,7 @@ async def create_message(problemid: int, message: str | None, current_user_id: i
     session.add(prh)
     session.commit()
     session.refresh(prh)
+    session.close()
     return success_response(message="Mensaje guardado correctamente",
                             data=prh)
 
@@ -343,6 +358,7 @@ async def get_messages(problemid: int):
     problem = session.query(ProblemRecord).filter(
         ProblemRecord.problemid == problemid).first()
     if not problem:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="The Problem not exists",
@@ -364,12 +380,14 @@ async def download_file(message_id: str):
         ProblemRecordHistory.problemsHistory_id == message_id).first()
 
     if not message_file:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="The message not exists",
         )
 
     if not message_file.file_route:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="The file not exists",
@@ -378,7 +396,7 @@ async def download_file(message_id: str):
     if os.path.exists(message_file.file_route):
         filename = path_leaf(message_file.file_route)
         return FileResponse(path=message_file.file_route, filename=filename)
-
+    session.close()
     return success_response(
         message="File not found",
         success=False,

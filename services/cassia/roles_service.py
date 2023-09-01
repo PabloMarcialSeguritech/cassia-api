@@ -37,6 +37,7 @@ def get_roles():
     session = db_zabbix.Session()
     roles = session.query(CassiaRole).filter(
         CassiaRole.deleted_at == None).all()
+    session.close()
     return success_response(data=roles)
 
 
@@ -46,10 +47,12 @@ def get_role(role_id):
     role = session.query(CassiaRole).filter(
         CassiaRole.deleted_at == None, CassiaRole.rol_id == role_id).first()
     if not role:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Role not found"
         )
+    session.close()
     return success_response(data=role)
 
 
@@ -58,6 +61,7 @@ def get_permissions():
     session = db_zabbix.Session()
     permissions = session.query(CassiaPermission).filter(
         CassiaPermission.deleted_at == None).all()
+    session.close()
     return success_response(data=permissions)
 
 
@@ -70,6 +74,7 @@ async def create_role(role: cassia_role_schema.RoleRegister):
     # get_user = UserModel.filter((UserModel.email == user.email) | (
     #    UserModel.username == user.username)).first()
     if get_role and not get_role.deleted_at:
+        session.close()
         msg = "Role name is registered"
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -80,6 +85,7 @@ async def create_role(role: cassia_role_schema.RoleRegister):
                        for permission in role.permissions.split(",")]
         permissions = set(permissions)
     except:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="The permissions_ids values are not a valid numbers"
@@ -94,6 +100,7 @@ async def create_role(role: cassia_role_schema.RoleRegister):
             invalid_permissions.append(permission)
     if len(invalid_permissions):
         invalid_permissions = ','.join(str(e) for e in invalid_permissions)
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"The next permissions_ids values are not a valid role_id: {invalid_permissions} "
@@ -115,7 +122,7 @@ async def create_role(role: cassia_role_schema.RoleRegister):
         session.add(role_has_permission)
         session.commit()
         session.refresh(role_has_permission)
-
+    session.close()
     return success_response(message=f"Role created", data=cassia_role_schema.Role(
         rol_id=db_role.rol_id,
         name=db_role.name,
@@ -130,6 +137,7 @@ async def update_role(role_id: int, role: cassia_role_schema.RoleRegister):
         CassiaRole.rol_id == role_id,
         CassiaRole.deleted_at == None).first()
     if not actual_role:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Role not found"
@@ -141,6 +149,7 @@ async def update_role(role_id: int, role: cassia_role_schema.RoleRegister):
                            for permission in role.permissions.split(",")]
             permissions = set(permissions)
         except:
+            session.close()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="The permissions_ids values are not a valid numbers"
@@ -155,13 +164,13 @@ async def update_role(role_id: int, role: cassia_role_schema.RoleRegister):
                 invalid_permissions.append(permission)
         if len(invalid_permissions):
             invalid_permissions = ','.join(str(e) for e in invalid_permissions)
+            session.close()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"The next permissions_ids values are not a valid permission_id: {invalid_permissions} "
             )
     actual_role.name = role.name
     actual_role.description = role.description
-
     actual_role.updated_at = datetime.now()
     session.commit()
     session.refresh(actual_role)
@@ -181,7 +190,7 @@ async def update_role(role_id: int, role: cassia_role_schema.RoleRegister):
             session.add(role_has_permission)
             session.commit()
             session.refresh(role_has_permission)
-
+    session.close()
     return success_response(message=f"Role updated successfully", data=cassia_role_schema.Role(
         rol_id=actual_role.rol_id,
         name=actual_role.name,
@@ -195,6 +204,7 @@ async def delete_role(role_id: int):
     actual_role = session.query(CassiaRole).filter(
         CassiaRole.rol_id == role_id, CassiaRole.deleted_at == None).first()
     if not actual_role:
+        session.close()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Role not found"
@@ -208,4 +218,5 @@ async def delete_role(role_id: int):
     actual_role.deleted_at = datetime.now()
     session.commit()
     session.refresh(actual_role)
+    session.close()
     return success_response(message=f"Role deleted successfully")
