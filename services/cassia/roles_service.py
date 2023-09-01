@@ -37,7 +37,11 @@ def get_roles():
     session = db_zabbix.Session()
     roles = session.query(CassiaRole).filter(
         CassiaRole.deleted_at == None).all()
+    roles = pd.DataFrame(roles).replace(np.nan, "")
+    if len(roles) > 0:
+        roles["id"] = roles["rol_id"]
     session.close()
+
     return success_response(data=roles)
 
 
@@ -59,10 +63,15 @@ def get_role(role_id):
 def get_permissions():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-    permissions = session.query(CassiaPermission).filter(
-        CassiaPermission.deleted_at == None).all()
+    permissions = text(
+        f"SELECT * FROM cassia_permissions where deleted_at IS NULL")
+    permissions = session.execute(permissions)
+    permissions = pd.DataFrame(permissions).replace(np.nan, "")
+    if len(permissions) > 0:
+        print(permissions.head())
+        permissions["id"] = permissions["permission_id"]
     session.close()
-    return success_response(data=permissions)
+    return success_response(data=permissions.to_dict(orient="records"))
 
 
 async def create_role(role: cassia_role_schema.RoleRegister):

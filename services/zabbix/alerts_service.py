@@ -75,14 +75,14 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype=""):
 def get_exception_agencies():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-    try:
-        rows = session.query(ExceptionAgency).filter(
-            ExceptionAgency.deleted_at == None).all()
-    finally:
-        session.close()
-        db_zabbix.stop()
-
-    return success_response(data=rows)
+    statement = text(
+        f"SELECT * FROM exception_agencies where deleted_at IS NULL")
+    rows = session.execute(statement)
+    session.close()
+    rows = pd.DataFrame(rows).replace(np.nan, "")
+    if len(rows) > 0:
+        rows["id"] = rows["exception_agency_id"]
+    return success_response(data=rows.to_dict(orient="records"))
 
 
 def create_exception_agency(exception_agency: exception_agency_schema.ExceptionAgencyBase):

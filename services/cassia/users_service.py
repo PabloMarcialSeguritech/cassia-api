@@ -77,6 +77,7 @@ def get_roles():
         for ind in roles.index:
             permissions.append(get_permissions(roles['rol_id'][ind]))
         roles['permissions'] = permissions
+        roles["id"] = roles["rol_id"]
     session.close()
     return success_response(data=roles.to_dict(orient="records"))
 
