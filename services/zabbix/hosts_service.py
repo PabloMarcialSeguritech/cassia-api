@@ -30,8 +30,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     # print(problems)
     data = pd.DataFrame(hosts)
     data = data.replace(np.nan, "")
-    print(len(data))
-    print(data.shape[0])
+
     if len(data) > 1:
         hostids = tuple(data['hostid'].values.tolist())
     else:
@@ -39,8 +38,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
             hostids = f"({data['hostid'][0]})"
         else:
             hostids = "(0)"
-    print(data.head())
-    print(hostids)
+
     statement2 = text(
         f"""
         SELECT hc.correlarionid,
@@ -100,7 +98,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         f"call sp_hostAvailPingLoss('0','{dispId}','')")
     global_host_available = pd.DataFrame(
         session.execute(global_host_available))
-
+    session.close()
     response = {"hosts": data.to_dict(
         orient="records"), "relations": data2.to_dict(orient="records"),
         "problems_by_severity": data3.to_dict(orient="records"),
@@ -114,6 +112,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
 
 def get_host_correlation_filter(host_group_id):
     db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
     statement = text(
         f"""
         SELECT hc.correlarionid,
@@ -132,8 +131,8 @@ def get_host_correlation_filter(host_group_id):
         )
         """
     )
-    corelations = db_zabbix.Session().execute(statement)
-    db_zabbix.Session().close()
+    corelations = session.execute(statement)
+    session.close()
     data = pd.DataFrame(corelations)
     data = data.replace(np.nan, "")
     return success_response(data=data.to_dict(orient="records"))
@@ -168,5 +167,5 @@ INNER JOIN  vw_lastValue_history vl  ON (i.itemid=vl.itemid)
 WHERE  h.hostid = {host_id} AND i.templateid in {template_ids}
 """)
     metrics = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
-
+    session.close()
     return success_response(data=metrics.to_dict(orient="records"))

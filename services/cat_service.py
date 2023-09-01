@@ -8,8 +8,10 @@ settings = Settings()
     Servicio para la administracion de catalogos
 '''
 
+
 def get_roles():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     roles = session.query(CassiaRolModel).all()
+    session.close()
     return success_response(data=roles)
