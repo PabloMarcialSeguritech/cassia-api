@@ -127,3 +127,36 @@ def get_host_correlation_filter(host_group_id):
     data = pd.DataFrame(corelations)
     data = data.replace(np.nan, "")
     return success_response(data=data.to_dict(orient="records"))
+
+
+async def get_host_metrics(host_id):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text(
+        f"select DISTINCT i.templateid,i.itemid  from items i where hostid={host_id} AND i.templateid IS NOT NULL")
+    template_ids = session.execute(statement)
+    template_ids = pd.DataFrame(template_ids).replace(np.nan, "")
+
+    if len(template_ids["templateid"]) > 1:
+        item_ids = pd.DataFrame(template_ids['itemid'])
+        template_ids = tuple(template_ids['templateid'].values.tolist())
+
+    else:
+        if len(template_ids["templateid"]) == 1:
+            item_ids = pd.DataFrame(template_ids['itemid'])
+            template_ids = f"({template_ids['templateid'][0]})"
+        else:
+            template_ids = "(0)"
+            item_ids = pd.DataFrame()
+
+    statement = text(f"""
+    SELECT h.hostid,i.itemid, i.templateid,i.name,
+from_unixtime(vl.clock,'%d/%m/%Y %H:%i:%s')as Date,
+vl.value as Metric FROM hosts h
+INNER JOIN items i ON (h.hostid  = i.hostid)
+INNER JOIN  vw_lastValue_history vl  ON (i.itemid=vl.itemid)
+WHERE  h.hostid = {host_id} AND i.templateid in {template_ids}
+""")
+    metrics = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+
+    return success_response(data=metrics.to_dict(orient="records"))

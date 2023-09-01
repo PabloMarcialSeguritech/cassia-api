@@ -32,10 +32,10 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype=""):
         tech_host_type = "0"
     statement = text(
         f"call sp_viewProblem('{municipalityId}','{tech_host_type}','{subtype}')")
-    print(statement)
+
     problems = db_zabbix.Session().execute(statement)
     data = pd.DataFrame(problems).replace(np.nan, "")
-    print(data.shape[0])
+
     """ statement = text(
         "SELECT problemid,estatus FROM problem_records where estatus!='Cerrado'")
     problem_records = db_zabbix.Session().execute(statement)
