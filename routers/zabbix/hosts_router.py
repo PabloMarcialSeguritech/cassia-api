@@ -50,6 +50,24 @@ def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596
     return interface_service.create_ping(hostId)
 
 
+@hosts_router.get('/detail/health/{hostId}',
+                  tags=["Zabbix - Hosts - Detail"],
+                  status_code=status.HTTP_200_OK,
+                  summary="Get host metrics",
+                  dependencies=[Depends(auth_service.get_current_user)])
+async def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596")):
+    return await hosts_service.get_host_metrics(hostId)
+
+
+@hosts_router.get('/detail/alerts/{hostId}',
+                  tags=["Zabbix - Hosts - Detail"],
+                  status_code=status.HTTP_200_OK,
+                  summary="Get host alerts",
+                  dependencies=[Depends(auth_service.get_current_user)])
+def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596")):
+    pass
+
+
 html = """
 <!DOCTYPE html>
 <html>
