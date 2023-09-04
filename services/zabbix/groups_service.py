@@ -45,13 +45,18 @@ async def get_devices_by_municipality(municipalityId):
     return success_response(data=data.to_dict(orient="records"))
 
 
-def get_subtypes():
+def get_subtypes(techId):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-    statement = text("call sp_catSubtype()")
+    statement = text(f"call sp_catMetric('{techId}')")
     subtypes = db_zabbix.Session().execute(statement)
     data = pd.DataFrame(subtypes).replace(np.nan, "")
     if len(data) > 0:
-        data["id"] = data["templateId"]
+        data["id"] = data["template_id"]
+        if len(data) > 1:
+            df = {'template_id': 0, "nickname": "NA", "id": 0}
+            data = pd.concat(
+                [pd.DataFrame(df, index=[0]), data], ignore_index=True)
+
     session.close()
     return success_response(data=data.to_dict(orient="records"))
