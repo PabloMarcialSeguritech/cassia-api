@@ -41,11 +41,22 @@ async def get_devices(municipalityId=0):
 
 
 @groups_router.get(
-    '/groups/subtypes',
+    '/groups/subtypes/',
     tags=["Zabbix - Groups"],
     status_code=status.HTTP_200_OK,
     summary="Get all device subtypes",
     dependencies=[Depends(auth_service.get_current_user)]
 )
 def get_subtypes():
-    return group_service.get_subtypes()
+    return group_service.get_subtypes("0")
+
+
+@groups_router.get(
+    '/groups/subtypes/{techId}',
+    tags=["Zabbix - Groups"],
+    status_code=status.HTTP_200_OK,
+    summary="Get all device subtypes",
+    dependencies=[Depends(auth_service.get_current_user)]
+)
+def get_subtypes(techId):
+    return group_service.get_subtypes(techId)
