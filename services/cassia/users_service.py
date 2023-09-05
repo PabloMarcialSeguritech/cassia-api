@@ -338,7 +338,6 @@ async def update_user(user_id, user: user_schema.UserRegister):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"The next role_ids values are not a valid role_id: {invalid_roles} "
             )
-
     actual_user.name = user.name
     mail_nuevo = False
     if actual_user.mail != user.mail:
@@ -357,7 +356,6 @@ async def update_user(user_id, user: user_schema.UserRegister):
             "url": url
         }
         mail_nuevo = True
-
     actual_user.updated_at = datetime.now()
     session.commit()
     session.refresh(actual_user)
@@ -376,16 +374,16 @@ async def update_user(user_id, user: user_schema.UserRegister):
             )
             session.add(role_user)
             session.commit()
-            session.refresh(role_user)
     if mail_nuevo:
         await send_email(email_to=actual_user.mail, body=body)
     # db_user.save()
-    session.close()
-    return success_response(message=f"User updated successfully", data=user_schema.User(
+    user_response = user_schema.User(
         user_id=actual_user.user_id,
         name=actual_user.name,
         mail=actual_user.mail
-    ))
+    )
+    session.close()
+    return success_response(message=f"User updated successfully", data=user_response)
 
 
 async def delete_user(user_id):
