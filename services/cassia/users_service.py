@@ -352,7 +352,7 @@ async def update_user(user_id, user: user_schema.UserRegister):
         else:
             url = "http://172.18.200.14:8001/"
         body = {
-            "username": actual_user.username,
+            "username": actual_user.name,
             "password": password,
             "url": url
         }
