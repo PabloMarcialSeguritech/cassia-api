@@ -23,8 +23,9 @@ settings = Settings()
 def get_configuration():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-    configuration = session.query(CassiaConfig).all()
+    statement = text(f"SELECT * FROM cassia_config")
+    configuration = session.execute(statement)
     configuration = pd.DataFrame(configuration).replace(np.nan, "")
     session.close()
 
-    return success_response(data=configuration)
+    return success_response(data=configuration.to_dict(orient="records"))
