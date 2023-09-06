@@ -51,12 +51,15 @@ def get_subtypes(techId):
     statement = text(f"call sp_catMetric('{techId}')")
     subtypes = db_zabbix.Session().execute(statement)
     data = pd.DataFrame(subtypes).replace(np.nan, "")
+    df = {'template_id': 0, "nickname": "NA", "id": 0}
     if len(data) > 0:
 
         if len(data.loc[data["template_id"] == 0]) == 0:
-            df = {'template_id': 0, "nickname": "NA", "id": 0}
             data = pd.concat(
                 [pd.DataFrame(df, index=[0]), data], ignore_index=True)
         data["id"] = data["template_id"]
+    else:
+        df = {'template_id': 0, "nickname": "NA", "id": 0}
+        data = pd.DataFrame(df, index=[0])
     session.close()
     return success_response(data=data.to_dict(orient="records"))
