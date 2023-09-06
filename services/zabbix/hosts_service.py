@@ -12,16 +12,16 @@ settings = Settings()
 def get_host_filter(municipalityId, dispId, subtype_id):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-    if subtype_id == "376276" or subtype_id == "375090":
+    """ if subtype_id == "376276" or subtype_id == "375090":
         subtype_host_filter = '376276,375090'
     else:
-        subtype_host_filter = subtype_id
+        subtype_host_filter = subtype_id """
     if dispId == "11":
         dispId_filter = "11,2"
     else:
         dispId_filter = dispId
     statement1 = text(
-        f"call sp_hostView('{municipalityId}','{dispId}','{subtype_host_filter}')")
+        f"call sp_hostView('{municipalityId}','{dispId}','{subtype_id}')")
     if dispId == "11":
         statement1 = text(
             f"call sp_hostView('{municipalityId}','{dispId},2','')")
@@ -58,7 +58,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     )
     corelations = session.execute(statement2)
     statement3 = text(
-        f"CALL sp_problembySev('{municipalityId}','{dispId_filter}','{subtype_host_filter}')")
+        f"CALL sp_problembySev('{municipalityId}','{dispId_filter}','{subtype_id}')")
     problems_by_sev = session.execute(statement3)
     data3 = pd.DataFrame(problems_by_sev).replace(np.nan, "")
     statement4 = text(
@@ -83,13 +83,9 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         nuevo = data2.merge(alineaciones, left_on="hostidC",
                             right_on="hostid", how="left").replace(np.nan, 0) """
     statement6 = ""
-    match subtype_id:
-        case "376276":
-            statement6 = text(
-                f"CALL sp_viewAlignment('{municipalityId}','{dispId}','376276,375090')")
-        case "375090":
-            statement6 = text(
-                f"CALL sp_viewAlignment('{municipalityId}','{dispId}','376276,375090')")
+    if subtype_id != "":
+        statement6 = text(
+            f"CALL sp_viewAlignment('{municipalityId}','{dispId}','{subtype_id}')")
     if statement6 != "":
         subgroup_data = session.execute(statement6)
     data6 = pd.DataFrame(subgroup_data).replace(np.nan, "")
@@ -146,12 +142,12 @@ async def get_host_metrics(host_id):
     template_ids = session.execute(statement)
     template_ids = pd.DataFrame(template_ids).replace(np.nan, "")
 
-    if len(template_ids["templateid"]) > 1:
+    if len(template_ids) > 1:
         item_ids = pd.DataFrame(template_ids['itemid'])
         template_ids = tuple(template_ids['templateid'].values.tolist())
 
     else:
-        if len(template_ids["templateid"]) == 1:
+        if len(template_ids) == 1:
             item_ids = pd.DataFrame(template_ids['itemid'])
             template_ids = f"({template_ids['templateid'][0]})"
         else:
@@ -169,3 +165,32 @@ WHERE  h.hostid = {host_id} AND i.templateid in {template_ids}
     metrics = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
     session.close()
     return success_response(data=metrics.to_dict(orient="records"))
+
+
+async def get_host_alerts(host_id):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text(
+        f"""
+SELECT from_unixtime(p.clock,'%d/%m/%Y %H:%i:%s' ) as Time,
+	p.severity,h.hostid,h.name Host,hi.location_lat as latitude,hi.location_lon as longitude,
+	it.ip,p.name Problem, IF(ISNULL(p.r_eventid),'PROBLEM','RESOLVED') Estatus, p.eventid,p.r_eventid,
+	IF(p.r_clock=0,'',From_unixtime(p.r_clock,'%d/%m/%Y %H:%i:%s' ) )'TimeRecovery',
+	p.acknowledged Ack,IFNULL(a.Message,'''') AS Ack_message FROM hosts h	
+	INNER JOIN host_inventory hi ON (h.hostid=hi.hostid)
+	INNER JOIN interface it ON (h.hostid=it.hostid)
+	INNER JOIN items i ON (h.hostid=i.hostid)
+	INNER JOIN functions f ON (i.itemid=f.itemid)
+	INNER JOIN triggers t ON (f.triggerid=t.triggerid)
+	INNER JOIN problem p ON (t.triggerid = p.objectid)
+	LEFT JOIN acknowledges a ON (p.eventid=a.eventid)
+	WHERE  h.hostid={host_id}
+	ORDER BY p.clock  desc 
+    limit 20
+""")
+
+    alerts = session.execute(statement)
+    alerts = pd.DataFrame(alerts).replace(np.nan, "")
+
+    session.close()
+    return success_response(data=alerts.to_dict(orient="records"))

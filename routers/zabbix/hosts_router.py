@@ -64,8 +64,8 @@ async def get_hosts_filter(hostId: int = Path(description="ID of Host", example=
                   status_code=status.HTTP_200_OK,
                   summary="Get host alerts",
                   dependencies=[Depends(auth_service.get_current_user)])
-def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596")):
-    pass
+async def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596")):
+    return await hosts_service.get_host_alerts(hostId)
 
 
 html = """
