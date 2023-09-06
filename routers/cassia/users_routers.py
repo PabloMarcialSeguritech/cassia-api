@@ -7,7 +7,7 @@ from models.user_model import User
 from fastapi import File, UploadFile, Form
 from typing import Optional
 from schemas import user_schema, update_user_password
-users_router = APIRouter()
+users_router = APIRouter(prefix="/users")
 
 
 @users_router.get(
