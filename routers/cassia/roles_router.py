@@ -7,7 +7,7 @@ from models.user_model import User
 from fastapi import File, UploadFile, Form
 from typing import Optional
 from schemas import user_schema, update_user_password, cassia_role_schema
-roles_router = APIRouter()
+roles_router = APIRouter(prefix="/users")
 
 
 @roles_router.get(
