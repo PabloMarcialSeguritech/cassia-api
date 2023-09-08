@@ -52,13 +52,13 @@ def get_subtypes(techId):
     subtypes = db_zabbix.Session().execute(statement)
     data = pd.DataFrame(subtypes).replace(np.nan, "")
     df = {'template_id': "0", "nickname": "NA",
-          "id": 0, "value": "0", 'metric_id': 0}
+          "id": 0, "value": "0", 'group_id': 0}
     if len(data) > 0:
 
         if len(data.loc[data["template_id"] == "0"]) == 0:
             data = pd.concat(
                 [pd.DataFrame(df, index=[0]), data], ignore_index=True)
-        data["id"] = data["metric_id"]
+        data["id"] = data["group_id"]
         data["value"] = data["template_id"]
     else:
         data = pd.DataFrame(df, index=[0])
