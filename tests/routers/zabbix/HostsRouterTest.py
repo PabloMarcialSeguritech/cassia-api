@@ -18,6 +18,7 @@ def user_authentication_headers(username: str, password: str):
 
 class HostsRouterTest(unittest.TestCase):
 
+    @unittest.skip("security reasons")
     def test_reboot_server(self):
         print('> Entrando a test_reboot_server <')
         headers = user_authentication_headers("juan.marcial@seguritech.com", "12345678")
@@ -28,4 +29,4 @@ class HostsRouterTest(unittest.TestCase):
             headers=headers
         )
         json_obj_reboot = response_reboot.json()
-        self.assertIn(valor_esperado, json_obj_reboot['data']['reboot'], "Host no se pudo reiniciar en linea")
+        self.assertIn(valor_esperado, json_obj_reboot['data']['reboot'], "No fue posible reiniciar el servidor")
