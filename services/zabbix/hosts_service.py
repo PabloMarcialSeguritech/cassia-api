@@ -2,10 +2,14 @@ from utils.settings import Settings
 import pandas as pd
 from utils.db import DB_Zabbix
 from sqlalchemy import text
-from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
 from utils.traits import success_response
 import numpy as np
+from paramiko import SSHClient, AutoAddPolicy
+from paramiko.ssh_exception import AuthenticationException, BadHostKeyException, SSHException
+from cryptography.fernet import Fernet
+from models.interface_model import Interface as InterfaceModel
+import socket
+
 settings = Settings()
 
 
@@ -98,7 +102,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     response = {"hosts": data.to_dict(
         orient="records"), "relations": data2.to_dict(orient="records"),
         "problems_by_severity": data3.to_dict(orient="records"),
-        "host_availables": data4.to_dict(orient="records",),
+        "host_availables": data4.to_dict(orient="records", ),
         "subgroup_info": data6.to_dict(orient="records"),
         "global_host_availables": global_host_available.to_dict(orient="records")
     }
@@ -194,3 +198,43 @@ SELECT from_unixtime(p.clock,'%d/%m/%Y %H:%i:%s' ) as Time,
 
     session.close()
     return success_response(data=alerts.to_dict(orient="records"))
+
+
+def reboot(hostid):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    interface = session.query(InterfaceModel).filter(InterfaceModel.hostid == hostid).first()
+    if interface is None:
+        return success_response(message="Host no encontrado")
+    else:
+        ssh_host = settings.ssh_host_client
+        ssh_user = decrypt(settings.ssh_user_client, settings.ssh_key_gen)
+        ssh_pass = decrypt(settings.ssh_pass_client, settings.ssh_key_gen)
+        ssh_client = SSHClient()
+        ssh_client.set_missing_host_key_policy(AutoAddPolicy())
+        data = {
+            "reboot": "false",
+            "hostid": str(interface.hostid),
+            "ip": interface.ip
+        }
+        try:
+            ssh_client.connect(hostname=ssh_host, username=ssh_user.decode(), password=ssh_pass.decode())
+            _stdin, _stdout, _stderr = ssh_client.exec_command("reboot")
+            error_lines = _stderr.readlines()
+            if not error_lines:
+                data['reboot'] = 'true'
+            else:
+                print(error_lines)
+        except (BadHostKeyException, AuthenticationException, SSHException, socket.error) as e:
+            print(e)
+        return success_response(data=data)
+
+
+def encrypt(plaintext, key):
+    fernet = Fernet(key)
+    return fernet.encrypt(plaintext.encode())
+
+
+def decrypt(encriptedText, key):
+    fernet = Fernet(key)
+    return fernet.decrypt(encriptedText.encode())

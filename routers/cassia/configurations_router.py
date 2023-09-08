@@ -1,7 +1,6 @@
 from fastapi import APIRouter
 from fastapi import Depends, status
 from services import auth_service
-import services.cassia.roles_service as roles_service
 import services.cassia.configurations_service as config_service
 configuration_router = APIRouter(prefix="/configuration")
 
