@@ -46,6 +46,7 @@ def get_user(username: str):
     user = session.query(UserModel).filter(
         or_(UserModel.mail == username)).first()
     session.close()
+
     return user
 
 
@@ -120,6 +121,7 @@ def generate_token(username, password):
         'access_token_expires': access_token["expires"],
         'refresh_token': refresh_token["token"],
         'refresh_token_expires': refresh_token["expires"],
+
         "roles": roles["roles"],
         "permissions": roles["permissions"],
         "verified_at": user.verified_at
