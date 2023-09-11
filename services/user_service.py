@@ -19,7 +19,7 @@ def create_user(user: user_schema.UserRegister):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     get_user = session.query(UserModel).filter(
-        or_(UserModel.mail == user.mail, UserModel.username == user.username)
+        or_(UserModel.mail == user.mail)
     ).first()
     # get_user = UserModel.filter((UserModel.email == user.email) | (
     #    UserModel.username == user.username)).first()
@@ -33,7 +33,7 @@ def create_user(user: user_schema.UserRegister):
         )
     db_user = UserModel(
         username=user.username,
-        email=user.email,
+        mail=user.mail,
         password=get_password_hash(user.password),
     )
     session.add(db_user)
@@ -44,7 +44,7 @@ def create_user(user: user_schema.UserRegister):
     # db_user.save()
 
     return success_response(message="User created", data=user_schema.User(
-        id=db_user.id,
+        id=db_user.user_id,
         username=db_user.username,
         email=db_user.email
     ))

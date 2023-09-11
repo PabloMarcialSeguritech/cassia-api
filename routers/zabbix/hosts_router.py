@@ -5,6 +5,7 @@ from services import auth_service
 import services.zabbix.interface_service as interface_service
 from fastapi.responses import HTMLResponse
 import asyncio
+
 hosts_router = APIRouter(prefix="/hosts")
 
 
@@ -44,10 +45,28 @@ def get_host_relations(municipalityId: str):
 @hosts_router.post('/ping/{hostId}',
                    tags=["Zabbix - Hosts"],
                    status_code=status.HTTP_200_OK,
-                   summary="Create a ping over a device",
+                   summary="Create a ping on a device",
                    dependencies=[Depends(auth_service.get_current_user)])
-def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596")):
+def create_ping(hostId: int = Path(description="ID of Host", example="10596")):
     return interface_service.create_ping(hostId)
+
+
+@hosts_router.get('/detail/health/{hostId}',
+                  tags=["Zabbix - Hosts - Detail"],
+                  status_code=status.HTTP_200_OK,
+                  summary="Get host metrics",
+                  dependencies=[Depends(auth_service.get_current_user)])
+async def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596")):
+    return await hosts_service.get_host_metrics(hostId)
+
+
+@hosts_router.get('/detail/alerts/{hostId}',
+                  tags=["Zabbix - Hosts - Detail"],
+                  status_code=status.HTTP_200_OK,
+                  summary="Get host alerts",
+                  dependencies=[Depends(auth_service.get_current_user)])
+async def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596")):
+    return await hosts_service.get_host_alerts(hostId)
 
 
 html = """
@@ -111,4 +130,13 @@ async def send(websocket, index):
     await websocket.send_text(f"sleeping")
     await asyncio.sleep(5)
     print(index)
-    await send(websocket, index+1)
+    await send(websocket, index + 1)
+
+
+@hosts_router.post('/reboot/{hostId}',
+                   tags=["Zabbix - Hosts"],
+                   status_code=status.HTTP_200_OK,
+                   summary="Reboot on a server",
+                   dependencies=[Depends(auth_service.get_current_user)])
+def reboot(hostId: int = Path(description="ID of Host", example="10596")):
+    return hosts_service.reboot(hostId)

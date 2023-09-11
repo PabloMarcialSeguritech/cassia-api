@@ -22,6 +22,10 @@ aiofiles = "*"
 pythonping = "*"
 websockets = "*"
 paramiko = "*"
+fastapi-mail = "*"
+httpx = "*"
+openpyxl = "*"
+xlsxwriter = "*"
 
 [dev-packages]
 

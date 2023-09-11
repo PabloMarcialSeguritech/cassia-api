@@ -2,28 +2,47 @@ from utils.settings import Settings
 import pandas as pd
 from utils.db import DB_Zabbix
 from sqlalchemy import text
-from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
 from utils.traits import success_response
 import numpy as np
+from paramiko import SSHClient, AutoAddPolicy
+from paramiko.ssh_exception import AuthenticationException, BadHostKeyException, SSHException
+from cryptography.fernet import Fernet
+from models.interface_model import Interface as InterfaceModel
+import socket
+
 settings = Settings()
 
 
 def get_host_filter(municipalityId, dispId, subtype_id):
     db_zabbix = DB_Zabbix()
-    """ Agregar el subtype cuando funcione """
-
+    session = db_zabbix.Session()
+    """ if subtype_id == "376276" or subtype_id == "375090":
+        subtype_host_filter = '376276,375090'
+    else:
+        subtype_host_filter = subtype_id """
+    if dispId == "11":
+        dispId_filter = "11,2"
+    else:
+        dispId_filter = dispId
     statement1 = text(
         f"call sp_hostView('{municipalityId}','{dispId}','{subtype_id}')")
     if dispId == "11":
         statement1 = text(
-            f"call sp_hostView('{municipalityId}','{dispId},2','{subtype_id}')")
-    hosts = db_zabbix.Session().execute(statement1)
+            f"call sp_hostView('{municipalityId}','{dispId},2','')")
+    hosts = session.execute(statement1)
+
     # print(problems)
     data = pd.DataFrame(hosts)
     data = data.replace(np.nan, "")
-    hostids = data["hostid"].values.tolist()
-    hostids = tuple(hostids)
+
+    if len(data) > 1:
+        hostids = tuple(data['hostid'].values.tolist())
+    else:
+        if len(data) == 1:
+            hostids = f"({data['hostid'][0]})"
+        else:
+            hostids = "(0)"
+
     statement2 = text(
         f"""
         SELECT hc.correlarionid,
@@ -41,21 +60,20 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         and hc.hostidC in {hostids})
         """
     )
-    corelations = db_zabbix.Session().execute(statement2)
+    corelations = session.execute(statement2)
     statement3 = text(
-        f"CALL sp_problembySev('{municipalityId}','{dispId}','{subtype_id}')")
-    problems_by_sev = db_zabbix.Session().execute(statement3)
+        f"CALL sp_problembySev('{municipalityId}','{dispId_filter}','{subtype_id}')")
+    problems_by_sev = session.execute(statement3)
     data3 = pd.DataFrame(problems_by_sev).replace(np.nan, "")
     statement4 = text(
-        f"call sp_hostAvailPingLoss('{municipalityId}','{dispId}','{subtype_id}')")
-    hostAvailables = db_zabbix.Session().execute(statement4)
+        f"call sp_hostAvailPingLoss('{municipalityId}','{dispId}','')")
+    hostAvailables = session.execute(statement4)
     data4 = pd.DataFrame(hostAvailables).replace(np.nan, "")
-    db_zabbix.Session().close()
     data2 = pd.DataFrame(corelations)
     data2 = data2.replace(np.nan, "")
     # aditional data
     subgroup_data = []
-    statement5 = ""
+    """ statement5 = ""
     statement5 = text(
         f"CALL sp_viewAlignment('{municipalityId}','11','376276,375090')")
     subgroup_data = db_zabbix.Session().execute(statement5)
@@ -67,23 +85,26 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     nuevo = data2
     if not data2.empty:
         nuevo = data2.merge(alineaciones, left_on="hostidC",
-                            right_on="hostid", how="left").replace(np.nan, 0)
+                            right_on="hostid", how="left").replace(np.nan, 0) """
     statement6 = ""
-    match subtype_id:
-        case "376276":
-            statement6 = text(
-                f"CALL sp_viewAlignment('{municipalityId}','{dispId}','376276,375090')")
-        case "375090":
-            statement6 = text(
-                f"CALL sp_viewAlignment('{municipalityId}','{dispId}','376276,375090')")
+    if subtype_id != "":
+        statement6 = text(
+            f"CALL sp_viewAlignment('{municipalityId}','{dispId}','{subtype_id}')")
     if statement6 != "":
-        subgroup_data = db_zabbix.Session().execute(statement6)
+        subgroup_data = session.execute(statement6)
     data6 = pd.DataFrame(subgroup_data).replace(np.nan, "")
+    print(data6.shape[0])
+    global_host_available = text(
+        f"call sp_hostAvailPingLoss('0','{dispId}','')")
+    global_host_available = pd.DataFrame(
+        session.execute(global_host_available))
+    session.close()
     response = {"hosts": data.to_dict(
-        orient="records"), "relations": nuevo.to_dict(orient="records"),
+        orient="records"), "relations": data2.to_dict(orient="records"),
         "problems_by_severity": data3.to_dict(orient="records"),
-        "host_availables": data4.to_dict(orient="records",),
-        "subgroup_info": data6.to_dict(orient="records")
+        "host_availables": data4.to_dict(orient="records", ),
+        "subgroup_info": data6.to_dict(orient="records"),
+        "global_host_availables": global_host_available.to_dict(orient="records")
     }
     # print(response)
     return success_response(data=response)
@@ -91,6 +112,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
 
 def get_host_correlation_filter(host_group_id):
     db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
     statement = text(
         f"""
         SELECT hc.correlarionid,
@@ -109,8 +131,110 @@ def get_host_correlation_filter(host_group_id):
         )
         """
     )
-    corelations = db_zabbix.Session().execute(statement)
-    db_zabbix.Session().close()
+    corelations = session.execute(statement)
+    session.close()
     data = pd.DataFrame(corelations)
     data = data.replace(np.nan, "")
     return success_response(data=data.to_dict(orient="records"))
+
+
+async def get_host_metrics(host_id):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text(
+        f"select DISTINCT i.templateid,i.itemid  from items i where hostid={host_id} AND i.templateid IS NOT NULL")
+    template_ids = session.execute(statement)
+    template_ids = pd.DataFrame(template_ids).replace(np.nan, "")
+
+    if len(template_ids) > 1:
+        item_ids = pd.DataFrame(template_ids['itemid'])
+        template_ids = tuple(template_ids['templateid'].values.tolist())
+
+    else:
+        if len(template_ids) == 1:
+            item_ids = pd.DataFrame(template_ids['itemid'])
+            template_ids = f"({template_ids['templateid'][0]})"
+        else:
+            template_ids = "(0)"
+            item_ids = pd.DataFrame()
+
+    statement = text(f"""
+    SELECT h.hostid,i.itemid, i.templateid,i.name,
+from_unixtime(vl.clock,'%d/%m/%Y %H:%i:%s')as Date,
+vl.value as Metric FROM hosts h
+INNER JOIN items i ON (h.hostid  = i.hostid)
+INNER JOIN  vw_lastValue_history vl  ON (i.itemid=vl.itemid)
+WHERE  h.hostid = {host_id} AND i.templateid in {template_ids}
+""")
+    metrics = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+    session.close()
+    return success_response(data=metrics.to_dict(orient="records"))
+
+
+async def get_host_alerts(host_id):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text(
+        f"""
+SELECT from_unixtime(p.clock,'%d/%m/%Y %H:%i:%s' ) as Time,
+	p.severity,h.hostid,h.name Host,hi.location_lat as latitude,hi.location_lon as longitude,
+	it.ip,p.name Problem, IF(ISNULL(p.r_eventid),'PROBLEM','RESOLVED') Estatus, p.eventid,p.r_eventid,
+	IF(p.r_clock=0,'',From_unixtime(p.r_clock,'%d/%m/%Y %H:%i:%s' ) )'TimeRecovery',
+	p.acknowledged Ack,IFNULL(a.Message,'''') AS Ack_message FROM hosts h	
+	INNER JOIN host_inventory hi ON (h.hostid=hi.hostid)
+	INNER JOIN interface it ON (h.hostid=it.hostid)
+	INNER JOIN items i ON (h.hostid=i.hostid)
+	INNER JOIN functions f ON (i.itemid=f.itemid)
+	INNER JOIN triggers t ON (f.triggerid=t.triggerid)
+	INNER JOIN problem p ON (t.triggerid = p.objectid)
+	LEFT JOIN acknowledges a ON (p.eventid=a.eventid)
+	WHERE  h.hostid={host_id}
+	ORDER BY p.clock  desc 
+    limit 20
+""")
+
+    alerts = session.execute(statement)
+    alerts = pd.DataFrame(alerts).replace(np.nan, "")
+
+    session.close()
+    return success_response(data=alerts.to_dict(orient="records"))
+
+
+def reboot(hostid):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    interface = session.query(InterfaceModel).filter(InterfaceModel.hostid == hostid).first()
+    if interface is None:
+        return success_response(message="Host no encontrado")
+    else:
+        ssh_host = settings.ssh_host_client
+        ssh_user = decrypt(settings.ssh_user_client, settings.ssh_key_gen)
+        ssh_pass = decrypt(settings.ssh_pass_client, settings.ssh_key_gen)
+        ssh_client = SSHClient()
+        ssh_client.set_missing_host_key_policy(AutoAddPolicy())
+        data = {
+            "reboot": "false",
+            "hostid": str(interface.hostid),
+            "ip": interface.ip
+        }
+        try:
+            ssh_client.connect(hostname=ssh_host, username=ssh_user.decode(), password=ssh_pass.decode())
+            _stdin, _stdout, _stderr = ssh_client.exec_command("reboot")
+            error_lines = _stderr.readlines()
+            if not error_lines:
+                data['reboot'] = 'true'
+            else:
+                print(error_lines)
+        except (BadHostKeyException, AuthenticationException, SSHException, socket.error) as e:
+            print(e)
+        return success_response(data=data)
+
+
+def encrypt(plaintext, key):
+    fernet = Fernet(key)
+    return fernet.encrypt(plaintext.encode())
+
+
+def decrypt(encriptedText, key):
+    fernet = Fernet(key)
+    return fernet.decrypt(encriptedText.encode())

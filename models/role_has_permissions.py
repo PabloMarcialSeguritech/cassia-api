@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy.orm import mapped_column
 from sqlalchemy import ForeignKey
 from sqlalchemy import Column, String, Integer, DateTime
+from models.cassia_permissions import CassiaPermission
 
 
 class RoleHasPermission(DB_Zabbix.Base):

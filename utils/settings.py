@@ -42,3 +42,14 @@ class Settings(BaseSettings):
     zabbix_server_url: str = os.getenv('ZABBIX_SERVER_URL')
     env: str = f'{env}'
 
+    MAIL_USERNAME: str = os.getenv('MAIL_USERNAME')
+    MAIL_PASSWORD: str = os.getenv('MAIL_PASSWORD')
+    MAIL_FROM: str = os.getenv('MAIL_FROM')
+    MAIL_PORT: int = int(os.getenv('MAIL_PORT'))
+    MAIL_SERVER: str = os.getenv('MAIL_SERVER')
+    MAIL_FROM_NAME: str = os.getenv('MAIN_FROM_NAME')
+
+    ssh_host_client: str = os.getenv('SSH_HOST_CLIENT')
+    ssh_user_client: str = os.getenv('SSH_HOST_USER')
+    ssh_pass_client: str = os.getenv('SSH_HOST_PASS')
+    ssh_key_gen: str = os.getenv('SSH_KEY_GEN')
