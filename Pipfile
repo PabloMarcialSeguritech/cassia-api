@@ -26,6 +26,7 @@ fastapi-mail = "*"
 httpx = "*"
 openpyxl = "*"
 xlsxwriter = "*"
+pymssql = "*"
 
 [dev-packages]
 

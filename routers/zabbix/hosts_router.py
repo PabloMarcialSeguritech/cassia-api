@@ -16,7 +16,7 @@ hosts_router = APIRouter(prefix="/hosts")
     summary="Get host by municipality ID, technology or device type, and subtype",
     dependencies=[Depends(auth_service.get_current_user)]
 )
-def get_hosts_filter(municipalityId: str, dispId: str = "", subtype_id: str = ""):
+def get_hosts_filter(municipalityId: str = "", dispId: str = "", subtype_id: str = ""):
     return hosts_service.get_host_filter(municipalityId, dispId, subtype_id)
 
 
@@ -67,6 +67,15 @@ async def get_hosts_filter(hostId: int = Path(description="ID of Host", example=
                   dependencies=[Depends(auth_service.get_current_user)])
 async def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596")):
     return await hosts_service.get_host_alerts(hostId)
+
+
+@hosts_router.get('/detail/arcos/{hostId}',
+                  tags=["Zabbix - Hosts - Detail"],
+                  status_code=status.HTTP_200_OK,
+                  summary="Get host arcos metric",
+                  dependencies=[Depends(auth_service.get_current_user)])
+async def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596")):
+    return await hosts_service.get_host_arcos(hostId)
 
 
 html = """
