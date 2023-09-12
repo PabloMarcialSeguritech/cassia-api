@@ -1,6 +1,6 @@
 from utils.settings import Settings
 import pandas as pd
-from utils.db import DB_Zabbix
+from utils.db import DB_Zabbix, DB_C5
 from sqlalchemy import text
 from utils.traits import success_response
 import numpy as np
@@ -9,6 +9,9 @@ from paramiko.ssh_exception import AuthenticationException, BadHostKeyException,
 from cryptography.fernet import Fernet
 from models.interface_model import Interface as InterfaceModel
 import socket
+
+from fastapi.exceptions import HTTPException
+from fastapi import status
 
 settings = Settings()
 
@@ -20,6 +23,10 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         subtype_host_filter = '376276,375090'
     else:
         subtype_host_filter = subtype_id """
+    arcos_band = False
+    if subtype_id == "3":
+        subtype_id = ""
+        arcos_band = True
     if dispId == "11":
         dispId_filter = "11,2"
     else:
@@ -98,6 +105,63 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         f"call sp_hostAvailPingLoss('0','{dispId}','')")
     global_host_available = pd.DataFrame(
         session.execute(global_host_available))
+    if arcos_band:
+        if municipalityId != "0":
+
+            statement = text("call sp_catCity()")
+            municipios = session.execute(statement)
+            data_municipios = pd.DataFrame(municipios).replace(np.nan, "")
+            try:
+                municipio = data_municipios.loc[data_municipios["groupid"] == int(
+                    municipalityId)]
+            except:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Municipality id is not a int value"
+                )
+            if len(municipio) < 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Municipality id not exist"
+                )
+        db_c5 = DB_C5()
+        if municipalityId != "0":
+            statement = text(f"""
+SELECT  ISNULL(SUM(cl.lecturas),0)  as Lecturas, a.Longitud,a.Latitud FROM RFID r
+INNER JOIN ArcoRFID ar  ON (R.IdRFID = ar.IdRFID )
+INNER JOIN Arco a ON (ar.IdArco =a.IdArco )
+INNER JOIN ArcoMunicipio am ON (a.IdArco =am.IdArco)
+INNER JOIN Municipio m ON (am.IdMunicipio =M.IdMunicipio)
+LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
+LEFT JOIN (select lr.IdRFID,lr.IdAntena,
+COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
+where lr.Fecha between dateadd(week,-1,getdate()) and getdate()
+group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
+WHERE m.Nombre COLLATE Latin1_General_CI_AI LIKE '{municipio['name'].values[0]}' COLLATE Latin1_General_CI_AI
+group by a.Latitud, a.Longitud 
+order by a.Longitud,a.Latitud
+""")
+        else:
+            statement = text("""
+SELECT  ISNULL(SUM(cl.lecturas),0)  as Lecturas, a.Longitud,a.Latitud FROM RFID r
+INNER JOIN ArcoRFID ar  ON (R.IdRFID = ar.IdRFID )
+INNER JOIN Arco a ON (ar.IdArco =a.IdArco )
+INNER JOIN ArcoMunicipio am ON (a.IdArco =am.IdArco)
+INNER JOIN Municipio m ON (am.IdMunicipio =M.IdMunicipio)
+LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
+LEFT JOIN (select lr.IdRFID,lr.IdAntena,
+COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
+where lr.Fecha between dateadd(week,-1,getdate()) and getdate()
+group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
+
+group by a.Latitud, a.Longitud 
+order by a.Longitud,a.Latitud""")
+
+        session_c5 = db_c5.Session()
+        data_arcos = session_c5.execute(statement)
+        data_arcos = pd.DataFrame(data_arcos).replace(np.nan, "")
+        data6 = data_arcos
+        session_c5.close()
     session.close()
     response = {"hosts": data.to_dict(
         orient="records"), "relations": data2.to_dict(orient="records"),
@@ -159,16 +223,20 @@ async def get_host_metrics(host_id):
             item_ids = pd.DataFrame()
 
     statement = text(f"""
-    SELECT h.hostid,i.itemid, i.templateid,i.name,
+                     SELECT h.hostid,i.itemid, i.templateid,i.name,
 from_unixtime(vl.clock,'%d/%m/%Y %H:%i:%s')as Date,
-vl.value as Metric FROM hosts h
+vl.value as Metric,e.severity  FROM hosts h
 INNER JOIN items i ON (h.hostid  = i.hostid)
 INNER JOIN  vw_lastValue_history vl  ON (i.itemid=vl.itemid)
+INNER JOIN functions f ON (i.itemid=f.itemid)
+INNER JOIN triggers t ON (f.triggerid=t.triggerid)
+INNER JOIN events e on (t.triggerid=e.objectid)
 WHERE  h.hostid = {host_id} AND i.templateid in {template_ids}
 """)
-    metrics = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+    print(statement)
+    """ metrics = pd.DataFrame(session.execute(statement)).replace(np.nan, "") """
     session.close()
-    return success_response(data=metrics.to_dict(orient="records"))
+    """ return success_response(data=metrics.to_dict(orient="records")) """
 
 
 async def get_host_alerts(host_id):
@@ -200,10 +268,62 @@ SELECT from_unixtime(p.clock,'%d/%m/%Y %H:%i:%s' ) as Time,
     return success_response(data=alerts.to_dict(orient="records"))
 
 
+async def get_host_arcos(host_id):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text(
+        f"""
+SELECT  DISTINCT h.hostid,h.name Host,hi.location_lat as latitude,hi.location_lon as longitude,
+	it.ip FROM hosts h	
+	INNER JOIN host_inventory hi ON (h.hostid=hi.hostid)
+	INNER JOIN interface it ON (h.hostid=it.hostid)
+	INNER JOIN items i ON (h.hostid=i.hostid)
+	WHERE h.hostid ={host_id}
+""")
+    host = session.execute(statement)
+    host = pd.DataFrame(host).replace(np.nan, "")
+    session.close()
+    if len(host) < 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Host id not exist"
+        )
+    statement = text(f"""
+SELECT m.Nombre as Municipio, a.Nombre as Arco, r.Descripcion,
+r.Estado, a2.UltimaLectura,
+ISNULL(cl.lecturas,0)  as Lecturas,
+a.Longitud,a.Latitud,
+r.Ip 
+FROM RFID r
+INNER JOIN ArcoRFID ar  ON (R.IdRFID = ar.IdRFID )
+INNER JOIN Arco a ON (ar.IdArco =a.IdArco )
+INNER JOIN ArcoMunicipio am ON (a.IdArco =am.IdArco)
+INNER JOIN Municipio m ON (am.IdMunicipio =M.IdMunicipio)
+LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
+LEFT JOIN (select lr.IdRFID,lr.IdAntena,
+COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
+where lr.Fecha between dateadd(week,-1,getdate()) and getdate()
+group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
+where r.Ip = '{host["ip"].values[0]}'
+order by a.Longitud,a.Latitud
+""")
+    db_c5 = DB_C5()
+    session_c5 = db_c5.Session()
+    arcos = session_c5.execute(statement)
+    arcos = pd.DataFrame(arcos).replace(np.nan, "")
+    data = pd.DataFrame()
+    if len(arcos) > 0:
+        data = pd.merge(host, arcos, left_on="ip", right_on="Ip")
+
+    session_c5.close()
+    return success_response(data=data.to_dict(orient="records"))
+
+
 def reboot(hostid):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-    interface = session.query(InterfaceModel).filter(InterfaceModel.hostid == hostid).first()
+    interface = session.query(InterfaceModel).filter(
+        InterfaceModel.hostid == hostid).first()
     if interface is None:
         return success_response(message="Host no encontrado")
     else:
@@ -218,7 +338,8 @@ def reboot(hostid):
             "ip": interface.ip
         }
         try:
-            ssh_client.connect(hostname=ssh_host, username=ssh_user.decode(), password=ssh_pass.decode())
+            ssh_client.connect(
+                hostname=ssh_host, username=ssh_user.decode(), password=ssh_pass.decode())
             _stdin, _stdout, _stderr = ssh_client.exec_command("reboot")
             error_lines = _stderr.readlines()
             if not error_lines:

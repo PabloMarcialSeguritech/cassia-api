@@ -30,3 +30,14 @@ async def get_aps(municipality_id=0):
 )
 def get_hosts_filter(municipalityId: str = "0", dispId: str = "", subtype_id: str = ""):
     return layers_service.get_downs_layer(municipalityId, dispId, subtype_id)
+
+
+@layers_router.get(
+    '/carreteros/{municipalityId}',
+    tags=["Zabbix - Layers"],
+    status_code=status.HTTP_200_OK,
+    summary="Get host with status down by municipality ID, technology or device type, and subtype",
+    dependencies=[Depends(auth_service.get_current_user)]
+)
+def get_hosts_filter(municipalityId: str = "0"):
+    return layers_service.get_carreteros(municipalityId)
