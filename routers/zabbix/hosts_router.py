@@ -74,7 +74,7 @@ async def get_hosts_filter(hostId: int = Path(description="ID of Host", example=
                   status_code=status.HTTP_200_OK,
                   summary="Get host arcos metric",
                   dependencies=[Depends(auth_service.get_current_user)])
-async def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596")):
+async def get_hosts_filter(hostId: int = Path(description="ID of Host", example="20157")):
     return await hosts_service.get_host_arcos(hostId)
 
 
