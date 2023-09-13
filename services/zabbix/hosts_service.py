@@ -23,10 +23,9 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         subtype_host_filter = '376276,375090'
     else:
         subtype_host_filter = subtype_id """
-    arcos_band = False
+    """ arcos_band = False """
     if subtype_id == "3":
         subtype_id = ""
-        arcos_band = True
     if dispId == "11":
         dispId_filter = "11,2"
     else:
@@ -105,63 +104,6 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         f"call sp_hostAvailPingLoss('0','{dispId}','')")
     global_host_available = pd.DataFrame(
         session.execute(global_host_available))
-    if arcos_band:
-        if municipalityId != "0":
-
-            statement = text("call sp_catCity()")
-            municipios = session.execute(statement)
-            data_municipios = pd.DataFrame(municipios).replace(np.nan, "")
-            try:
-                municipio = data_municipios.loc[data_municipios["groupid"] == int(
-                    municipalityId)]
-            except:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Municipality id is not a int value"
-                )
-            if len(municipio) < 1:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Municipality id not exist"
-                )
-        db_c5 = DB_C5()
-        if municipalityId != "0":
-            statement = text(f"""
-SELECT  ISNULL(SUM(cl.lecturas),0)  as Lecturas, a.Longitud,a.Latitud FROM RFID r
-INNER JOIN ArcoRFID ar  ON (R.IdRFID = ar.IdRFID )
-INNER JOIN Arco a ON (ar.IdArco =a.IdArco )
-INNER JOIN ArcoMunicipio am ON (a.IdArco =am.IdArco)
-INNER JOIN Municipio m ON (am.IdMunicipio =M.IdMunicipio)
-LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
-LEFT JOIN (select lr.IdRFID,lr.IdAntena,
-COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
-where lr.Fecha between dateadd(minute,-5,getdate()) and getdate()
-group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
-WHERE m.Nombre COLLATE Latin1_General_CI_AI LIKE '{municipio['name'].values[0]}' COLLATE Latin1_General_CI_AI
-group by a.Latitud, a.Longitud 
-order by a.Longitud,a.Latitud
-""")
-        else:
-            statement = text("""
-SELECT  ISNULL(SUM(cl.lecturas),0)  as Lecturas, a.Longitud,a.Latitud FROM RFID r
-INNER JOIN ArcoRFID ar  ON (R.IdRFID = ar.IdRFID )
-INNER JOIN Arco a ON (ar.IdArco =a.IdArco )
-INNER JOIN ArcoMunicipio am ON (a.IdArco =am.IdArco)
-INNER JOIN Municipio m ON (am.IdMunicipio =M.IdMunicipio)
-LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
-LEFT JOIN (select lr.IdRFID,lr.IdAntena,
-COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
-where lr.Fecha between dateadd(minute,-5,getdate()) and getdate()
-group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
-
-group by a.Latitud, a.Longitud 
-order by a.Longitud,a.Latitud""")
-
-        session_c5 = db_c5.Session()
-        data_arcos = session_c5.execute(statement)
-        data_arcos = pd.DataFrame(data_arcos).replace(np.nan, "")
-        data6 = data_arcos
-        session_c5.close()
     session.close()
     response = {"hosts": data.to_dict(
         orient="records"), "relations": data2.to_dict(orient="records"),
