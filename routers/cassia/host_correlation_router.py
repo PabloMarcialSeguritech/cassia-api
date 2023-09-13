@@ -27,3 +27,14 @@ async def get_role():
 )
 async def get_hosts_without_relations():
     return await host_correlation_service.get_hosts_without_relations()
+
+
+@host_correlation_router.get(
+    '/layouts/ejemplo/download',
+    tags=["Cassia - Host - Correlations"],
+    status_code=status.HTTP_200_OK,
+    summary="Return example layout",
+    dependencies=[Depends(auth_service.get_current_user)]
+)
+async def download_file():
+    return await host_correlation_service.download_file()

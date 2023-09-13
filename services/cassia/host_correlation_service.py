@@ -7,6 +7,9 @@ import numpy as np
 from utils.traits import success_response
 from fastapi.responses import FileResponse
 import tempfile
+import os
+import ntpath
+from fastapi import status
 settings = Settings()
 
 
@@ -56,3 +59,22 @@ and h.hostid in {hostids}
             aps.to_excel(writer, sheet_name="APS", index=False)
 
     return FileResponse(xlsx_filename, headers={"Content-Disposition": "attachment; filename=datos.xlsx"}, media_type="application/vnd.ms-excel", filename="datos.xlsx")
+
+
+async def download_file():
+    path = os.path.join(
+        os.getcwd(), 'static\\templates\\arrastres\ejemplo.xlsx')
+    print(path)
+    if os.path.exists(path):
+        return FileResponse(path,  headers={"Content-Disposition": "attachment; filename=_Alta Relaciones - Ej.  v1.0.xlsx"}, media_type="application/vnd.ms-excel", filename="_Alta Relaciones - Ej.  v1.0.xlsx")
+
+    return success_response(
+        message="File not found",
+        success=False,
+        status_code=status.HTTP_404_NOT_FOUND
+    )
+
+
+def path_leaf(path):
+    head, tail = ntpath.split(path)
+    return tail or ntpath.basename(head)
