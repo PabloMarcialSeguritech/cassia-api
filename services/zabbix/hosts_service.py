@@ -135,7 +135,7 @@ INNER JOIN Municipio m ON (am.IdMunicipio =M.IdMunicipio)
 LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
 LEFT JOIN (select lr.IdRFID,lr.IdAntena,
 COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
-where lr.Fecha between dateadd(week,-1,getdate()) and getdate()
+where lr.Fecha between dateadd(minute,-5,getdate()) and getdate()
 group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
 WHERE m.Nombre COLLATE Latin1_General_CI_AI LIKE '{municipio['name'].values[0]}' COLLATE Latin1_General_CI_AI
 group by a.Latitud, a.Longitud 
@@ -151,7 +151,7 @@ INNER JOIN Municipio m ON (am.IdMunicipio =M.IdMunicipio)
 LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
 LEFT JOIN (select lr.IdRFID,lr.IdAntena,
 COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
-where lr.Fecha between dateadd(week,-1,getdate()) and getdate()
+where lr.Fecha between dateadd(minute,-5,getdate()) and getdate()
 group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
 
 group by a.Latitud, a.Longitud 
@@ -225,18 +225,15 @@ async def get_host_metrics(host_id):
     statement = text(f"""
                      SELECT h.hostid,i.itemid, i.templateid,i.name,
 from_unixtime(vl.clock,'%d/%m/%Y %H:%i:%s')as Date,
-vl.value as Metric,e.severity  FROM hosts h
+vl.value as Metric  FROM hosts h
 INNER JOIN items i ON (h.hostid  = i.hostid)
 INNER JOIN  vw_lastValue_history vl  ON (i.itemid=vl.itemid)
-INNER JOIN functions f ON (i.itemid=f.itemid)
-INNER JOIN triggers t ON (f.triggerid=t.triggerid)
-INNER JOIN events e on (t.triggerid=e.objectid)
 WHERE  h.hostid = {host_id} AND i.templateid in {template_ids}
 """)
-    print(statement)
-    """ metrics = pd.DataFrame(session.execute(statement)).replace(np.nan, "") """
+
+    metrics = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
     session.close()
-    """ return success_response(data=metrics.to_dict(orient="records")) """
+    return success_response(data=metrics.to_dict(orient="records"))
 
 
 async def get_host_alerts(host_id):
@@ -302,7 +299,7 @@ INNER JOIN Municipio m ON (am.IdMunicipio =M.IdMunicipio)
 LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
 LEFT JOIN (select lr.IdRFID,lr.IdAntena,
 COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
-where lr.Fecha between dateadd(week,-1,getdate()) and getdate()
+where lr.Fecha between dateadd(minute,-5,getdate()) and getdate()
 group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
 where r.Ip = '{host["ip"].values[0]}'
 order by a.Longitud,a.Latitud
