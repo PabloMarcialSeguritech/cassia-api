@@ -38,8 +38,8 @@ def get_downs_layer(municipality_id, dispId, subtype_id):
     return success_response(data=response)
 
 
-def get_carreteros(municipality_id):
-    db_zabbix = DB_Zabbix()
+""" def get_carreteros(municipality_id): """
+""" db_zabbix = DB_Zabbix()
     session_zabbix = db_zabbix.Session()
     statement = text("call sp_catCity()")
     municipios = session_zabbix.execute(statement)
@@ -63,7 +63,7 @@ def get_carreteros(municipality_id):
     session_zabbix.close()
 
     db_c5 = DB_C5()
-    statement = text(f"""
+    statement = text(f """"""
 SELECT m.Nombre Municipio,a.Nombre Arco,r.Descripcion ,a2.Carril, r.Estado, a2.UltimaLectura, ISNULL(cl.lecturas,0 ) Lecturas,
 r.Ip,r.NoSerie,  a.Longitud,a.Latitud FROM RFID r
 INNER JOIN ArcoRFID ar  ON (R.IdRFID = ar.IdRFID )
@@ -76,7 +76,7 @@ COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
 where lr.Fecha between dateadd(week,-1,getdate()) and getdate()
 group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
 WHERE m.Nombre COLLATE Latin1_General_CI_AI LIKE '{municipio["name"].values[0]}' COLLATE Latin1_General_CI_AI
-""")
+"""""" )
 
     session = db_c5.Session()
     data = session.execute(statement)
@@ -88,4 +88,4 @@ WHERE m.Nombre COLLATE Latin1_General_CI_AI LIKE '{municipio["name"].values[0]}'
     print(len(data))
     print(len(frame2))
 
-    return success_response(data=frame2.to_dict(orient="records"))
+    return success_response(data=frame2.to_dict(orient="records")) """
