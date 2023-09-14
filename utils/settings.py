@@ -59,3 +59,5 @@ class Settings(BaseSettings):
     ssh_user_client: str = os.getenv('SSH_HOST_USER')
     ssh_pass_client: str = os.getenv('SSH_HOST_PASS')
     ssh_key_gen: str = os.getenv('SSH_KEY_GEN')
+
+    cassia_server_ip: str = os.getenv('CASSIA_SERVER_IP')
