@@ -238,16 +238,16 @@ async def create_user(user: user_schema.UserRegister):
     """  print(db_user.username, password) """
     url = ""
     if settings.env == "prod":
-        url = "http://172.18.200.14:8003/"
+        url = f"{settings.cassia_server_ip}:8001/"
     else:
-        url = "http://172.18.200.14:8001/"
+        url = f"{settings.cassia_server_ip}:8003/"
+
     body = {
         "name": db_user.name,
         "password": password,
         "url": url
     }
-    print(password)
-    print(body, type(body))
+
     session.close()
     await send_email(email_to=db_user.mail, body=body)
     # db_user.save()
@@ -346,10 +346,12 @@ async def update_user(user_id, user: user_schema.UserRegister):
         actual_user.password = get_password_hash(password)
         actual_user.verified_at = None
         url = ""
+
         if settings.env == "prod":
-            url = "http://172.18.200.14:8003/"
+            url = f"{settings.cassia_server_ip}:8001/"
         else:
-            url = "http://172.18.200.14:8001/"
+            url = f"{settings.cassia_server_ip}:8003/"
+
         body = {
             "username": actual_user.name,
             "password": password,
