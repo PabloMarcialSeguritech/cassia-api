@@ -6,6 +6,8 @@ from models.host_correlation import HostCorrelation
 import numpy as np
 from utils.traits import success_response
 from fastapi.responses import FileResponse
+from fastapi.exceptions import HTTPException
+from fastapi import status
 import tempfile
 import os
 import ntpath
@@ -78,3 +80,13 @@ async def download_file():
 def path_leaf(path):
     head, tail = ntpath.split(path)
     return tail or ntpath.basename(head)
+
+
+async def process_file(current_user_id, file):
+    content_type = file.content_type
+    if content_type not in ["text/csv", "application/vnd.ms-excel"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type")
+    data = pd.read_csv(file.file)
+    print(data.head())
+    return success_response(data={"filename": file.filename})
