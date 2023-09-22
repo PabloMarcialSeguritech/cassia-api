@@ -11,9 +11,9 @@ services:
     volumes:
       - .:/code
     ports:
-      - 8000:8000
+      - 8002:8002
     expose:
-      - 8000
+      - 8002
 
 
 # If running behind a proxy like Nginx or Traefik add --proxy-headers
