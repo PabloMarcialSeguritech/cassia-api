@@ -43,7 +43,20 @@ async def get_host_by_ip(ip: str):
     return success_response(data=results.to_dict(orient="records"))
 
 
+def check_pdf(file_types):
+    for type_file in file_types:
+        if type_file != "application/pdf":
+            return False
+    return True
+
+
 async def create_ci(ci_data: cassia_ci_schema.CiBase, files, current_session):
+    if files:
+        if len(files):
+            type_files = [file.content_type for file in files]
+            if not check_pdf(type_files):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Files must be only PDF")
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     query = text(f"select hostid from hosts where hostid={ci_data.host_id}")
@@ -101,6 +114,12 @@ async def create_ci(ci_data: cassia_ci_schema.CiBase, files, current_session):
 
 
 async def update_ci(ci_id: str, ci_data: cassia_ci_schema.CiBase, files, current_session):
+    if files:
+        if len(files):
+            type_files = [file.content_type for file in files]
+            if not check_pdf(type_files):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Files must be only PDF")
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
 
@@ -109,40 +128,47 @@ async def update_ci(ci_id: str, ci_data: cassia_ci_schema.CiBase, files, current
     if not ci:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="ci_id not exists")
-    print(ci_data)
-    return success_response(data=ci)
 
     query = text(f"select hostid from hosts where hostid={ci_data.host_id}")
     host = pd.DataFrame(session.execute(query)).replace(np.nan, "")
     if len(host) < 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="host_id not exists")
-    date = ci_data.date
+    if ci_data.doc_ids:
+        cis_docs = session.query(CassiaCIDocument).filter(
+            CassiaCIDocument.doc_id.not_in(ci_data.doc_ids.split(",")),
+            CassiaCIDocument.ci_id == ci_id).all()
 
-    cassia_ci = CassiaCI(
-        host_id=ci_data.host_id,
-        ip=ci_data.ip,
-        date=ci_data.date,
-        responsible_name=ci_data.responsible_name,
-        auth_name=ci_data.auth_name,
-        session_id=current_session.session_id.hex,
-        device_description=ci_data.device_description,
-        justification=ci_data.justification,
-        previous_state=ci_data.previous_state,
-        new_state=ci_data.new_state,
-        impact=ci_data.impact,
-        observations=ci_data.observations,
-        result=ci_data.result,
-        status=ci_data.status,
-    )
-    session.add(cassia_ci)
+        for ci_doc in cis_docs:
+            if os.path.exists(ci_doc.path):
+                os.remove(ci_doc.path)
+            session.delete(ci_doc)
+            session.commit()
+
+    ci.host_id = ci_data.host_id
+    ci.ip = ci_data.ip
+    ci.date = ci_data.date
+    ci.responsible_name = ci_data.responsible_name
+    ci.auth_name = ci_data.auth_name
+    ci.session_id = current_session.session_id.hex
+    ci.device_description = ci_data.device_description
+    ci.justification = ci_data.justification
+    ci.previous_state = ci_data.previous_state
+    ci.new_state = ci_data.new_state
+    ci.impact = ci_data.impact
+    ci.observations = ci_data.observations
+    ci.result = ci_data.result
+    ci.status = ci_data.status
+    ci.updated_at = datetime.now()
+
     session.commit()
-    session.refresh(cassia_ci)
+    session.refresh(ci)
+
     if files:
         if len(files):
             for file in files:
                 upload_dir = os.path.join(
-                    os.getcwd(), f"uploads/cis/{cassia_ci.ci_id}")
+                    os.getcwd(), f"uploads/cis/{ci.ci_id}")
                 # Create the upload directory if it doesn't exist
                 if not os.path.exists(upload_dir):
                     os.makedirs(upload_dir)
@@ -154,7 +180,7 @@ async def update_ci(ci_id: str, ci_data: cassia_ci_schema.CiBase, files, current
                 with open(file_dest, "wb") as buffer:
                     shutil.copyfileobj(file.file, buffer)
                 ci_document = CassiaCIDocument(
-                    ci_id=cassia_ci.ci_id,
+                    ci_id=ci.ci_id,
                     path=file_dest,
                     filename=file.filename
                 )
@@ -163,7 +189,7 @@ async def update_ci(ci_id: str, ci_data: cassia_ci_schema.CiBase, files, current
                 session.refresh(ci_document)
 
     session.close()
-    return success_response(data=cassia_ci)
+    return success_response(data=ci, message="CI updated successfully")
 
 
 async def get_ci_by_id(ci_id):
