@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from fastapi import Depends, status
 from services import auth_service
+from services import auth_service2
 import services.cassia.users_service as users_service
 from fastapi import Body
 from models.user_model import User
@@ -15,7 +16,7 @@ users_router = APIRouter(prefix="/users")
     tags=["Cassia - Users"],
     status_code=status.HTTP_200_OK,
     summary="Get all cassia users",
-    dependencies=[Depends(auth_service.get_current_user)]
+    dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 def get_users():
     return users_service.get_users()
@@ -26,7 +27,7 @@ def get_users():
     tags=["Cassia - Roles"],
     status_code=status.HTTP_200_OK,
     summary="Get all cassia roles",
-    dependencies=[Depends(auth_service.get_current_user)]
+    dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 def get_roles():
     return users_service.get_roles()
@@ -37,7 +38,7 @@ def get_roles():
     tags=["Cassia - Users"],
     status_code=status.HTTP_200_OK,
     summary="Get user by id",
-    dependencies=[Depends(auth_service.get_current_user)]
+    dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 def get_user(user_id: int):
     return users_service.get_user(user_id)
@@ -47,7 +48,7 @@ def get_user(user_id: int):
                    tags=["Cassia - Users"],
                    status_code=status.HTTP_201_CREATED,
                    summary="Create a new user",
-                   dependencies=[Depends(auth_service.get_current_user)])
+                   dependencies=[Depends(auth_service2.get_current_user_session)])
 async def create_user(user: user_schema.UserRegister = Body(...)):
     """
     ## Create a new user in the app
@@ -68,7 +69,7 @@ async def create_user(user: user_schema.UserRegister = Body(...)):
                   tags=["Cassia - Users"],
                   status_code=status.HTTP_201_CREATED,
                   summary="Update an user",
-                  dependencies=[Depends(auth_service.get_current_user)])
+                  dependencies=[Depends(auth_service2.get_current_user_session)])
 async def update_user(user_id: int, user: user_schema.UserRegister = Body(...)):
     """
     ## Create a new user in the app
@@ -90,6 +91,6 @@ async def update_user(user_id: int, user: user_schema.UserRegister = Body(...)):
     tags=["Cassia - Users"],
     status_code=status.HTTP_201_CREATED,
     summary="Delete an user",
-    dependencies=[Depends(auth_service.get_current_user)])
+    dependencies=[Depends(auth_service2.get_current_user_session)])
 async def delete_user(user_id: int):
     return await users_service.delete_user(user_id)
