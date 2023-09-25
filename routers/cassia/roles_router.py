@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from fastapi import Depends, status
 from services import auth_service
+from services import auth_service2
 import services.cassia.roles_service as roles_service
 from fastapi import Body
 from models.user_model import User
@@ -15,7 +16,7 @@ roles_router = APIRouter(prefix="/users")
     tags=["Cassia - Roles"],
     status_code=status.HTTP_200_OK,
     summary="Get a cassia role",
-    dependencies=[Depends(auth_service.get_current_user)]
+    dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 def get_role(role_id: int):
     return roles_service.get_role(role_id)
@@ -26,7 +27,7 @@ def get_role(role_id: int):
     tags=["Cassia - Roles"],
     status_code=status.HTTP_200_OK,
     summary="Get all cassia permissions",
-    dependencies=[Depends(auth_service.get_current_user)]
+    dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 def get_permissions():
     return roles_service.get_permissions()
@@ -36,7 +37,7 @@ def get_permissions():
                    tags=["Cassia - Roles"],
                    status_code=status.HTTP_201_CREATED,
                    summary="Create a new role",
-                   dependencies=[Depends(auth_service.get_current_user)])
+                   dependencies=[Depends(auth_service2.get_current_user_session)])
 async def create_role(role: cassia_role_schema.RoleRegister = Body(...)):
     """
     ## Create a new role in the app
@@ -56,7 +57,7 @@ async def create_role(role: cassia_role_schema.RoleRegister = Body(...)):
                   tags=["Cassia - Roles"],
                   status_code=status.HTTP_201_CREATED,
                   summary="Update an user",
-                  dependencies=[Depends(auth_service.get_current_user)])
+                  dependencies=[Depends(auth_service2.get_current_user_session)])
 async def update_role(role_id: int, role: cassia_role_schema.RoleRegister = Body(...)):
     """
     ## Create a new user in the app
@@ -78,6 +79,6 @@ async def update_role(role_id: int, role: cassia_role_schema.RoleRegister = Body
     tags=["Cassia - Roles"],
     status_code=status.HTTP_201_CREATED,
     summary="Delete a role",
-    dependencies=[Depends(auth_service.get_current_user)])
+    dependencies=[Depends(auth_service2.get_current_user_session)])
 async def delete_role(role_id: int):
     return await roles_service.delete_role(role_id)
