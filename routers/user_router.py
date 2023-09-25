@@ -10,10 +10,12 @@ from services import user_service
 from schemas.token_schema import Token
 from fastapi.security import OAuth2PasswordRequestForm
 from services import auth_service
+from services import auth_service2
 from schemas import update_user_password
+from models.cassia_user_session import CassiaUserSession
 import services.cassia.users_service as users_service
 import services.cat_service as cat_service
-
+from utils.db import DB_Zabbix
 auth_router = APIRouter(prefix="/api/v1")
 
 
@@ -53,20 +55,39 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     ### Returns
     - access token and token type
     """
-    access_token = auth_service.generate_token(
+    access_token = auth_service2.generate_token(
         form_data.username, form_data.password)
     print(access_token["roles"])
     response = {
         "access_token": access_token['access_token'],
-        "access_token_expires": access_token['access_token_expires'],
-        "refresh_token": access_token["refresh_token"],
-        "refresh_token_expires": access_token["refresh_token_expires"],
         "token_type": "bearer",
         "roles": access_token["roles"],
         "permissions": access_token["permissions"],
         "verified_at": access_token['verified_at']
     }
     return success_response(data=response)
+
+
+@auth_router.get(
+    "/auth/logout",
+    tags=["Auth"],
+    status_code=status.HTTP_200_OK,
+    summary="Close session",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def logout(current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+    return await auth_service2.logout(current_user_session)
+
+
+@auth_router.get(
+    "/auth/logout/all",
+    tags=["Auth"],
+    status_code=status.HTTP_200_OK,
+    summary="Close session in all devices",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def logout_all(current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+    return await auth_service2.logout_all(current_user_session)
 
 
 @auth_router.post(
@@ -86,33 +107,30 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     ### Returns
     - access token and token type
     """
-    access_token = auth_service.generate_token(
+    access_token = auth_service2.generate_token(
         form_data.username, form_data.password)
-
-    return Token(access_token=access_token['access_token'], refresh_token=access_token["refresh_token"], token_type="bearer")
+    return Token(access_token=access_token['access_token'], token_type="bearer")
 
 
 @auth_router.get(
     '/auth/profile',
     tags=["Auth"]
 )
-async def get_my_profile(current_user: Annotated[UserModel, Depends(auth_service.get_current_user)]):
+async def get_my_profile(current_user: Annotated[UserModel, Depends(auth_service2.get_current_user_session)]):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    current_user = session.query(UserModel).filter(
+        UserModel.user_id == current_user.user_id).first()
+    current_user = {
+        "user_id": current_user.user_id,
+        "name": current_user.name,
+        "mail": current_user.mail,
+        "created_at": current_user.created_at,
+        "updated_at": current_user.updated_at,
+        "verified_at": current_user.updated_at,
+
+    }
     return success_response(data=current_user)
-
-
-""" @auth_router.get('/users/',
-                 tags=["Auth"],
-                 status_code=status.HTTP_200_OK,
-                 summary="Get all users",
-                 dependencies=[Depends(auth_service.get_current_user)])
-def get_users():
-    """
-# Get all users
-
-# Returns
-""" - users: User info """
-"""
-return user_service.get_users() """
 
 
 @auth_router.put(
@@ -120,9 +138,9 @@ return user_service.get_users() """
     tags=["Auth"],
     status_code=status.HTTP_201_CREATED,
     summary="Update User Password",
-    dependencies=[Depends(auth_service.get_current_user)])
-async def delete_user(data: update_user_password.UpdateUserPassword = Body(...), current_user: UserModel = Depends(auth_service.get_current_user)):
-    return await users_service.update_password(data, current_user.user_id)
+    dependencies=[Depends(auth_service2.get_current_user_session)])
+async def delete_user(data: update_user_password.UpdateUserPassword = Body(...), current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+    return await users_service.update_password(data, current_user_session.user_id)
 
 
 @auth_router.get(
@@ -130,7 +148,7 @@ async def delete_user(data: update_user_password.UpdateUserPassword = Body(...),
     tags=["Catalogs"],
     status_code=status.HTTP_200_OK,
     summary="Get all roles and permissions",
-    dependencies=[Depends(auth_service.get_current_user)]
+    dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 def get_roles():
     return cat_service.get_roles()
