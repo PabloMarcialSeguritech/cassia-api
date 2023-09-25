@@ -45,4 +45,4 @@ class Ci(CiBase):
 
 @as_form
 class CiUpdate(CiBase):
-    doc_ids: Optional[list] = None
+    doc_ids: Optional[str] = None
