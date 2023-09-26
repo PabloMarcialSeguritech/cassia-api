@@ -1,6 +1,5 @@
 from pydantic import BaseModel, validator
 from pydantic import Field, ValidationError
-from pydantic_core import PydanticCustomError
 from typing import Optional, Literal
 from datetime import datetime
 from utils.traits import as_form
