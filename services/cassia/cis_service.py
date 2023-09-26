@@ -94,7 +94,10 @@ async def create_ci(ci_data: cassia_ci_schema.CiBase, files, current_session):
                 if not os.path.exists(upload_dir):
                     os.makedirs(upload_dir)
                 # get the destination path
-                file_dest = os.path.join(upload_dir, file.filename)
+                timestamp = int(round(datetime.now().timestamp()))
+                file_dest = os.path.join(
+                    upload_dir, f"{int(round(datetime.now().timestamp()))}{file.filename}")
+
                 print(file_dest)
 
                 # copy the file contents
@@ -173,7 +176,9 @@ async def update_ci(ci_id: str, ci_data: cassia_ci_schema.CiBase, files, current
                 if not os.path.exists(upload_dir):
                     os.makedirs(upload_dir)
                 # get the destination path
-                file_dest = os.path.join(upload_dir, file.filename)
+                timestamp = int(round(datetime.now().timestamp()))
+                file_dest = os.path.join(
+                    upload_dir, f"{int(round(datetime.now().timestamp()))}{file.filename}")
                 print(file_dest)
 
                 # copy the file contents
