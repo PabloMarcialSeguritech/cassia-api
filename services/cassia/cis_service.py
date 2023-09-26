@@ -176,9 +176,11 @@ async def update_ci(ci_id: str, ci_data: cassia_ci_schema.CiBase, files, current
                 if not os.path.exists(upload_dir):
                     os.makedirs(upload_dir)
                 # get the destination path
+
                 timestamp = str(datetime.now().timestamp()).replace(".", "")
                 file_dest = os.path.join(
                     upload_dir, f"{timestamp}{file.filename}")
+
                 print(file_dest)
 
                 # copy the file contents
