@@ -67,7 +67,7 @@ async def get_graphic_data(municipality_id: str, tech_id: str, brand_id: str, mo
             data_range = "dias"
             print("aqui")
         tiempo = f"{len(data)} {data_range}"
-        dias = hours / 24
+        dias = round(hours / 24, 6)
         availability_avg = data.loc[:, 'Avg_min'].mean()
     session.close()
     metrics = [
