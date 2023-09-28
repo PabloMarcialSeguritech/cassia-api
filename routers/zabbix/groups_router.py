@@ -61,3 +61,25 @@ def get_subtypes():
 )
 def get_subtypes(techId):
     return group_service.get_subtypes(techId)
+
+
+@groups_router.get(
+    '/groups/brands/{techId}',
+    tags=["Zabbix - Groups"],
+    status_code=status.HTTP_200_OK,
+    summary="Get all device brands by tech",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+def get_subtypes(techId):
+    return group_service.get_brands(techId)
+
+
+@groups_router.get(
+    '/groups/models/{brand_id}',
+    tags=["Zabbix - Groups"],
+    status_code=status.HTTP_200_OK,
+    summary="Get all device models by brand",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+def get_subtypes(brand_id):
+    return group_service.get_models(brand_id)

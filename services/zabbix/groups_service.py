@@ -65,3 +65,45 @@ def get_subtypes(techId):
     session.close()
     print(data.head())
     return success_response(data=data.to_dict(orient="records"))
+
+
+def get_brands(techId):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    techId = "" if techId == "0" else techId
+    statement = text(f"call sp_catBrand('{techId}')")
+    brands = db_zabbix.Session().execute(statement)
+    data = pd.DataFrame(brands).replace(np.nan, "")
+    df = {'brand_id': "0", "name_brand": "TODAS",
+          "id": 0, "value": "TODAS"}
+    if len(data) > 0:
+        if len(data.loc[data["brand_id"] == "0"]) == 0:
+            data = pd.concat(
+                [pd.DataFrame(df, index=[0]), data], ignore_index=True)
+        data["id"] = data["brand_id"]
+        data["value"] = data["name_brand"]
+    else:
+        data = pd.DataFrame(df, index=[0])
+    session.close()
+    return success_response(data=data.to_dict(orient="records"))
+
+
+def get_models(techId):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text(f"call sp_catModel('{techId}')")
+    subtypes = db_zabbix.Session().execute(statement)
+    data = pd.DataFrame(subtypes).replace(np.nan, "")
+    df = {'model_id': "0", "name_model": "TODOS",
+          "id": 0, "value": "TODOS"}
+    if len(data) > 0:
+        if len(data.loc[data["model_id"] == "0"]) == 0:
+            data = pd.concat(
+                [pd.DataFrame(df, index=[0]), data], ignore_index=True)
+        data["id"] = data["model_id"]
+        data["value"] = data["name_model"]
+    else:
+        data = pd.DataFrame(df, index=[0])
+    session.close()
+    print(data.head())
+    return success_response(data=data.to_dict(orient="records"))
