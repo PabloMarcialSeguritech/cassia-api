@@ -32,7 +32,7 @@ async def get_graphic_data(municipality_id: str, tech_id: str, brand_id: str, mo
     if len(data) > 0:
         number = data['itemid'].nunique()
         data = data.groupby(['time']).sum(
-        ).astype(float).apply(lambda x: round(x/number, 6)).reset_index()
+        ).astype(float).apply(lambda x: round(x/number*100, 6)).reset_index()
         data = data[['time', 'num', 'Avg_min']]
         diff = end_date-init_date
         hours = diff.days*24 + diff.seconds//3600
@@ -69,6 +69,8 @@ async def get_graphic_data(municipality_id: str, tech_id: str, brand_id: str, mo
         tiempo = f"{len(data)} {data_range}"
         dias = round(hours / 24, 6)
         availability_avg = data.loc[:, 'Avg_min'].mean()
+        data.rename(columns={'Avg_min': 'Disponibilidad',
+                    'time': 'Tiempo'}, inplace=True)
     session.close()
     metrics = [
         {'metric_name': "Conectividad",
