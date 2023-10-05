@@ -3,7 +3,7 @@ import os
 from pydantic import BaseSettings
 from dotenv import load_dotenv
 
-env = os.getenv('ENVIRONMENT', 'dev')
+env = os.getenv('ENVIRONMENT', 'qa')
 dotenv_path = f'.env.{env}'
 load_dotenv(dotenv_path=dotenv_path, verbose=True)
 
@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     db_zabbix_pass: str = os.getenv('DB_ZABBIX_PASS')
     db_zabbix_host: str = os.getenv('DB_ZABBIX_HOST')
     db_zabbix_port: str = os.getenv('DB_ZABBIX_PORT')
+
+    db_c5_name: str = os.getenv("DB_C5_NAME")
+    db_c5_user: str = os.getenv('DB_C5_USER')
+    db_c5_pass: str = os.getenv('DB_C5_PASS')
+    db_c5_host: str = os.getenv('DB_C5_HOST')
+    db_c5_port: str = os.getenv('DB_C5_PORT')
 
     ssh_host: str = os.getenv("SSH_HOST")
     ssh_port: str = os.getenv("SSH_PORT")
@@ -53,3 +59,5 @@ class Settings(BaseSettings):
     ssh_user_client: str = os.getenv('SSH_HOST_USER')
     ssh_pass_client: str = os.getenv('SSH_HOST_PASS')
     ssh_key_gen: str = os.getenv('SSH_KEY_GEN')
+
+    cassia_server_ip: str = os.getenv('CASSIA_SERVER_IP')

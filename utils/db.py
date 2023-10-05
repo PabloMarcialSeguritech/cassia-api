@@ -79,3 +79,20 @@ class DB_Zabbix():  # Zabbix DB connection class
     def stop(self) -> None:
         if settings.env == "dev":
             self.server.stop()
+
+
+class DB_C5():
+    DB_C5_NAME = settings.db_c5_name
+    DB_C5_USER = settings.db_c5_user
+    DB_C5_PASS = settings.db_c5_pass
+    DB_C5_HOST = settings.db_c5_host
+    DB_C5_PORT = settings.db_c5_port
+
+    connection_string = f"mssql+pymssql://{DB_C5_USER}:{DB_C5_PASS}@{DB_C5_HOST}:{DB_C5_PORT}/{DB_C5_NAME}"
+
+    engine = create_engine(connection_string, echo=False,
+                           poolclass=NullPool, pool_recycle=1800, pool_pre_ping=True)
+
+    Session = sessionmaker(bind=engine)
+
+    Base = declarative_base()

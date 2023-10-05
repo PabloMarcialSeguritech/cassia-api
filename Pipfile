@@ -9,7 +9,7 @@ uvicorn = "*"
 sqlalchemy = "*"
 python-dotenv = "*"
 mysql-connector-python = "*"
-pydantic = {extras = ["email"], version = "<2"}
+pydantic = {version = "<2", extras = ["email"]}
 passlib = {extras = ["bcrypt"], version = "*"}
 python-jose = {extras = ["cryptography"], version = "*"}
 python-multipart = "*"
@@ -26,6 +26,7 @@ fastapi-mail = "*"
 httpx = "*"
 openpyxl = "*"
 xlsxwriter = "*"
+pymssql = "*"
 
 [dev-packages]
 

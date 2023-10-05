@@ -2,6 +2,7 @@ from fastapi import APIRouter, WebSocket
 import services.zabbix.hosts_service as hosts_service
 from fastapi import Depends, status, Path
 from services import auth_service
+from services import auth_service2
 import services.zabbix.interface_service as interface_service
 from fastapi.responses import HTMLResponse
 import asyncio
@@ -14,9 +15,9 @@ hosts_router = APIRouter(prefix="/hosts")
     tags=["Zabbix - Hosts"],
     status_code=status.HTTP_200_OK,
     summary="Get host by municipality ID, technology or device type, and subtype",
-    dependencies=[Depends(auth_service.get_current_user)]
+    dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def get_hosts_filter(municipalityId: str, dispId: str = "", subtype_id: str = ""):
+def get_hosts_filter(municipalityId: str = "", dispId: str = "", subtype_id: str = ""):
     return hosts_service.get_host_filter(municipalityId, dispId, subtype_id)
 
 
@@ -25,7 +26,7 @@ def get_hosts_filter(municipalityId: str, dispId: str = "", subtype_id: str = ""
     tags=["Zabbix - Hosts"],
     status_code=status.HTTP_200_OK,
     summary="Get host by municipality ID, technology or device type, and subtype",
-    dependencies=[Depends(auth_service.get_current_user)]
+    dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 def get_hosts_filter(municipalityId: str, dispId: str = "", subtype_id: str = ""):
     return hosts_service.get_host_filter(municipalityId, dispId, subtype_id)
@@ -36,7 +37,7 @@ def get_hosts_filter(municipalityId: str, dispId: str = "", subtype_id: str = ""
     tags=["Zabbix - Hosts"],
     status_code=status.HTTP_200_OK,
     summary="Get host corelations filtered by municipality ID",
-    dependencies=[Depends(auth_service.get_current_user)]
+    dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 def get_host_relations(municipalityId: str):
     return hosts_service.get_host_correlation_filter(municipalityId)
@@ -46,7 +47,7 @@ def get_host_relations(municipalityId: str):
                    tags=["Zabbix - Hosts"],
                    status_code=status.HTTP_200_OK,
                    summary="Create a ping on a device",
-                   dependencies=[Depends(auth_service.get_current_user)])
+                   dependencies=[Depends(auth_service2.get_current_user_session)])
 def create_ping(hostId: int = Path(description="ID of Host", example="10596")):
     return interface_service.create_ping(hostId)
 
@@ -55,7 +56,7 @@ def create_ping(hostId: int = Path(description="ID of Host", example="10596")):
                   tags=["Zabbix - Hosts - Detail"],
                   status_code=status.HTTP_200_OK,
                   summary="Get host metrics",
-                  dependencies=[Depends(auth_service.get_current_user)])
+                  dependencies=[Depends(auth_service2.get_current_user_session)])
 async def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596")):
     return await hosts_service.get_host_metrics(hostId)
 
@@ -64,9 +65,18 @@ async def get_hosts_filter(hostId: int = Path(description="ID of Host", example=
                   tags=["Zabbix - Hosts - Detail"],
                   status_code=status.HTTP_200_OK,
                   summary="Get host alerts",
-                  dependencies=[Depends(auth_service.get_current_user)])
+                  dependencies=[Depends(auth_service2.get_current_user_session)])
 async def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596")):
     return await hosts_service.get_host_alerts(hostId)
+
+
+@hosts_router.get('/detail/arcos/{hostId}',
+                  tags=["Zabbix - Hosts - Detail"],
+                  status_code=status.HTTP_200_OK,
+                  summary="Get host arcos metric",
+                  dependencies=[Depends(auth_service2.get_current_user_session)])
+async def get_hosts_filter(hostId: int = Path(description="ID of Host", example="20157")):
+    return await hosts_service.get_host_arcos(hostId)
 
 
 html = """
@@ -137,6 +147,6 @@ async def send(websocket, index):
                    tags=["Zabbix - Hosts"],
                    status_code=status.HTTP_200_OK,
                    summary="Reboot on a server",
-                   dependencies=[Depends(auth_service.get_current_user)])
+                   dependencies=[Depends(auth_service2.get_current_user_session)])
 def reboot(hostId: int = Path(description="ID of Host", example="10596")):
     return hosts_service.reboot(hostId)
