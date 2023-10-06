@@ -41,4 +41,4 @@ def get_hosts_filter(municipalityId: str = "0", dispId: str = "", subtype_id: st
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 def get_hosts_filter(municipalityId: str = "0"):
-    return layers_service.get_carreteros(municipalityId)
+    return layers_service.get_carreteros2(municipalityId)
