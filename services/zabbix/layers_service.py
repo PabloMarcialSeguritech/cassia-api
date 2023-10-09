@@ -132,7 +132,7 @@ def get_carreteros2(municipality_id):
     if municipality_id != "0":
         statement = text(f"""
 SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude FROM cassia_arch_traffic c 
-where c.`date` between DATE_ADD(now(),INTERVAL -20 MINUTE) and NOW()  
+where c.`date` between DATE_ADD(now(),INTERVAL -5 MINUTE) and NOW()  
 and c.municipality  LIKE '{municipio['name'].values[0]}'
 group by c.latitude, c.longitude 
 """)
@@ -153,8 +153,12 @@ group by c.latitude, c.longitude
 """)
     alerts = pd.DataFrame(session_zabbix.execute(
         statement)).replace(np.nan, "")
-    data = pd.merge(data, alerts, how="left", left_on=[
-                    'latitude', 'longitude'], right_on=['latitude', 'longitude']).replace(np.nan, 0)
+    if not alerts.empty:
+        data = pd.merge(data, alerts, how="left", left_on=[
+            'latitude', 'longitude'], right_on=['latitude', 'longitude']).replace(np.nan, 0)
+    else:
+        data['max_severity'] = [0 for al in range(len(alerts))]
+
     print(data.to_string())
     session_zabbix.close()
     return success_response(data=data.to_dict(orient="records"))
