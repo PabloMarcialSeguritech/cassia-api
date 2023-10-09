@@ -8,6 +8,8 @@ from paramiko import SSHClient, AutoAddPolicy
 from paramiko.ssh_exception import AuthenticationException, BadHostKeyException, SSHException
 from cryptography.fernet import Fernet
 from models.interface_model import Interface as InterfaceModel
+from models.cassia_config import CassiaConfig
+from models.cassia_arch_traffic_events import CassiaArchTrafficEvent
 import socket
 
 from fastapi.exceptions import HTTPException
@@ -24,6 +26,11 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     else:
         subtype_host_filter = subtype_id """
     """ arcos_band = False """
+    rfid_config = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "rfid_id").first()
+    rfid_id = "9"
+    if rfid_config:
+        rfid_id = rfid_config.value
     if subtype_id == "3":
         subtype_id = ""
     if dispId == "11":
@@ -71,6 +78,40 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         f"CALL sp_problembySev('{municipalityId}','{dispId_filter}','{subtype_id}')")
     problems_by_sev = session.execute(statement3)
     data3 = pd.DataFrame(problems_by_sev).replace(np.nan, "")
+    if dispId == rfid_id:
+        if municipalityId == '0':
+            alertas_rfid = session.query(CassiaArchTrafficEvent).filter(
+                CassiaArchTrafficEvent.closed_at == None,
+            ).all()
+
+        else:
+            statement = text("call sp_catCity()")
+            municipios = session.execute(statement)
+            municipios = pd.DataFrame(municipios).replace(np.nan, "")
+
+            municipio = municipios.loc[municipios['groupid'].astype(str) ==
+                                       municipalityId]
+            if not municipio.empty:
+                municipio = municipio['name'].item()
+            else:
+                municipio = ''
+
+            alertas_rfid = session.query(CassiaArchTrafficEvent).filter(
+                CassiaArchTrafficEvent.closed_at == None,
+                CassiaArchTrafficEvent.municipality == municipio
+            ).all()
+        alertas_rfid = pd.DataFrame([(
+            r.severity,
+        ) for r in alertas_rfid], columns=['severity'])
+        print(alertas_rfid.to_string())
+        alertas_rfid = alertas_rfid.groupby(
+            ['severity'])['severity'].count().rename_axis('Severities').reset_index()
+        alertas_rfid.rename(
+            columns={'severity': 'Severities', 'Severities': 'severity'}, inplace=True)
+        problems_count = pd.concat([data3, alertas_rfid], ignore_index=True)
+        data3 = problems_count.groupby(
+            ['severity']).sum().reset_index()
+
     statement4 = text(
         f"call sp_hostAvailPingLoss('{municipalityId}','{dispId}','')")
     hostAvailables = session.execute(statement4)
@@ -79,19 +120,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     data2 = data2.replace(np.nan, "")
     # aditional data
     subgroup_data = []
-    """ statement5 = ""
-    statement5 = text(
-        f"CALL sp_viewAlignment('{municipalityId}','11','376276,375090')")
-    subgroup_data = db_zabbix.Session().execute(statement5)
-    data5 = pd.DataFrame(subgroup_data).replace(np.nan, "")
-    if data5.empty:
-        data5["hostid"] = [0]
-        data5["Alineacion"] = [0]
-    alineaciones = data5[["hostid", "Alineacion"]]
-    nuevo = data2
-    if not data2.empty:
-        nuevo = data2.merge(alineaciones, left_on="hostidC",
-                            right_on="hostid", how="left").replace(np.nan, 0) """
+
     statement6 = ""
     if subtype_id != "":
         statement6 = text(

@@ -6,6 +6,7 @@ from sqlalchemy import text
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+import pytz
 from models.cassia_config import CassiaConfig
 from models.cassia_arch_traffic_events import CassiaArchTrafficEvent
 # Creating the Rocketry app
@@ -75,7 +76,8 @@ order by a.Longitud,a.Latitud
         lambda x: x['Latitud'] if x['latitude'] == '--' else x['latitude'], axis=1)
     asd['longitude'] = asd[['longitude', 'Longitud']].apply(
         lambda x: x['Longitud'] if x['longitude'] == '--' else x['longitude'], axis=1)
-    asd['date'] = [datetime.now() for i in range(len(asd))]
+    asd['date'] = [datetime.now(pytz.timezone(
+        'America/Mexico_City')) for i in range(len(asd))]
     asd = asd[['hostid', 'Host', 'latitude',
                'longitude', 'ip', 'lecturas', 'date', 'Municipio']]
     asd.rename(columns={'Host': 'name', 'lecturas': 'readings',
@@ -90,14 +92,14 @@ order by a.Longitud,a.Latitud
 async def clean_data():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-    date = datetime.now() - timedelta(minutes=40)
+    date = datetime.now(pytz.timezone(
+        'America/Mexico_City')) - timedelta(minutes=62)
 
     statement = text(f"""
     DELETE FROM cassia_arch_traffic
     WHERE cassia_arch_traffic_id in(
                      SELECT * FROM (SELECT cassia_arch_traffic_id FROM cassia_arch_traffic
         WHERE date<'{date}') AS p
-        
     ) 
 """)
     delete_rows = session.execute(statement)
@@ -110,7 +112,6 @@ async def clean_data():
 async def trigger_alerts():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-
     statement = text(f"""
     select date from cassia_arch_traffic order by date desc limit 1 
 """)
@@ -119,8 +120,9 @@ async def trigger_alerts():
     if not last_date.empty:
         last_date = last_date['date'].iloc[0]
     else:
-        last_date = datetime.now()
-    rangos = [30, 20, 10]
+        last_date = datetime.now(pytz.timezone(
+            'America/Mexico_City'))
+    rangos = [60, 45, 30, 20]
     alerts_defined = []
     alertas = pd.DataFrame()
     for rango in rangos:
@@ -132,7 +134,8 @@ async def trigger_alerts():
         if not first_date.empty:
             first_date = first_date['date'].iloc[0]
         else:
-            first_date = datetime.now()
+            first_date = datetime.now(pytz.timezone(
+                'America/Mexico_City'))
         minutes = (last_date-first_date).total_seconds()/60.0
         if minutes >= rango:
             date = last_date - timedelta(minutes=rango)
@@ -141,7 +144,7 @@ async def trigger_alerts():
                 '{date}' and '{last_date}'   
             """)
             statement2 = text(f"""
-                SELECT hostid,latitude,longitude FROM cassia_arch_traffic where date between
+                SELECT hostid,latitude,longitude,municipality,ip,name FROM cassia_arch_traffic where date between
                 '{date}' and '{last_date}'   
             """)
             result = pd.DataFrame(session.execute(statement2))
@@ -159,8 +162,8 @@ async def trigger_alerts():
 
             result_copy['alerta'] = [
                 f"Este host no ha tenido lecturas en los ultimos {rango} minutos" for i in range(len(result_copy))]
-            result_copy['severidad'] = [1 if rango == 10 else 2 if rango ==
-                                        20 else 3 for i in range(len(result_copy))]
+            result_copy['severidad'] = [1 if rango == 20 else 2 if rango ==
+                                        30 else 3 if rango == 45 else 4 for i in range(len(result_copy))]
 
             result = result.drop_duplicates()
             result_copy = result_copy.merge(
@@ -178,19 +181,25 @@ async def trigger_alerts():
         if not alerta:
             alerta_created = CassiaArchTrafficEvent(
                 hostid=alertas['hostid'][ind],
-                created_at=datetime.now(),
+                created_at=datetime.now(pytz.timezone(
+                    'America/Mexico_City')),
                 severity=alertas['severidad'][ind],
                 message=alertas['alerta'][ind],
                 status='Creada',
                 latitude=alertas['latitude'][ind],
                 longitude=alertas['longitude'][ind],
+                municipality=alertas['municipality'][ind],
+                ip=alertas['ip'][ind],
+                hostname=alertas['name'][ind],
+
             )
             session.add(alerta_created)
         else:
             if alerta.severity != alertas['severidad'][ind]:
                 alerta.severity = alertas['severidad'][ind]
                 alerta.message = alertas['alerta'][ind]
-                alerta.updated_at = datetime.now()
+                alerta.updated_at = datetime.now(pytz.timezone(
+                    'America/Mexico_City'))
                 alerta.status = "Severidad actualizada"
         session.commit()
 
@@ -210,8 +219,9 @@ async def trigger_alerts_close():
     if not last_date.empty:
         last_date = last_date['date'].iloc[0]
     else:
-        last_date = datetime.now()
-    rangos = [30, 20, 10]
+        last_date = datetime.now(pytz.timezone(
+            'America/Mexico_City'))
+    rangos = [60, 45, 30, 20]
     alerts_defined = []
     alertas = pd.DataFrame()
     for rango in rangos:
@@ -223,7 +233,8 @@ async def trigger_alerts_close():
         if not first_date.empty:
             first_date = first_date['date'].iloc[0]
         else:
-            first_date = datetime.now()
+            first_date = datetime.now(pytz.timezone(
+                'America/Mexico_City'))
         minutes = (last_date-first_date).total_seconds()/60.0
         if minutes >= rango:
             date = last_date - timedelta(minutes=rango)
@@ -239,8 +250,8 @@ async def trigger_alerts_close():
             alerts_defined = alerts_defined+result['hostid'].values.tolist()
             result['alerta'] = [
                 f"Este host no ha tenido lecturas en los ultimos {rango} minutos" for i in range(len(result))]
-            result['severidad'] = [1 if rango == 10 else 2 if rango ==
-                                   20 else 3 for i in range(len(result))]
+            result['severidad'] = [1 if rango == 20 else 2 if rango ==
+                                   30 else 3 if rango == 45 else 4 for i in range(len(result))]
 
             alertas = pd.concat([alertas, result])
     abiertos = text(f"""SELECT cassia_arch_traffic_events_id,hostid FROM 
@@ -256,8 +267,10 @@ async def trigger_alerts_close():
 
         statement = text(f"""
         UPDATE cassia_arch_traffic_events
-        set closed_at='{datetime.now()}',
-        updated_at='{datetime.now()}',
+        set closed_at='{datetime.now(pytz.timezone(
+            'America/Mexico_City'))}',
+        updated_at='{datetime.now(pytz.timezone(
+            'America/Mexico_City'))}',
         status='Cerrada automaticamente'
         where cassia_arch_traffic_events_id
         in ({ids})
