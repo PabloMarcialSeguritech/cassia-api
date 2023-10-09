@@ -16,3 +16,6 @@ class CassiaArchTrafficEvent(DB_Zabbix.Base):
     status = Column(String(length=100), unique=False, nullable=False)
     latitude = Column(String(length=16), unique=False, nullable=True)
     longitude = Column(String(length=16), unique=False, nullable=True)
+    municipality = Column(String(length=100), unique=False, nullable=True)
+    hostname = Column(String(length=160), unique=False, nullable=True)
+    ip = Column(String(length=20), unique=False, nullable=True)
