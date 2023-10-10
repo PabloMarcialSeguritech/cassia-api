@@ -107,7 +107,7 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype=""):
                 0,
                 ''
             )
-                for r in alertas_rfid], columns=['time', 'severity', 'hostid',
+                for r in alertas_rfid], columns=['Time', 'severity', 'hostid',
                                                  'Host', 'latitude', 'longitude',
                                                  'ip',
                                                  'Problem', 'Estatus',

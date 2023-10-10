@@ -14,7 +14,7 @@ async def get_graphic_data_multiple(municipality_id: list, tech_id: list, brand_
     session = db_zabbix.Session()
     brand_id = ['' if brand == '0' else brand for brand in brand_id]
     model_id = ['' if model == '0' else model for model in model_id]
-
+    datas = list()
     for ind in range(len(municipality_id)):
         statement = text(f"""
         call sp_connectivity('{municipality_id[ind]}','{tech_id[ind]}','{brand_id[ind]}','{model_id[ind]}','{init_date}','{end_date}');
@@ -28,9 +28,9 @@ async def get_graphic_data_multiple(municipality_id: list, tech_id: list, brand_
         last = ''
         dias = ''
         availability_avg = 0
-        datas = []
+
         datas.append(process_data(data, end_date, init_date))
-        print(data[ind].to_string())
+        print(datas[ind].to_string())
     return success_response()
     statement = text(f"""
     call sp_connectivity('{municipality_id}','{tech_id}','{brand_id}','{model_id}','{init_date}','{end_date}');
