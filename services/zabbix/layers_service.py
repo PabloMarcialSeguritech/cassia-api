@@ -159,6 +159,6 @@ group by c.latitude, c.longitude
     else:
         data['max_severity'] = [0 for al in range(len(alerts))]
 
-    print(data.to_string())
+    """ print(data.to_string()) """
     session_zabbix.close()
     return success_response(data=data.to_dict(orient="records"))
