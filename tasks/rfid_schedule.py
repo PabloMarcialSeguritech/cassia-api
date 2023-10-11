@@ -254,16 +254,19 @@ async def trigger_alerts_close():
                                    30 else 3 if rango == 45 else 4 for i in range(len(result))]
 
             alertas = pd.concat([alertas, result])
+    """ print(alertas.to_string()) """
     abiertos = text(f"""SELECT cassia_arch_traffic_events_id,hostid FROM 
                     cassia_arch_traffic_events
                     where closed_at is NULL
                     """)
     abiertos = pd.DataFrame(session.execute(abiertos))
+    """ print(abiertos.to_string()) """
     if not abiertos.empty:
         a_cerrar = abiertos[~abiertos['hostid'].isin(
             alertas['hostid'].values.tolist())]
+        """ print(a_cerrar.to_string()) """
         ids = ','.join(['0']+[str(v)
-                       for v in a_cerrar['hostid'].values.tolist()])
+                       for v in a_cerrar['cassia_arch_traffic_events_id'].values.tolist()])
 
         statement = text(f"""
         UPDATE cassia_arch_traffic_events
@@ -275,6 +278,7 @@ async def trigger_alerts_close():
         where cassia_arch_traffic_events_id
         in ({ids})
         """)
+
         session.execute(statement)
         session.commit()
 
