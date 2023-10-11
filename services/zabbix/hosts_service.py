@@ -228,12 +228,42 @@ SELECT from_unixtime(p.clock,'%d/%m/%Y %H:%i:%s' ) as Time,
 	ORDER BY p.clock  desc 
     limit 20
 """)
-
     alerts = session.execute(statement)
     alerts = pd.DataFrame(alerts).replace(np.nan, "")
+    alertas_rfid = session.query(CassiaArchTrafficEvent).filter(
+        CassiaArchTrafficEvent.closed_at == None,
+        CassiaArchTrafficEvent.hostid == host_id
+    ).all()
+    alertas_rfid = pd.DataFrame([(
+        r.created_at,
+        r.severity,
+        r.hostid,
+        r.hostname,
+        r.latitude,
+        r.longitude,
+        r.ip,
+        r.message,
+        r.status,
+        r.cassia_arch_traffic_events_id,
+        '',
+        '',
+        0,
+        ''
+    )
+        for r in alertas_rfid], columns=['Time', 'severity', 'hostid',
+                                         'Host', 'latitude', 'longitude',
+                                                 'ip',
+                                                 'Problem', 'Estatus',
+                                                 'eventid',
+                                                 'r_eventid',
+                                                 'TimeRecovery',
+                                                 'Ack',
+                                                 'Ack_message'])
+    data = pd.concat([alertas_rfid, alerts],
+                     ignore_index=True).replace(np.nan, "")
 
     session.close()
-    return success_response(data=alerts.to_dict(orient="records"))
+    return success_response(data=data.to_dict(orient="records"))
 
 
 async def get_host_arcos(host_id):
@@ -261,6 +291,7 @@ SELECT m.Nombre as Municipio, a.Nombre as Arco, r.Descripcion,
 r.Estado, a2.UltimaLectura,
 ISNULL(cl.lecturas,0)  as Lecturas,
 a.Longitud,a.Latitud,
+a2.Carril,
 r.Ip 
 FROM RFID r
 INNER JOIN ArcoRFID ar  ON (R.IdRFID = ar.IdRFID )
