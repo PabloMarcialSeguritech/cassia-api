@@ -7,6 +7,11 @@ from utils.traits import success_response
 from fastapi import status
 from datetime import datetime
 from functools import reduce
+from fastapi.exceptions import HTTPException
+import tempfile
+import os
+import ntpath
+from fastapi.responses import FileResponse
 settings = Settings()
 
 
@@ -15,6 +20,11 @@ async def get_graphic_data_multiple(municipality_id: list, tech_id: list, brand_
     session = db_zabbix.Session()
     brand_id = ['' if brand == '0' else brand for brand in brand_id]
     model_id = ['' if model == '0' else model for model in model_id]
+    if not verify_lenghts([municipality_id, tech_id, brand_id, model_id]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The lenght of the arrays must be the same"
+        )
     datas = list()
     dispositivos = list()
     dias = list()
@@ -55,7 +65,7 @@ async def get_graphic_data_multiple(municipality_id: list, tech_id: list, brand_
         promedios = [merged_df.loc[:, 'Disponibildad'].mean()]
 
     print(merged_df.to_string())
-
+    session.close()
     metrics = [
         {'metric_name': "Conectividad",
          'availability_average': promedios,
@@ -221,3 +231,42 @@ async def get_graphic_data(municipality_id: str, tech_id: str, brand_id: str, mo
 
 def Average(lst):
     return reduce(lambda a, b: a + b, lst) / len(lst)
+
+
+async def download_graphic_data_multiple(municipality_id: list, tech_id: list, brand_id: list, model_id: list, init_date: datetime, end_date: datetime):
+    brand_id = ['' if brand == '0' else brand for brand in brand_id]
+    model_id = ['' if model == '0' else model for model in model_id]
+    if not verify_lenghts([municipality_id, tech_id, brand_id, model_id]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The lenght of the arrays must be the same"
+        )
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+
+    datas = list()
+
+    for ind in range(len(municipality_id)):
+        statement = text(f"""
+        call sp_connectivity('{municipality_id[ind]}','{tech_id[ind]}','{brand_id[ind]}','{model_id[ind]}','{init_date}','{end_date}');
+        """)
+        data = pd.DataFrame(session.execute(statement))
+        datas.append(data)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp_file:
+        xlsx_filename = temp_file.name
+        with pd.ExcelWriter(xlsx_filename, engine="xlsxwriter") as writer:
+            ind = 1
+            for data in datas:
+                data.to_excel(
+                    writer, sheet_name=f"Consulta {ind}", index=False)
+                ind += 1
+    session.close()
+    return FileResponse(xlsx_filename, headers={"Content-Disposition": "attachment; filename=datos.xlsx"}, media_type="application/vnd.ms-excel", filename="datos.xlsx")
+
+
+def verify_lenghts(arrays: list):
+    inicial = arrays[0]
+    for arreglo in arrays[1:]:
+        if len(inicial) != len(arreglo):
+            return False
+    return True

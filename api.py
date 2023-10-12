@@ -60,12 +60,16 @@ html = """
 """
 
 
-@app.get("/soc")
+""" @app.get("/soc") """
+
+
 async def get():
     return HTMLResponse(html)
 
 
-@app.websocket("/ws")
+""" @app.websocket("/ws") """
+
+
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     while True:
