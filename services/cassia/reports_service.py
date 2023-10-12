@@ -81,7 +81,7 @@ async def get_graphic_data_multiple(municipality_id: list, tech_id: list, brand_
 
     response = {
 
-        'general_funcionality_average': Average(promedios),
+        'general_funcionality_average': promedios,
         'metrics': metrics
     }
 
