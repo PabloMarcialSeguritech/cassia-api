@@ -102,3 +102,63 @@ order by a.Longitud,a.Latitud""")
     data = pd.DataFrame(data).replace(np.nan, "")
     session.close()
     return success_response(data=data.to_dict(orient="records"))
+
+
+def get_carreteros2(municipality_id):
+    db_zabbix = DB_Zabbix()
+    session_zabbix = db_zabbix.Session()
+    if municipality_id != "0":
+        statement = text("call sp_catCity()")
+        municipios = session_zabbix.execute(statement)
+        data = pd.DataFrame(municipios).replace(np.nan, "")
+        try:
+            municipio = data.loc[data["groupid"] == int(municipality_id)]
+        except:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Municipality id is not a int value"
+            )
+        if len(municipio) < 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Municipality id not exist"
+            )
+        rfids = text(f"call sp_hostView('{municipality_id}','9','')")
+        rfids = session_zabbix.execute(rfids)
+        rfids = pd.DataFrame(rfids).replace(np.nan, "")
+
+        session_zabbix.close()
+
+    if municipality_id != "0":
+        statement = text(f"""
+SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude FROM cassia_arch_traffic c 
+where c.`date` between DATE_ADD(now(),INTERVAL -5 MINUTE) and NOW()  
+and c.municipality  LIKE '{municipio['name'].values[0]}'
+group by c.latitude, c.longitude 
+""")
+    else:
+        statement = text("""
+SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude 
+                         FROM cassia_arch_traffic c where c.`date` 
+                         between DATE_ADD(now(),INTERVAL -5 MINUTE) and NOW()  
+                         group by c.latitude, c.longitude 
+""")
+
+    data = session_zabbix.execute(statement)
+    data = pd.DataFrame(data).replace(np.nan, "")
+    statement = text(f"""
+    SELECT max(c.severity) as max_severity, c.longitude ,c.latitude FROM cassia_arch_traffic_events c 
+where c.closed_at is NULL 
+group by c.latitude, c.longitude 
+""")
+    alerts = pd.DataFrame(session_zabbix.execute(
+        statement)).replace(np.nan, "")
+    if not alerts.empty:
+        data = pd.merge(data, alerts, how="left", left_on=[
+            'latitude', 'longitude'], right_on=['latitude', 'longitude']).replace(np.nan, 0)
+    else:
+        data['max_severity'] = [0 for al in range(len(alerts))]
+
+    """ print(data.to_string()) """
+    session_zabbix.close()
+    return success_response(data=data.to_dict(orient="records"))

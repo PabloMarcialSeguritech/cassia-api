@@ -16,6 +16,8 @@ from datetime import datetime
 from utils.traits import success_response
 from fastapi import status, File, UploadFile
 from fastapi.responses import FileResponse
+from models.cassia_config import CassiaConfig
+from models.cassia_arch_traffic_events import CassiaArchTrafficEvent
 import os
 import ntpath
 import shutil
@@ -23,8 +25,14 @@ settings = Settings()
 
 
 def get_problems_filter(municipalityId, tech_host_type=0, subtype=""):
+    print("Si es este")
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
+    rfid_config = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "rfid_id").first()
+    rfid_id = "9"
+    if rfid_config:
+        rfid_id = rfid_config.value
     if subtype == "376276" or subtype == "375090":
         subtype = '376276,375090'
     if tech_host_type == "11":
@@ -36,6 +44,81 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype=""):
 
     problems = session.execute(statement)
     data = pd.DataFrame(problems).replace(np.nan, "")
+    if tech_host_type == rfid_id:
+        if municipalityId == '0':
+            alertas_rfid = session.query(CassiaArchTrafficEvent).filter(
+                CassiaArchTrafficEvent.closed_at == None,
+            ).all()
+            alertas_rfid = pd.DataFrame([(
+                r.created_at,
+                r.severity,
+                r.hostid,
+                r.hostname,
+                r.latitude,
+                r.longitude,
+                r.ip,
+                r.message,
+                r.status,
+                r.cassia_arch_traffic_events_id,
+                '',
+                '',
+                0,
+                ''
+            )
+                for r in alertas_rfid], columns=['Time', 'severity', 'hostid',
+                                                 'Host', 'latitude', 'longitude',
+                                                 'ip',
+                                                 'Problem', 'Estatus',
+                                                 'eventid',
+                                                 'r_eventid',
+                                                 'TimeRecovery',
+                                                 'Ack',
+                                                 'Ack_message'])
+
+        else:
+            statement = text("call sp_catCity()")
+            municipios = session.execute(statement)
+            municipios = pd.DataFrame(municipios).replace(np.nan, "")
+
+            municipio = municipios.loc[municipios['groupid'].astype(str) ==
+                                       municipalityId]
+            if not municipio.empty:
+                municipio = municipio['name'].item()
+            else:
+                municipio = ''
+
+            alertas_rfid = session.query(CassiaArchTrafficEvent).filter(
+                CassiaArchTrafficEvent.closed_at == None,
+                CassiaArchTrafficEvent.municipality == municipio
+            ).all()
+            alertas_rfid = pd.DataFrame([(
+                r.created_at,
+                r.severity,
+                r.hostid,
+                r.hostname,
+                r.latitude,
+                r.longitude,
+                r.ip,
+                r.message,
+                r.status,
+                r.cassia_arch_traffic_events_id,
+                '',
+                '',
+                0,
+                ''
+            )
+                for r in alertas_rfid], columns=['Time', 'severity', 'hostid',
+                                                 'Host', 'latitude', 'longitude',
+                                                 'ip',
+                                                 'Problem', 'Estatus',
+                                                 'eventid',
+                                                 'r_eventid',
+                                                 'TimeRecovery',
+                                                 'Ack',
+                                                 'Ack_message'])
+
+        data = pd.concat([alertas_rfid, data],
+                         ignore_index=True).replace(np.nan, "")
 
     """ statement = text(
         "SELECT problemid,estatus FROM problem_records where estatus!='Cerrado'")
