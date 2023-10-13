@@ -37,7 +37,6 @@ async def get_graphic_data_multiple(municipality_id: list, tech_id: list, brand_
         call sp_connectivity('{municipality_id[ind]}','{tech_id[ind]}','{brand_id[ind]}','{model_id[ind]}','{init_date}','{end_date}');
         """)
         data = pd.DataFrame(session.execute(statement))
-        print(statement)
 
         data_procesed = process_data(data, end_date, init_date)
         datas.append(data_procesed['data'])
@@ -47,7 +46,7 @@ async def get_graphic_data_multiple(municipality_id: list, tech_id: list, brand_
         tiempo.append(data_procesed['tiempo'])
         first.append(data_procesed['first'])
         last.append(data_procesed['last'])
-        print(datas[ind].to_string())
+
     merged_df = pd.DataFrame()
     promedios = list()
     if len(datas) > 1:
@@ -55,16 +54,17 @@ async def get_graphic_data_multiple(municipality_id: list, tech_id: list, brand_
         ind = 1
         promedios.append(merged_df.loc[:, 'Disponibilidad'].mean())
         for df in datas[1:]:
-            print(ind)
+
             merged_df = pd.merge(merged_df, df, on='Tiempo',
                                  how='inner', suffixes=[f'_{ind}', f'_{ind+1}'])
             promedios.append(df.loc[:, 'Disponibilidad'].mean())
             ind += 1
     elif len(datas) > 0 and len(datas) <= 1:
-        merged_df = datas[0]
-        promedios = [merged_df.loc[:, 'Disponibildad'].mean()]
 
-    print(merged_df.to_string())
+        merged_df = datas[0]
+
+        promedios = [merged_df.loc[:, 'Disponibilidad'].mean()]
+
     session.close()
     metrics = [
         {'metric_name': "Conectividad",
@@ -123,7 +123,7 @@ def process_data(data, end_date, init_date):
         data = data[['date', 'num', 'Avg_min']]
         data.rename(columns={'date': 'time'}, inplace=True)
         data_range = "dias"
-        print("aqui")
+
     tiempo = f"{len(data)} {data_range}"
     dias = round(hours / 24, 6)
     availability_avg = data.loc[:, 'Avg_min'].mean()
@@ -150,13 +150,13 @@ async def get_graphic_data(municipality_id: str, tech_id: str, brand_id: str, mo
     brand_id = '' if '0' else brand_id
     model_id = '' if '0' else brand_id
 
-    print(municipality_id)
+    """ print(municipality_id) """
 
     statement = text(f"""
     call sp_connectivity('{municipality_id}','{tech_id}','{brand_id}','{model_id}','{init_date}','{end_date}');
     """)
     data = pd.DataFrame(session.execute(statement))
-    print(statement)
+    """ print(statement) """
     number = 0
     data_range = ''
     tiempo = ''
@@ -200,7 +200,7 @@ async def get_graphic_data(municipality_id: str, tech_id: str, brand_id: str, mo
             data = data[['date', 'num', 'Avg_min']]
             data.rename(columns={'date': 'time'}, inplace=True)
             data_range = "dias"
-            print("aqui")
+            """ print("aqui") """
         tiempo = f"{len(data)} {data_range}"
         dias = round(hours / 24, 6)
         availability_avg = data.loc[:, 'Avg_min'].mean()
