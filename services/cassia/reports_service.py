@@ -64,6 +64,10 @@ async def get_graphic_data_multiple(municipality_id: list, tech_id: list, brand_
         merged_df = vacios[0]['data']
         ind1 = vacios[0]['index']
         promedios.append(merged_df.loc[:, 'Disponibilidad'].mean())
+        if len(vacios) <= 1:
+            merged_df.rename(
+                columns={'Disponibilidad': 'Disponibilidad_1', 'num': 'num_1'}, inplace=True)
+
         for df in vacios[1:]:
             ind2 = df['index']
             print(ind1, ind2)
@@ -120,7 +124,9 @@ async def get_graphic_data_multiple(municipality_id: list, tech_id: list, brand_
             promedios.append(
                 {'index': ind2, 'data': df['data'].loc[:, 'Disponibilidad'].mean()})
             ind1 = ind2
-
+        if len(vacios)+len(no_vacios) <= 1:
+            merged_df.rename(
+                columns={'Disponibilidad': 'Disponibilidad_1', 'num': 'num_1'}, inplace=True)
         promedios = sorted(promedios, key=lambda l: l['index'])
 
         promedios = [promedio['data'] for promedio in promedios]
@@ -141,7 +147,8 @@ async def get_graphic_data_multiple(municipality_id: list, tech_id: list, brand_
             'general_funcionality_average': promedios,
             'metrics': metrics
         }
-        return success_response(response)
+        session.close()
+        return success_response(data=response)
 
     if len(no_vacios) > 0 and len(vacios) == 0:
         no_vacios = sorted(no_vacios, key=lambda x: len(x['data']))
@@ -160,6 +167,9 @@ async def get_graphic_data_multiple(municipality_id: list, tech_id: list, brand_
             promedios.append(
                 {'index': ind2, 'data': df['data'].loc[:, 'Disponibilidad'].mean()})
             ind1 = ind2
+        if len(no_vacios) <= 1:
+            merged_df.rename(
+                columns={'Disponibilidad': 'Disponibilidad_1', 'num': 'num_1'}, inplace=True)
         promedios = sorted(promedios, key=lambda l: l['index'])
 
         promedios = [promedio['data'] for promedio in promedios]
@@ -181,44 +191,10 @@ async def get_graphic_data_multiple(municipality_id: list, tech_id: list, brand_
             'general_funcionality_average': promedios,
             'metrics': metrics
         }
-        return success_response(response)
-    """ if len(datas) > 1:
-        merged_df = datas[0]
-        ind = 1
-        promedios.append(merged_df.loc[:, 'Disponibilidad'].mean())
-        for df in datas[1:]:
+        session.close()
+        return success_response(data=response)
 
-            merged_df = pd.merge(merged_df, df, on='Tiempo',
-                                 how='inner', suffixes=[f'_{ind}', f'_{ind+1}'])
-            promedios.append(df.loc[:, 'Disponibilidad'].mean())
-            ind += 1
-    elif len(datas) > 0 and len(datas) <= 1:
-
-        merged_df = datas[0]
-
-        promedios = [merged_df.loc[:, 'Disponibilidad'].mean()]
-
-    session.close()
-    metrics = [
-        {'metric_name': "Conectividad",
-         'availability_average': promedios,
-         'days': dias,
-         'device_count': dispositivos,
-         'data_range': data_range,
-         'time': tiempo,
-         'first_data': first,
-         'last_data': last,
-         'dataset': merged_df.to_dict(orient="records")
-         }
-    ]
-
-    response = {
-
-        'general_funcionality_average': promedios,
-        'metrics': metrics
-    } """
-
-    return success_response()
+    return success_response(message='No data')
 
 
 def process_data(data, end_date, init_date):
