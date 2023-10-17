@@ -204,24 +204,36 @@ def process_data(data, end_date, init_date):
             data = data[['date', 'num', 'Avg_min']]
             data.rename(columns={'date': 'time'}, inplace=True)
             data_range = "años"
-        if hours > 3696 and hours <= 14400:
+        if hours >= 7200 and hours <= 14400:
             data = data.groupby(
                 [pd.to_datetime(data['time']).dt.floor('720H').rename("date").dt.strftime('%Y-%m')])[['num', 'Avg_min']].mean().round(6).reset_index()
             data = data[['date', 'num', 'Avg_min']]
             data.rename(columns={'date': 'time'}, inplace=True)
             data_range = "meses"
-        if hours > 504 and hours <= 3696:
+        if hours > 3696 and hours < 7200:
+            data = data.groupby(
+                [pd.to_datetime(data['time']).dt.floor('360H').rename("date").dt.strftime('%Y-%m-%d')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True)
+            data_range = "quincenas"
+        if hours > 1680 and hours <= 3696:
             data = data.groupby(
                 [pd.to_datetime(data['time']).dt.floor('168H').rename("date").dt.strftime('%Y-%m-%d')])[['num', 'Avg_min']].mean().round(6).reset_index()
             data = data[['date', 'num', 'Avg_min']]
             data.rename(columns={'date': 'time'}, inplace=True)
             data_range = "semanas"
-        if hours > 24 and hours <= 504:
+        if hours > 240 and hours <= 1680:
             data = data.groupby(
                 [pd.to_datetime(data['time']).dt.floor('24H').rename("date").dt.strftime('%Y-%m-%d')])[['num', 'Avg_min']].mean().round(6).reset_index()
             data = data[['date', 'num', 'Avg_min']]
             data.rename(columns={'date': 'time'}, inplace=True)
             data_range = "dias"
+        if hours > 120 and hours <= 240:
+            data = data.groupby(
+                [pd.to_datetime(data['time']).dt.floor('12H').rename("date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True)
+            data_range = "medios dias"
 
         tiempo = f"{len(data)} {data_range}"
         dias = round(hours / 24, 6)
