@@ -9,12 +9,20 @@ from datetime import datetime, timedelta
 import pytz
 from models.cassia_config import CassiaConfig
 from models.cassia_arch_traffic_events import CassiaArchTrafficEvent
+import utils.settings as settings
 # Creating the Rocketry app
 rfid_schedule = Grouper()
 # Creating some tasks
+SETTINGS = settings.Settings()
+traffic = SETTINGS.cassia_traffic
 
 
-@rfid_schedule.task(every("30 seconds"), execution="thread")
+@rfid_schedule.cond('traffic')
+def is_traffic():
+    return traffic
+
+
+@rfid_schedule.task(("every 30 seconds & traffic"), execution="thread")
 async def get_rfid_data():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
@@ -88,7 +96,7 @@ order by a.Longitud,a.Latitud
                      if_exists='append', index=False)
 
 
-@rfid_schedule.task(every("60 seconds"), execution="thread")
+@rfid_schedule.task(("every 60 seconds & traffic"), execution="thread")
 async def clean_data():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
@@ -108,7 +116,7 @@ async def clean_data():
     session.close()
 
 
-@rfid_schedule.task(every("60 seconds"), execution="thread")
+@rfid_schedule.task(("every 60 seconds & traffic"), execution="thread")
 async def trigger_alerts():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
@@ -206,7 +214,7 @@ async def trigger_alerts():
     session.close()
 
 
-@rfid_schedule.task(every("60 seconds"), execution="thread")
+@rfid_schedule.task(("every 60 seconds & traffic"), execution="thread")
 async def trigger_alerts_close():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
