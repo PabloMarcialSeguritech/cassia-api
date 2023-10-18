@@ -61,3 +61,11 @@ class Settings(BaseSettings):
     ssh_key_gen: str = os.getenv('SSH_KEY_GEN')
 
     cassia_server_ip: str = os.getenv('CASSIA_SERVER_IP')
+    cassia_traffic: bool = False
+    try:
+        cassia_traffic: bool = True if int(
+            os.getenv('TRAFFIC')) == 1 else False
+    except:
+        pass
+
+    """ cassia_traffic: bool = True if int(os.getenv('TRAFFIC')) == 1 else False """
