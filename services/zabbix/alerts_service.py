@@ -490,3 +490,68 @@ async def download_file(message_id: str):
 def path_leaf(path):
     head, tail = ntpath.split(path)
     return tail or ntpath.basename(head)
+
+
+async def register_ack(eventid, message):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text(
+        f"select eventid  from problem p where eventid ='{eventid}'")
+    problem = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+    if problem.empty:
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The eventid not exists",
+        )
+    next_id = text(f"call sp_next_acknowledid()")
+    next_id = pd.DataFrame(session.execute(next_id)).replace(np.nan, "")
+    if next_id.empty:
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Error in sp_next_ack procedure",
+        )
+    next_id = next_id['acknowledgeid'].values[0]
+    insert = text(
+        f"call sp_acknowledgeCreate({next_id},{eventid},'{message}');")
+    try:
+        session.execute(insert)
+        session.commit()
+        print("correcto")
+        print(insert)
+    except:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error in sp_acknowledgeCreate process",
+        )
+    finally:
+        session.close()
+
+    return success_response(message="Acknowledge registrado correctamente")
+
+
+async def get_acks(eventid):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text(
+        f"select eventid  from problem p where eventid ='{eventid}'")
+    problem = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+    if problem.empty:
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The eventid not exists",
+        )
+    try:
+        acks = text(f"call sp_acknowledgeList({eventid});")
+        acks = pd.DataFrame(session.execute(acks)).replace(np.nan, "")
+    except:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Error in call of process sp_acknowledgeList",
+        )
+    finally:
+        session.close()
+
+    return success_response(data=acks.to_dict(orient="records"))
