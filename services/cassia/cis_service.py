@@ -3,10 +3,13 @@ import pandas as pd
 from utils.db import DB_Zabbix
 from sqlalchemy import text
 from schemas import cassia_ci_schema
+from schemas import cassia_ci_element_schema
 import numpy as np
 from utils.traits import success_response
 from fastapi import HTTPException, status
-from models.cassia_ci import CassiaCI
+from models.cassia_ci_element import CassiaCIElement
+from models.cassia_ci_relations import CassiaCIRelation
+
 from models.cassia_ci_document import CassiaCIDocument
 from datetime import datetime
 from fastapi.responses import FileResponse
@@ -14,6 +17,121 @@ import os
 import ntpath
 import shutil
 settings = Settings()
+abreviatura_estado = settings.abreviatura_estado
+
+
+async def get_ci_elements():
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    query = text(f"""
+    select cce.element_id,cce.ip,h.name,cce.technology ,cce.device_name,
+cce.description,his.hardware_brand,his.hardware_model,his.software_version,
+cce.location, cce.criticality, cce.status, cce.status_conf from cassia_ci_element cce 
+join hosts h on h.hostid =cce.host_id 
+join (
+SELECT cch.element_id, cch.hardware_brand,cch.hardware_model,cch.software_version from cassia_ci_history cch
+where cch.status="Cerrada"
+order by closed_at  limit 1
+) his on cce.element_id=his.element_id
+WHERE deleted_at is NULL
+    """)
+    results = pd.DataFrame(session.execute(query)).replace(np.nan, "")
+    session.close()
+    return success_response(data=results.to_dict(orient="records"))
+
+
+async def create_ci_element(ci_element_data: cassia_ci_element_schema.CiElementBase, current_session):
+
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    query = text(
+        f"select hostid from hosts where hostid={ci_element_data.host_id}")
+    host = pd.DataFrame(session.execute(query)).replace(np.nan, "")
+    if len(host) < 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="host_id not exists")
+    cassia_ci_element = CassiaCIElement(
+        ip=ci_element_data.ip,
+        host_id=ci_element_data.host_id,
+        technology=ci_element_data.technology,
+        device_name=ci_element_data.device_name,
+        description=ci_element_data.description,
+        location=ci_element_data.location,
+        criticality=ci_element_data.criticality,
+        status=ci_element_data.status,
+        status_conf='Creado',
+        session_id=current_session.session_id.hex
+    )
+
+    session.add(cassia_ci_element)
+    session.commit()
+    session.refresh(cassia_ci_element)
+    session.close()
+    return success_response(data=cassia_ci_element)
+
+
+async def get_ci_element_relations(element_id):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    cassia_ci_element = text(f"""
+    select * from cassia_ci_element where element_id='{element_id}'
+    and deleted_at is NULL""")
+    cassia_ci_element = pd.DataFrame(
+        session.execute(cassia_ci_element)).replace(np.nan, "")
+    if cassia_ci_element.empty:
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="CI Element not exists")
+    query = text(f"""
+    select cr.cassia_ci_relation_id,cr.folio,cr.depends_on_ci,cr.cassia_ci_element_id
+from cassia_ci_relations cr WHERE cr.depends_on_ci='{element_id}'""")
+    results = pd.DataFrame(session.execute(query)).replace(np.nan, "")
+    session.close()
+    return success_response(data=results.to_dict(orient="records"))
+
+
+async def create_ci_element_relation(element_id, affected_ci_element_id):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    element = session.query(CassiaCIElement).filter(
+        CassiaCIElement.element_id == element_id,
+        CassiaCIElement.deleted_at == None
+    ).first()
+    if not element:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Element id not exist")
+    affected_element = session.query(CassiaCIElement).filter(
+        CassiaCIElement.element_id == affected_ci_element_id,
+        CassiaCIElement.deleted_at == None
+    ).first()
+    if not affected_element:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Affected Element id not exist")
+
+    relation = session.query(CassiaCIRelation).filter(
+        CassiaCIRelation.depends_on_ci == element.element_id,
+        CassiaCIRelation.cassia_ci_element_id == affected_element.element_id,
+    ).first()
+
+    if relation:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Relation already exist")
+
+    cassia_ci_element_relation = CassiaCIRelation(
+        cassia_ci_element_id=affected_element.element_id,
+        depends_on_ci=element.element_id,
+        folio=f"CI-{abreviatura_estado}-" +
+        str(affected_element.element_id).zfill(5)
+    )
+
+    session.add(cassia_ci_element_relation)
+    session.commit()
+    session.refresh(cassia_ci_element_relation)
+    session.close()
+
+    session.close()
+    return success_response(data=cassia_ci_element_relation)
+""" para abajo antiguo """
 
 
 async def get_cis():

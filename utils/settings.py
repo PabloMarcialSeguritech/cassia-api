@@ -3,7 +3,7 @@ import os
 from pydantic import BaseSettings
 from dotenv import load_dotenv
 
-env = os.getenv('ENVIRONMENT', 'qa')
+env = os.getenv('ENVIRONMENT', 'dev')
 dotenv_path = f'.env.{env}'
 load_dotenv(dotenv_path=dotenv_path, verbose=True)
 
@@ -65,6 +65,11 @@ class Settings(BaseSettings):
     try:
         cassia_traffic: bool = True if int(
             os.getenv('TRAFFIC')) == 1 else False
+    except:
+        pass
+    abreviatura_estado: str = ""
+    try:
+        abreviatura_estado: str = os.getenv('ABREVIATURA_ESTADO')
     except:
         pass
 
