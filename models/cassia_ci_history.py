@@ -25,6 +25,7 @@ class CassiaCIHistory(DB_Zabbix.Base):
         String(length=120), unique=False, nullable=False)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now)
+    closed_at = Column(DateTime, default=None, nullable=True)
     deleted_at = Column(DateTime, default=None, nullable=True)
     session_id = Column(String(length=120), ForeignKey(
         "cassia_users_sessions.session_id"), nullable=False)

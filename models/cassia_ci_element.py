@@ -9,6 +9,7 @@ class CassiaCIElement(DB_Zabbix.Base):
     ip = Column(String(length=16), unique=False, nullable=False)
     host_id = Column(Integer, primary_key=True)
     technology = Column(String(length=120), unique=False, nullable=False)
+    folio = Column(String(length=20), unique=False, nullable=False)
     device_name = Column(String(length=120), unique=False, nullable=False)
     description = Column(String(length=254), unique=False, nullable=False)
     location = Column(String(length=120), unique=False, nullable=False)

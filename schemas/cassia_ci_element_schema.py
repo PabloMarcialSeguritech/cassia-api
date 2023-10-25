@@ -14,6 +14,7 @@ import pandas as pd
 class CiElementBase(BaseModel):
     ip: str = Field(..., max_length=16, example="172.18.206.105")
     host_id: int = Field(..., example="10659")
+    folio: str = Field(..., max_length=20, example="CI-GTO-00001")
     technology: str = Field(..., max_length=120, example="Red municipal")
     device_name: str = Field(..., max_length=120, example="Suscriptor")
     description: str = Field(..., max_length=254, example="Descripcion")
