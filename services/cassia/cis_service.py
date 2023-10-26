@@ -20,6 +20,19 @@ settings = Settings()
 abreviatura_estado = settings.abreviatura_estado
 
 
+async def get_host_by_ip(ip: str):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    query = text(f"""
+    SELECT hostid ,name FROM hosts h 
+    where hostid in (select DISTINCT hostid from interface i 
+    where ip = '{ip}')    
+    """)
+    results = pd.DataFrame(session.execute(query)).replace(np.nan, "")
+    session.close()
+    return success_response(data=results.to_dict(orient="records"))
+
+
 async def get_ci_elements():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
