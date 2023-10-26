@@ -82,6 +82,17 @@ async def get_ci_element_relations(element_id: str):
     return await cis_service.get_ci_element_relations(element_id)
 
 
+@cis_router.get(
+    '/relations/catalog/elements',
+    tags=["Cassia - CI's Elements - Relations"],
+    status_code=status.HTTP_200_OK,
+    summary="Get CIs element catalog",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_ci_element_catalog():
+    return await cis_service.get_ci_element_catalog()
+
+
 @cis_router.post(
     '/relations/{element_id}',
     tags=["Cassia - CI's Elements - Relations"],
