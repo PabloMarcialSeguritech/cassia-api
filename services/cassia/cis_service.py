@@ -167,7 +167,28 @@ where c.deleted_at is NULL
     return success_response(data=results.to_dict(orient="records"))
 
 
+async def get_ci_element_catalog():
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    catalog = text(f"""
+    select element_id,folio from cassia_ci_element where deleted_at is NULL""")
+    catalog = pd.DataFrame(
+        session.execute(catalog)).replace(np.nan, "")
+    if catalog.empty:
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="CI Elements not exists")
+    catalog['id'] = catalog['element_id']
+    catalog['value'] = catalog['element_id']
+
+    session.close()
+    return success_response(data=catalog.to_dict(orient="records"))
+
+
 async def create_ci_element_relation(element_id, affected_ci_element_id):
+    if element_id == affected_ci_element_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="El elemento no puede relacionarse consigo mismo")
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     element = session.query(CassiaCIElement).filter(
