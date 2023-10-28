@@ -1,15 +1,16 @@
 from fastapi import APIRouter, UploadFile
 from fastapi import Depends, status, Form, Body, File
 from services import auth_service2
-from schemas import cassia_ci_schema
+from schemas import cassia_ci_history_schema
+from schemas import cassia_ci_element_schema
 from typing import List, Optional
 import services.cassia.cis_service as cis_service
-cis_router = APIRouter(prefix="/ci")
+cis_router = APIRouter(prefix="/ci_elements")
 
 
 @cis_router.get(
     '/search_host/{ip}',
-    tags=["Cassia - CI's"],
+    tags=["Cassia - CI's Elements"],
     status_code=status.HTTP_200_OK,
     summary="Search host by ip",
     dependencies=[Depends(auth_service2.get_current_user_session)]
@@ -20,76 +21,191 @@ async def get_host_by_ip(ip: str):
 
 @cis_router.get(
     '/',
-    tags=["Cassia - CI's"],
+    tags=["Cassia - CI's Elements"],
     status_code=status.HTTP_200_OK,
-    summary="Get CIs",
+    summary="Get CIs elements",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_cis():
-    return await cis_service.get_cis()
-
-
-@cis_router.put(
-    '/change-status/{ci_id}',
-    tags=["Cassia - CI's"],
-    status_code=status.HTTP_200_OK,
-    summary="Change ci status",
-    dependencies=[Depends(auth_service2.get_current_user_session)]
-)
-async def change_ci_status(ci_id: str):
-    return await cis_service.change_status(ci_id)
-
-
-@cis_router.delete(
-    '/{ci_id}',
-    tags=["Cassia - CI's"],
-    status_code=status.HTTP_200_OK,
-    summary="Delete ci by id",
-    dependencies=[Depends(auth_service2.get_current_user_session)]
-)
-async def change_ci_status(ci_id: str):
-    return await cis_service.delete_ci(ci_id)
+async def get_ci_elements():
+    return await cis_service.get_ci_elements()
 
 
 @cis_router.post(
     '/',
-    tags=["Cassia - CI's"],
+    tags=["Cassia - CI's Elements"],
     status_code=status.HTTP_200_OK,
     summary="Create a CI register",
-    dependencies=[Depends(auth_service2.get_current_user_session)]
-)
-async def create_ci(ci_data: cassia_ci_schema.CiBase = Depends(cassia_ci_schema.CiBase.as_form), files: Optional[List[UploadFile]] = File(None), current_session=Depends(auth_service2.get_current_user_session)):
-    return await cis_service.create_ci(ci_data, files, current_session)
+    dependencies=[Depends(auth_service2.get_current_user_session)])
+async def create_ci_element(ci_element_data: cassia_ci_element_schema.CiElementBase, current_session=Depends(auth_service2.get_current_user_session)):
+    return await cis_service.create_ci_element(ci_element_data, current_session)
 
 
 @cis_router.put(
-    '/{ci_id}',
-    tags=["Cassia - CI's"],
+    '/{element_id}',
+    tags=["Cassia - CI's Elements"],
     status_code=status.HTTP_200_OK,
     summary="Update a CI register",
-    dependencies=[Depends(auth_service2.get_current_user_session)]
-)
-async def create_ci(ci_id: str, ci_data: cassia_ci_schema.CiUpdate = Depends(cassia_ci_schema.CiUpdate.as_form), files: Optional[List[UploadFile]] = File(None), current_session=Depends(auth_service2.get_current_user_session)):
-    return await cis_service.update_ci(ci_id, ci_data, files, current_session)
+    dependencies=[Depends(auth_service2.get_current_user_session)])
+async def update_ci_element(element_id: str, ci_element_data: cassia_ci_element_schema.CiElementBase, current_session=Depends(auth_service2.get_current_user_session)):
+    return await cis_service.update_ci_element(element_id, ci_element_data, current_session)
+
+
+@cis_router.delete(
+    '/{element_id}',
+    tags=["Cassia - CI's Elements"],
+    status_code=status.HTTP_200_OK,
+    summary="Delete a CI register",
+    dependencies=[Depends(auth_service2.get_current_user_session)])
+async def delete_ci_element(element_id: str,  current_session=Depends(auth_service2.get_current_user_session)):
+    return await cis_service.delete_ci_element(element_id, current_session)
 
 
 @cis_router.get(
-    '/{ci_id}',
-    tags=["Cassia - CI's"],
+    '/{element_id}',
+    tags=["Cassia - CI's Elements"],
     status_code=status.HTTP_200_OK,
-    summary="Get CI by id",
+    summary="Get CIs element by id",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_ci_by_id(ci_id: str):
-    return await cis_service.get_ci_by_id(ci_id)
+async def get_ci_element(element_id: str):
+    return await cis_service.get_ci_element(element_id)
 
 
 @cis_router.get(
-    '/download_ci_document/{ci_document_id}',
-    tags=["Cassia - CI's"],
+    '/relations/{element_id}',
+    tags=["Cassia - CI's Elements - Relations"],
     status_code=status.HTTP_200_OK,
-    summary="Get CI document by id",
+    summary="Get CIs element relations by id",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_ci_document_by_id(ci_document_id: str):
-    return await cis_service.get_ci_document_by_id(ci_document_id)
+async def get_ci_element_relations(element_id: str):
+    return await cis_service.get_ci_element_relations(element_id)
+
+
+@cis_router.get(
+    '/relations/catalog/elements',
+    tags=["Cassia - CI's Elements - Relations"],
+    status_code=status.HTTP_200_OK,
+    summary="Get CIs element catalog",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_ci_element_catalog():
+    return await cis_service.get_ci_element_catalog()
+
+
+@cis_router.post(
+    '/relations/{element_id}',
+    tags=["Cassia - CI's Elements - Relations"],
+    status_code=status.HTTP_200_OK,
+    summary="Create a CIs element relation",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_ci_element_relations(element_id: str, affected_ci_element_id=Form(...)):
+    return await cis_service.create_ci_element_relation(element_id, affected_ci_element_id)
+
+
+@cis_router.delete(
+    '/relations/{cassia_ci_relation_id}',
+    tags=["Cassia - CI's Elements - Relations"],
+    status_code=status.HTTP_200_OK,
+    summary="Create a CIs element relation",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_ci_element_relations(cassia_ci_relation_id: str):
+    return await cis_service.delete_ci_element_relation(cassia_ci_relation_id)
+
+
+@cis_router.get(
+    '/docs/{element_id}',
+    tags=["Cassia - CI's Elements - Docs"],
+    status_code=status.HTTP_200_OK,
+    summary="Get CIs element docs by id",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_ci_element_docs(element_id: str):
+    return await cis_service.get_ci_element_docs(element_id)
+
+
+@cis_router.post(
+    '/docs/{element_id}',
+    tags=["Cassia - CI's Elements - Docs"],
+    status_code=status.HTTP_200_OK,
+    summary="Upload files to a CIs element ",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_ci_element_relations(element_id: str, files: List[UploadFile]):
+    return await cis_service.upload_ci_element_docs(element_id, files)
+
+
+@cis_router.get(
+    '/docs/download/{doc_id}',
+    tags=["Cassia - CI's Elements - Docs"],
+    status_code=status.HTTP_200_OK,
+    summary="Download CIs element doc by id",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def download_ci_element_doc(doc_id: str):
+    return await cis_service.download_ci_element_doc(doc_id)
+
+
+@cis_router.delete(
+    '/docs/{doc_id}',
+    tags=["Cassia - CI's Elements - Docs"],
+    status_code=status.HTTP_200_OK,
+    summary="Delete CIs element doc by id",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def delete_ci_element_doc(doc_id: str):
+    return await cis_service.delete_ci_element_doc(doc_id)
+
+
+@cis_router.get(
+    '/history/{element_id}',
+    tags=["Cassia - CI's Elements - History"],
+    status_code=status.HTTP_200_OK,
+    summary="Get CIs element history by id",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_ci_element_history(element_id: str):
+    return await cis_service.get_ci_element_history(element_id)
+
+
+@cis_router.get(
+    '/history/detail/{history_id}',
+    tags=["Cassia - CI's Elements - History"],
+    status_code=status.HTTP_200_OK,
+    summary="Get CIs element history row by id",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_ci_element_history_record(history_id: str):
+    return await cis_service.get_ci_element_history_detail(history_id)
+
+
+@cis_router.post(
+    '/history',
+    tags=["Cassia - CI's Elements - History"],
+    status_code=status.HTTP_200_OK,
+    summary="Create a CI history register",
+    dependencies=[Depends(auth_service2.get_current_user_session)])
+async def create_ci_history_record(ci_element_history_data: cassia_ci_history_schema.CiHistoryBase, current_session=Depends(auth_service2.get_current_user_session)):
+    return await cis_service.create_ci_history_record(ci_element_history_data, current_session)
+
+
+@cis_router.put(
+    '/history/{ci_element_history_id}',
+    tags=["Cassia - CI's Elements - History"],
+    status_code=status.HTTP_200_OK,
+    summary="Update a CI history register",
+    dependencies=[Depends(auth_service2.get_current_user_session)])
+async def update_ci_history_record(ci_element_history_id, ci_element_history_data: cassia_ci_history_schema.CiHistoryBase, current_session=Depends(auth_service2.get_current_user_session)):
+    return await cis_service.update_ci_history_record(ci_element_history_id, ci_element_history_data, current_session)
+
+
+@cis_router.delete(
+    '/history/{ci_element_history_id}',
+    tags=["Cassia - CI's Elements - History"],
+    status_code=status.HTTP_200_OK,
+    summary="Delete a CI history register",
+    dependencies=[Depends(auth_service2.get_current_user_session)])
+async def delete_ci_history_record(ci_element_history_id, current_session=Depends(auth_service2.get_current_user_session)):
+    return await cis_service.delete_ci_history_record(ci_element_history_id,  current_session)

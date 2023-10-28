@@ -67,5 +67,10 @@ class Settings(BaseSettings):
             os.getenv('TRAFFIC')) == 1 else False
     except:
         pass
+    abreviatura_estado: str = ""
+    try:
+        abreviatura_estado: str = os.getenv('ABREVIATURA_ESTADO')
+    except:
+        pass
 
     """ cassia_traffic: bool = True if int(os.getenv('TRAFFIC')) == 1 else False """
