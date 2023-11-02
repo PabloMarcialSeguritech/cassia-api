@@ -493,7 +493,9 @@ def path_leaf(path):
     return tail or ntpath.basename(head)
 
 
+
 async def register_ack(eventid, message, current_session):
+
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     statement = text(
@@ -515,7 +517,9 @@ async def register_ack(eventid, message, current_session):
         )
     next_id = next_id['acknowledgeid'].values[0]
     insert = text(
+
         f"call sp_acknowledgeCreate({next_id},{eventid},'{message}','{current_session.user_id}');")
+
     try:
         session.execute(insert)
         session.commit()
@@ -554,6 +558,7 @@ async def get_acks(eventid):
         )
     finally:
         session.close()
+
     now = datetime.now(pytz.timezone(
         'America/Mexico_City')).replace(tzinfo=None)
     resume = {
@@ -573,3 +578,4 @@ async def get_acks(eventid):
     response.update(resume)
     response.update({'history': acks.to_dict(orient="records")})
     return success_response(data=response)
+
