@@ -33,7 +33,6 @@ class DB_Prueba():
     DB_PORT = settings.dbp_port
 
     connection_string = f"mysql+mysqlconnector://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-
     engine = create_engine(connection_string, echo=False,
                            poolclass=NullPool, pool_recycle=1800, pool_pre_ping=True)
 
