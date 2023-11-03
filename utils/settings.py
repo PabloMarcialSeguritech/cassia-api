@@ -67,6 +67,11 @@ class Settings(BaseSettings):
             os.getenv('TRAFFIC')) == 1 else False
     except:
         pass
+    try:
+        db_c5_instancia_nombrada: bool = True if int(
+            os.getenv('DB_C5_INSTANCIA_NOMBRADA')) == 1 else False
+    except:
+        pass
     abreviatura_estado: str = ""
     try:
         abreviatura_estado: str = os.getenv('ABREVIATURA_ESTADO')
