@@ -19,7 +19,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-""" app.add_middleware(ErrorHandler) """
+app.add_middleware(ErrorHandler)
 app.include_router(auth_router)
 app.include_router(zabbix_router)
 app.include_router(cassia_router)

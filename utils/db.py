@@ -33,7 +33,6 @@ class DB_Prueba():
     DB_PORT = settings.dbp_port
 
     connection_string = f"mysql+mysqlconnector://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-
     engine = create_engine(connection_string, echo=False,
                            poolclass=NullPool, pool_recycle=1800, pool_pre_ping=True)
 
@@ -87,8 +86,8 @@ class DB_C5():
     DB_C5_PASS = settings.db_c5_pass
     DB_C5_HOST = settings.db_c5_host
     DB_C5_PORT = settings.db_c5_port
-
-    connection_string = f"mssql+pymssql://{DB_C5_USER}:{DB_C5_PASS}@{DB_C5_HOST}:{DB_C5_PORT}/{DB_C5_NAME}"
+    DB_C5_INSTANCIA_NOMBRADA = settings.db_c5_instancia_nombrada
+    connection_string = f"mssql+pymssql://{DB_C5_USER}:{DB_C5_PASS}@{DB_C5_HOST}:{DB_C5_PORT}/{DB_C5_NAME}" if not DB_C5_INSTANCIA_NOMBRADA else f"mssql+pymssql://{DB_C5_USER}:{DB_C5_PASS}@{DB_C5_HOST}/{DB_C5_NAME}"
 
     engine = create_engine(connection_string, echo=False,
                            poolclass=NullPool, pool_recycle=1800, pool_pre_ping=True)

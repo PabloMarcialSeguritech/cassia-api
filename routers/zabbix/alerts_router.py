@@ -30,21 +30,23 @@ def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: 
     '/problems/acknowledge/{eventid}',
     tags=["Zabbix - Problems(Alerts) - Acknowledge"],
     status_code=status.HTTP_200_OK,
-    summary="Register a acknowledge in event, Ex: 34970456",
+    summary="Register a acknowledge in event, Ex: 34975081",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_problems_filter(eventid: str = "34970456", message: str = Form(max_length=2048)):
-    return await alerts_service.register_ack(eventid, message)
+async def get_problems_filter(eventid: str = "34975081", message: str = Form(max_length=2048), current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+    return await alerts_service.register_ack(eventid, message, current_user_session)
+
 
 
 @alerts_router.get(
     '/problems/acknowledge/{eventid}',
     tags=["Zabbix - Problems(Alerts) - Acknowledge"],
     status_code=status.HTTP_200_OK,
-    summary="Get acknowledges of one event, Ex: 34970456",
+    summary="Get acknowledges of one event, Ex: 34975081",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_problems_filter(eventid: str = "34970456"):
+async def get_problems_filter(eventid: str = "34975081"):
+
     return await alerts_service.get_acks(eventid)
 
 

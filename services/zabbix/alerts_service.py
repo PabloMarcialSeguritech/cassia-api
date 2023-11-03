@@ -21,6 +21,7 @@ from models.cassia_arch_traffic_events import CassiaArchTrafficEvent
 import os
 import ntpath
 import shutil
+import pytz
 settings = Settings()
 
 
@@ -492,7 +493,9 @@ def path_leaf(path):
     return tail or ntpath.basename(head)
 
 
-async def register_ack(eventid, message):
+
+async def register_ack(eventid, message, current_session):
+
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     statement = text(
@@ -514,7 +517,9 @@ async def register_ack(eventid, message):
         )
     next_id = next_id['acknowledgeid'].values[0]
     insert = text(
-        f"call sp_acknowledgeCreate({next_id},{eventid},'{message}');")
+
+        f"call sp_acknowledgeCreate({next_id},{eventid},'{message}','{current_session.user_id}');")
+
     try:
         session.execute(insert)
         session.commit()
@@ -554,4 +559,23 @@ async def get_acks(eventid):
     finally:
         session.close()
 
-    return success_response(data=acks.to_dict(orient="records"))
+    now = datetime.now(pytz.timezone(
+        'America/Mexico_City')).replace(tzinfo=None)
+    resume = {
+        'acumulated_cassia': 0,
+        'acumulated_ticket': 0,
+        'date': now,
+        'ticket': ''
+    }
+    if not acks.empty:
+        first = acks.iloc[0]['Time']
+        first = datetime.strptime(first, '%d/%m/%Y %H:%M:%S')
+        diff = now-first
+        hours = diff.days*24 + diff.seconds//3600
+        resume['acumulated_cassia'] = hours
+        resume["acumulated_ticket"] = 0
+    response = dict()
+    response.update(resume)
+    response.update({'history': acks.to_dict(orient="records")})
+    return success_response(data=response)
+
