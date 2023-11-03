@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 import asyncio
 app = FastAPI(
 )
-app.version = '1.2'
+app.version = '1.3'
 origins = ["*"]
 
 app.add_middleware(
@@ -19,7 +19,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-""" app.add_middleware(ErrorHandler) """
+app.add_middleware(ErrorHandler)
 app.include_router(auth_router)
 app.include_router(zabbix_router)
 app.include_router(cassia_router)

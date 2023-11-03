@@ -157,7 +157,7 @@ group by c.latitude, c.longitude
         data = pd.merge(data, alerts, how="left", left_on=[
             'latitude', 'longitude'], right_on=['latitude', 'longitude']).replace(np.nan, 0)
     else:
-        data['max_severity'] = [0 for al in range(len(alerts))]
+        data['max_severity'] = [0 for al in range(len(data))]
 
     """ print(data.to_string()) """
     session_zabbix.close()
