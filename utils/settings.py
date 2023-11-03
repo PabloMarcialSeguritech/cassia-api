@@ -62,6 +62,7 @@ class Settings(BaseSettings):
 
     cassia_server_ip: str = os.getenv('CASSIA_SERVER_IP')
     cassia_traffic: bool = False
+    db_c5_instancia_nombrada: bool = False
     try:
         cassia_traffic: bool = True if int(
             os.getenv('TRAFFIC')) == 1 else False
