@@ -200,6 +200,13 @@ vl.value as Metric  FROM hosts h
 INNER JOIN items i ON (h.hostid  = i.hostid)
 INNER JOIN  vw_lastValue_history vl  ON (i.itemid=vl.itemid)
 WHERE  h.hostid = {host_id} AND i.templateid in {template_ids}
+UNION
+SELECT h.hostid,i.itemid, i.templateid,i.name,
+from_unixtime(vl.clock,'%d/%m/%Y %H:%i:%s')as Date,
+vl.value as Metric  FROM hosts h
+INNER JOIN items i ON (h.hostid  = i.hostid)
+INNER JOIN  vw_lastValue_history_uint vl  ON (i.itemid=vl.itemid)
+WHERE  h.hostid = {host_id} AND i.name like 'Interface Bridge-Aggregation_: Speed'
 """)
 
     metrics = pd.DataFrame(session.execute(statement)).replace(np.nan, "")

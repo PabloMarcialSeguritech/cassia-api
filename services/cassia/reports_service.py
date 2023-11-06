@@ -28,12 +28,14 @@ async def get_graphic_data_multiple(municipality_id: list, tech_id: list, brand_
     metrics = list()
     promedios = list()
     print(promedios)
+    print("aqui")
     conectividad = process_data_conectivity(
         municipality_id, tech_id, brand_id, model_id, init_date, end_date, session, promedios)
-
+    print("aqui 2")
     metrics.append(conectividad)
     process_data_alignment(municipality_id, tech_id, brand_id,
                            model_id, init_date, end_date, session, metrics, promedios)
+    print("aqui 3")
     print(promedios)
     promedios = process_metrics(promedios)
     print(promedios)
@@ -679,8 +681,9 @@ def process_data_conectivity(municipality_id, tech_id, brand_id, model_id, init_
             proms.append(
                 {'index': df['index'], 'data': [df['data'].loc[:, 'Disponibilidad'].mean()]})
             ind1 = ind2
-
+        indices = [promedio['index'] for promedio in promedios]
         metrics = {'metric_name': "Conectividad",
+                   'indices': indices,
                    'availability_average': [0 for vacios in range(len(vacios))],
                    'days': [0 for vacios in range(len(vacios))],
                    'device_count': [0 for vacios in range(len(vacios))],
@@ -730,11 +733,15 @@ def process_data_conectivity(municipality_id, tech_id, brand_id, model_id, init_
         if len(vacios)+len(no_vacios) <= 1:
             merged_df.rename(
                 columns={'Disponibilidad': 'Disponibilidad_1', 'num': 'num_1'}, inplace=True)
-
+        print("qaui")
         promedios = sorted(promedios, key=lambda l: l['index'])
-
+        indices = [promedio['index'] for promedio in promedios]
         promedios = [promedio['data'] for promedio in promedios]
+        print(promedios)
+
+        print(indices)
         metrics = {'metric_name': "Conectividad",
+                   'indices': indices,
                    'availability_average': promedios,
                    'days': dias,
                    'device_count': dispositivos,
@@ -772,11 +779,13 @@ def process_data_conectivity(municipality_id, tech_id, brand_id, model_id, init_
         if len(no_vacios) <= 1:
             merged_df.rename(
                 columns={'Disponibilidad': 'Disponibilidad_1', 'num': 'num_1'}, inplace=True)
+        print(proms)
         promedios = sorted(promedios, key=lambda l: l['index'])
-
+        indices = [promedio['index'] for promedio in promedios]
         promedios = [promedio['data'] for promedio in promedios]
 
         metrics = {'metric_name': "Conectividad",
+                   'indices': indices,
                    'availability_average': promedios,
                    'days': dias,
                    'device_count': dispositivos,
@@ -867,7 +876,9 @@ def process_data_alignment(municipality_id, tech_id, brand_id, model_id, init_da
             proms[proms_index]['data'].append(
                 df['data'].loc[:, 'Disponibilidad'].mean())
             ind1 = ind2
+        indices = [promedio['index'] for promedio in promedios]
         metricas.append({'metric_name': "Alineacion",
+                         'indices': indices,
                         'availability_average': [0 for vacios in range(len(vacios))],
                          'days': [0 for vacios in range(len(vacios))],
                          'device_count': [0 for vacios in range(len(vacios))],
@@ -927,9 +938,11 @@ def process_data_alignment(municipality_id, tech_id, brand_id, model_id, init_da
             merged_df.rename(
                 columns={'Disponibilidad': 'Disponibilidad_1', 'num': 'num_1'}, inplace=True)
         promedios = sorted(promedios, key=lambda l: l['index'])
-
+        indices = [promedio['index'] for promedio in promedios]
         promedios = [promedio['data'] for promedio in promedios]
+
         metricas.append({'metric_name': "Alineacion",
+                         'indices': indices,
                         'availability_average': promedios,
                          'days': dias,
                          'device_count': dispositivos,
@@ -967,11 +980,13 @@ def process_data_alignment(municipality_id, tech_id, brand_id, model_id, init_da
             merged_df.rename(
                 columns={'Disponibilidad': 'Disponibilidad_1', 'num': 'num_1'}, inplace=True)
         promedios = sorted(promedios, key=lambda l: l['index'])
-
+        indices = [promedio['index'] for promedio in promedios]
         promedios = [promedio['data'] for promedio in promedios]
 
         metricas.append({'metric_name': "Alineacion",
-                        'availability_average': promedios,
+                        'indices': indices,
+                         'availability_average': promedios,
+
                          'days': dias,
                          'device_count': dispositivos,
                          'data_range': data_range,
