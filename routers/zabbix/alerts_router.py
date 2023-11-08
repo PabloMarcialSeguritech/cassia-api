@@ -4,6 +4,7 @@ import schemas.exception_agency_schema as exception_agency_schemas
 import schemas.exceptions_schema as exception_schema
 import schemas.problem_record_schema as problem_record_schema
 import schemas.problem_record_history_schema as problem_records_history_schema
+import schemas.cassia_ticket_schema as cassia_ticket_schema
 from fastapi import Depends, status
 from services import auth_service
 from services import auth_service2
@@ -46,6 +47,39 @@ async def get_problems_filter(eventid: str = "34975081", message: str = Form(max
 )
 async def get_problems_filter(eventid: str = "34975081"):
     return await alerts_service.get_acks(eventid)
+
+
+@alerts_router.get(
+    '/problems/tickets/{eventid}',
+    tags=["Zabbix - Problems(Alerts) - Acknowledge - Tickets"],
+    status_code=status.HTTP_200_OK,
+    summary="Get tickets of one event, Ex: 34975081",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_tickets_filter(eventid: str = "34975081"):
+    return await alerts_service.get_tickets(eventid)
+
+
+@alerts_router.post(
+    '/problems/tickets/link',
+    tags=["Zabbix - Problems(Alerts) - Acknowledge - Tickets"],
+    status_code=status.HTTP_200_OK,
+    summary="Link ticket to one event",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def link_ticket(ticket_data: cassia_ticket_schema.CassiaTicketBase, current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+    return await alerts_service.link_ticket(ticket_data, current_user_session)
+
+
+@alerts_router.delete(
+    '/problems/tickets/link/{ticket_id}',
+    tags=["Zabbix - Problems(Alerts) - Acknowledge - Tickets"],
+    status_code=status.HTTP_200_OK,
+    summary="Delete ticket linked to one event",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def link_ticket(ticket_id):
+    return await alerts_service.delete_ticket(ticket_id)
 
 
 """ @alerts_router.get(
