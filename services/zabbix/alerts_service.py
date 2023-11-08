@@ -9,8 +9,10 @@ from models.exception_agency import ExceptionAgency
 from models.exceptions import Exceptions as ExceptionModel
 from models.problem_record import ProblemRecord
 from models.problem_records_history import ProblemRecordHistory
+from models.cassia_tickets import CassiaTicket as CassiaTicketModel
 import schemas.exception_agency_schema as exception_agency_schema
 import schemas.exceptions_schema as exception_schema
+import schemas.cassia_ticket_schema as cassia_ticket_schema
 import numpy as np
 from datetime import datetime
 from utils.traits import success_response
@@ -499,7 +501,7 @@ async def register_ack(eventid, message, current_session):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     statement = text(
-        f"select eventid  from problem p where eventid ='{eventid}'")
+        f"select eventid  from events p where eventid ='{eventid}'")
     problem = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
     if problem.empty:
         session.close()
@@ -540,7 +542,7 @@ async def get_acks(eventid):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     statement = text(
-        f"select eventid  from problem p where eventid ='{eventid}'")
+        f"select eventid  from events p where eventid ='{eventid}'")
     problem = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
     if problem.empty:
         session.close()
@@ -551,6 +553,11 @@ async def get_acks(eventid):
     try:
         acks = text(f"call sp_acknowledgeList({eventid});")
         acks = pd.DataFrame(session.execute(acks)).replace(np.nan, "")
+        acks['tickets'] = ['' for ack in range(len(acks))]
+        statement = text(
+            f"select * from cassia_tickets where event_id ='{eventid}'")
+        tickets = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+
     except:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -565,7 +572,6 @@ async def get_acks(eventid):
         'acumulated_cassia': 0,
         'acumulated_ticket': 0,
         'date': now,
-        'ticket': ''
     }
     if not acks.empty:
         first = acks.iloc[0]['Time']
@@ -573,9 +579,80 @@ async def get_acks(eventid):
         diff = now-first
         hours = diff.days*24 + diff.seconds//3600
         resume['acumulated_cassia'] = hours
-        resume["acumulated_ticket"] = 0
+        resume["acumulated_ticket"] = []
+        for ind in tickets.index:
+            clock = tickets.iloc[ind]['clock']
+            diff = now-clock
+            hours = diff.days*24 + diff.seconds//3600
+            resume["acumulated_ticket"].append({'tracker_id': str(tickets['tracker_id'][ind]),
+                                                'ticket_id': str(tickets['ticket_id'][ind]),
+                                                'accumulated': hours})
+
+            print(clock <= pd.to_datetime(acks["Time"]
+                  [0], format="%d/%m/%Y %H:%M:%S"))
+            acks.loc[clock <= pd.to_datetime(acks["Time"], format="%d/%m/%Y %H:%M:%S"),
+                     'tickets'] = acks['tickets']+', '+str(tickets['tracker_id'][ind])
+
     response = dict()
     response.update(resume)
     response.update({'history': acks.to_dict(orient="records")})
+    response.update({'tickets': tickets.to_dict(orient='records')})
+    print(response)
     return success_response(data=response)
+
+
+async def get_tickets(eventid):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text(
+        f"select * from cassia_tickets where event_id ='{eventid}'")
+    tickets = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+    session.close()
+    return success_response(data=tickets.to_dict(orient="records"))
+
+
+async def link_ticket(ticket_data: cassia_ticket_schema.CassiaTicketBase, current_user_session):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text(
+        f"select eventid  from events p where eventid ='{ticket_data.event_id}'")
+    problem = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+    if problem.empty:
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The eventid not exists",
+        )
+    ticket = CassiaTicketModel(
+        tracker_id=ticket_data.tracker_id,
+        user_id=current_user_session.user_id,
+        clock=ticket_data.clock,
+        created_at=datetime.now(),
+        event_id=ticket_data.event_id
+    )
+    session.add(ticket)
+    session.commit()
+    session.refresh(ticket)
+    session.close()
+
+    return success_response(data=ticket)
+
+
+async def delete_ticket(ticket_id):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    ticket = session.query(CassiaTicketModel).filter(
+        CassiaTicketModel.ticket_id == ticket_id
+    ).first()
+    if not ticket:
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The ticket not exists",
+        )
+    session.delete(ticket)
+    session.commit()
+    session.close()
+
+    return success_response(message="El ticket fue eliminado correctamente")
 

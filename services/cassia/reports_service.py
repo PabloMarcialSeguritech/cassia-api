@@ -27,18 +27,15 @@ async def get_graphic_data_multiple(municipality_id: list, tech_id: list, brand_
         )
     metrics = list()
     promedios = list()
-    print(promedios)
-    print("aqui")
     conectividad = process_data_conectivity(
         municipality_id, tech_id, brand_id, model_id, init_date, end_date, session, promedios)
-    print("aqui 2")
+
     metrics.append(conectividad)
     process_data_alignment(municipality_id, tech_id, brand_id,
                            model_id, init_date, end_date, session, metrics, promedios)
-    print("aqui 3")
-    print(promedios)
+
     promedios = process_metrics(promedios)
-    print(promedios)
+
     response = {
         'general_funcionality_average': promedios,
         'metrics': metrics
