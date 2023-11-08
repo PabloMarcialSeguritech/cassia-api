@@ -21,6 +21,7 @@ settings = Settings()
 def get_host_filter(municipalityId, dispId, subtype_id):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
+
     """ if subtype_id == "376276" or subtype_id == "375090":
         subtype_host_filter = '376276,375090'
     else:
@@ -123,12 +124,13 @@ def get_host_filter(municipalityId, dispId, subtype_id):
 
     statement6 = ""
     if subtype_id != "":
+
         statement6 = text(
-            f"CALL sp_viewAlignment('{municipalityId}','{dispId}','{subtype_id}')")
+            f"CALL sp_MetricViewH('{municipalityId}','{dispId}','{subtype_id}')")
     if statement6 != "":
         subgroup_data = session.execute(statement6)
     data6 = pd.DataFrame(subgroup_data).replace(np.nan, "")
-    print(data6.shape[0])
+
     global_host_available = text(
         f"call sp_hostAvailPingLoss('0','{dispId}','')")
     global_host_available = pd.DataFrame(
