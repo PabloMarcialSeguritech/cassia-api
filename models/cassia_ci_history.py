@@ -30,4 +30,4 @@ class CassiaCIHistory(DB_Zabbix.Base):
     session_id = Column(String(length=120), ForeignKey(
         "cassia_users_sessions.session_id"), nullable=False)
     status = Column(String(length=30), unique=False,
-                    nullable=False, default="Iniciada")
+                    nullable=False, default="No Iniciada")
