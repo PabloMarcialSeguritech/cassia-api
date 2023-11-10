@@ -209,3 +209,25 @@ async def update_ci_history_record(ci_element_history_id, ci_element_history_dat
     dependencies=[Depends(auth_service2.get_current_user_session)])
 async def delete_ci_history_record(ci_element_history_id, current_session=Depends(auth_service2.get_current_user_session)):
     return await cis_service.delete_ci_history_record(ci_element_history_id,  current_session)
+
+
+@cis_router.get(
+    '/history/process/catalog',
+    tags=["Cassia - CI's Elements - Authorizations"],
+    status_code=status.HTTP_200_OK,
+    summary="Get catalog of process",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_ci_process():
+    return await cis_service.get_ci_process()
+
+
+@cis_router.post(
+    '/history/authorization/{ci_element_history_id}',
+    tags=["Cassia - CI's Elements - Authorizations"],
+    status_code=status.HTTP_200_OK,
+    summary="Get catalog of process",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_ci_process():
+    return await cis_service.get_ci_process()
