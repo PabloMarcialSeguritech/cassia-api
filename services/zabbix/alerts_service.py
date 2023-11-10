@@ -28,6 +28,8 @@ settings = Settings()
 
 
 def get_problems_filter(municipalityId, tech_host_type=0, subtype=""):
+    if subtype == "0":
+        subtype = ""
     print("Si es este")
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
@@ -542,7 +544,7 @@ async def get_acks(eventid):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     statement = text(
-        f"select eventid  from events p where eventid ='{eventid}'")
+        f"select eventid,clock  from events p where eventid ='{eventid}'")
     problem = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
     if problem.empty:
         session.close()
@@ -568,17 +570,17 @@ async def get_acks(eventid):
 
     now = datetime.now(pytz.timezone(
         'America/Mexico_City')).replace(tzinfo=None)
+    clock_problem = problem.iloc[0]['clock']
+    clock_problem = datetime.fromtimestamp(clock_problem).replace(tzinfo=None)
+    diff = now-clock_problem
+    acumulated_cassia = diff.days*24 + diff.seconds//3600
+
     resume = {
-        'acumulated_cassia': 0,
+        'acumulated_cassia': acumulated_cassia,
         'acumulated_ticket': 0,
         'date': now,
     }
     if not acks.empty:
-        first = acks.iloc[0]['Time']
-        first = datetime.strptime(first, '%d/%m/%Y %H:%M:%S')
-        diff = now-first
-        hours = diff.days*24 + diff.seconds//3600
-        resume['acumulated_cassia'] = hours
         resume["acumulated_ticket"] = []
         for ind in tickets.index:
             clock = tickets.iloc[ind]['clock']
