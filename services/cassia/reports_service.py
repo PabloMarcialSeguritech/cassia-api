@@ -290,7 +290,9 @@ async def download_graphic_data_multiple(municipality_id: list, tech_id: list, b
     session = db_zabbix.Session()
 
     conectividad = list()
+    alineacion = list()
     processed_conectividades = list()
+    processed_alineaciones = list()
     catalog_municipios = text("call sp_catCity()")
     catalog_municipios = pd.DataFrame(
         session.execute(catalog_municipios)).replace(np.nan, "")
@@ -312,7 +314,8 @@ async def download_graphic_data_multiple(municipality_id: list, tech_id: list, b
             data_insert = data[['itemid', 'time', 'Avg_min']]
             data_insert.rename(
                 columns={'Avg_min': 'disponibildad', 'itemid': 'itemid(host)'}, inplace=True)
-            processed_conectividad = process_data(data, init_date, end_date)
+            processed_conectividad = process_data(
+                data, init_date, end_date, "Disponibilidad")
             processed_conectividad = processed_conectividad['data']
             model = 'Todos'
             if brand_id[ind] != '':
@@ -344,6 +347,56 @@ async def download_graphic_data_multiple(municipality_id: list, tech_id: list, b
         conectividad.append(data_insert)
 
         processed_conectividades.append(processed_conectividad)
+    for ind in range(len(municipality_id)):
+        if tech_id[ind] == '11':
+            statement = text(f"""
+            call sp_alignmentReport('{municipality_id[ind]}','{tech_id[ind]}','{brand_id[ind]}','{model_id[ind]}','{init_date}','{end_date}');
+            """)
+            data = pd.DataFrame(session.execute(statement))
+            data_insert = data
+            processed_conectividad = data
+            if not data.empty:
+                data_insert = data[['itemid', 'time', 'Avg_min']]
+                data_insert.rename(
+                    columns={'Avg_min': 'alineacion', 'itemid': 'itemid(host)'}, inplace=True)
+                processed_conectividad = process_data(
+                    data, init_date, end_date, "Alineacion")
+                processed_conectividad = processed_conectividad['data']
+                model = 'Todos'
+                if brand_id[ind] != '':
+                    catalog_models = text(
+                        f"call sp_catModel('{brand_id[ind]}')")
+                    catalog_models = pd.DataFrame(
+                        session.execute(catalog_models)).replace(np.nan, "")
+                    model = get_model(
+                        catalog_models, model_id[ind] if model_id[ind] != '' else 0)
+                model = [
+                    model for i in range(len(processed_conectividad))]
+                municipio = get_municipio(
+                    catalog_municipios, municipality_id[ind])
+                municipio = [
+                    municipio for i in range(len(processed_conectividad))]
+                tech = get_tech(catalog_techs, tech_id[ind])
+                tech = [
+                    tech for i in range(len(processed_conectividad))]
+                brand = get_brand(
+                    catalog_brands, brand_id[ind] if brand_id[ind] != '' else 0)
+                brand = [
+                    brand for i in range(len(processed_conectividad))]
+
+                processed_conectividad.insert(
+                    loc=0, column='modelo', value=model)
+                processed_conectividad.insert(
+                    loc=0, column='marca', value=brand)
+                processed_conectividad.insert(
+                    loc=0, column='tecnologia', value=tech)
+                processed_conectividad.insert(
+                    loc=0, column='municipio', value=municipio)
+
+            alineacion.append(data_insert)
+
+            processed_alineaciones.append(processed_conectividad)
+
     with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp_file:
         xlsx_filename = temp_file.name
         with pd.ExcelWriter(xlsx_filename, engine="xlsxwriter") as writer:
@@ -353,6 +406,11 @@ async def download_graphic_data_multiple(municipality_id: list, tech_id: list, b
                     writer, sheet_name=f"Consulta {ind+1} conectividad", index=False)
                 conectividad[ind].to_excel(
                     writer, sheet_name=f"Consulta {ind+1} conectividad_data", index=False)
+            for ind in range(len(alineacion)):
+                processed_alineaciones[ind].to_excel(
+                    writer, sheet_name=f"Consulta {ind+1} alineacion", index=False)
+                alineacion[ind].to_excel(
+                    writer, sheet_name=f"Consulta {ind+1} alineacion_data", index=False)
 
     session.close()
     return FileResponse(xlsx_filename, headers={"Content-Disposition": "attachment; filename=datos.xlsx"}, media_type="application/vnd.ms-excel", filename="datos.xlsx")

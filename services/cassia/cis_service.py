@@ -544,3 +544,16 @@ def check_pdf(file_types):
 def path_leaf(path):
     head, tail = ntpath.split(path)
     return tail or ntpath.basename(head)
+
+
+async def get_ci_process():
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text("SELECT process_id, name from cassia_ci_process")
+    process_catalog = pd.DataFrame(
+        session.execute(statement)).replace(np.nan, "")
+    if not process_catalog.empty:
+        process_catalog["id"] = process_catalog["process_id"]
+        process_catalog["value"] = process_catalog["process_id"]
+    session.close()
+    return success_response(data=process_catalog.to_dict(orient="records"))
