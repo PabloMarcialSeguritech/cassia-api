@@ -10,6 +10,7 @@ from models.exceptions import Exceptions as ExceptionModel
 from models.problem_record import ProblemRecord
 from models.problem_records_history import ProblemRecordHistory
 from models.cassia_tickets import CassiaTicket as CassiaTicketModel
+from models.cassia_acknowledge import CassiaAcknowledge
 import schemas.exception_agency_schema as exception_agency_schema
 import schemas.exceptions_schema as exception_schema
 import schemas.cassia_ticket_schema as cassia_ticket_schema
@@ -24,6 +25,8 @@ import os
 import ntpath
 import shutil
 import pytz
+import pyzabbix
+from pyzabbix.api import ZabbixAPI
 settings = Settings()
 
 
@@ -511,31 +514,47 @@ async def register_ack(eventid, message, current_session):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="The eventid not exists",
         )
-    next_id = text(f"call sp_next_acknowledid()")
-    next_id = pd.DataFrame(session.execute(next_id)).replace(np.nan, "")
-    if next_id.empty:
-        session.close()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Error in sp_next_ack procedure",
-        )
-    next_id = next_id['acknowledgeid'].values[0]
-    insert = text(
-
-        f"call sp_acknowledgeCreate({next_id},{eventid},'{message}','{current_session.user_id}');")
 
     try:
-        session.execute(insert)
+        api_zabbix = ZabbixAPI(settings.zabbix_server_url)
+        api_zabbix.login(user='Admin', password='zabbix')
+    except:
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al concectar con Zabbix",
+        )
+
+    try:
+        params = {
+            "eventids": eventid,
+            "action": 6,
+            "message": message
+        }
+        response = api_zabbix.do_request(method='event.acknowledge',
+                                         params=params)
+        ackid = text(
+            f"select acknowledgeid from acknowledges order by acknowledgeid desc limit 1")
+        ackid = pd.DataFrame(session.execute(ackid)).replace(np.nan, "")
+        if ackid.empty:
+            session.close()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Error en la consulta en la tabla de acknowledges",
+            )
+        ackid = int(ackid['acknowledgeid'].values[0])+1
+        cassia_acknowledge = CassiaAcknowledge(
+            acknowledge_id=ackid,
+            user_id=current_session.user_id
+        )
+        session.add(cassia_acknowledge)
         session.commit()
-        print("correcto")
-        print(insert)
+        session.refresh(cassia_acknowledge)
     except:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error in sp_acknowledgeCreate process",
+            detail="Error al crear el acknownledge",
         )
-    finally:
-        session.close()
 
     return success_response(message="Acknowledge registrado correctamente")
 
@@ -571,21 +590,25 @@ async def get_acks(eventid):
     now = datetime.now(pytz.timezone(
         'America/Mexico_City')).replace(tzinfo=None)
     clock_problem = problem.iloc[0]['clock']
-    clock_problem = datetime.fromtimestamp(clock_problem).replace(tzinfo=None)
+
+    clock_problem = datetime.fromtimestamp(
+        clock_problem, pytz.timezone('America/Mexico_City')).replace(tzinfo=None)
+
     diff = now-clock_problem
-    acumulated_cassia = diff.days*24 + diff.seconds//3600
+    acumulated_cassia = round(diff.days*24 + diff.seconds/3600, 4)
 
     resume = {
         'acumulated_cassia': acumulated_cassia,
         'acumulated_ticket': 0,
-        'date': now,
+        'date': now.strftime("%d/%m/%Y %H:%M:%S"),
     }
     if not acks.empty:
         resume["acumulated_ticket"] = []
         for ind in tickets.index:
             clock = tickets.iloc[ind]['clock']
             diff = now-clock
-            hours = diff.days*24 + diff.seconds//3600
+            hours = round(diff.days*24 + diff.seconds/3600, 4)
+            print(hours)
             resume["acumulated_ticket"].append({'tracker_id': str(tickets['tracker_id'][ind]),
                                                 'ticket_id': str(tickets['ticket_id'][ind]),
                                                 'accumulated': hours})
@@ -599,7 +622,7 @@ async def get_acks(eventid):
     response.update(resume)
     response.update({'history': acks.to_dict(orient="records")})
     response.update({'tickets': tickets.to_dict(orient='records')})
-    print(response)
+
     return success_response(data=response)
 
 
