@@ -7,6 +7,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import HTTPException
 from models.user_model import User
 from models.user_has_roles import UserHasRole
+from models.cassia_user_authorizer import UserAuthorizer
 import schemas.exception_agency_schema as exception_agency_schema
 import schemas.exceptions_schema as exception_schema
 import numpy as np
@@ -224,7 +225,13 @@ async def create_user(user: user_schema.UserRegister):
         session.add(db_user)
         session.commit()
         session.refresh(db_user)
-
+    if user.authorizer:
+        authorizer = UserAuthorizer(
+            user_id=db_user.user_id
+        )
+        session.add(authorizer)
+        session.commit()
+        session.refresh(authorizer)
     for role in roles:
         role_user = UserHasRole(
             user_id=db_user.user_id,
@@ -378,6 +385,20 @@ async def update_user(user_id, user: user_schema.UserRegister):
             session.commit()
     if mail_nuevo:
         await send_email(email_to=actual_user.mail, body=body)
+    authroizer = session.query(UserAuthorizer).filter(
+        UserAuthorizer.user_id == actual_user.user_id).first()
+    if user.authorizer == 0:
+        if authroizer:
+            session.delete(authroizer)
+            session.commit()
+    if user.authorizer:
+        if not authroizer:
+            authorizer_create = UserAuthorizer(
+                user_id=actual_user.user_id
+            )
+            session.add(authorizer_create)
+            session.commit()
+            session.refresh(authorizer_create)
     # db_user.save()
     user_response = user_schema.User(
         user_id=actual_user.user_id,
@@ -404,8 +425,12 @@ async def delete_user(user_id):
     for role_model in roles_actual:
         session.delete(role_model)
     actual_user.deleted_at = datetime.now()
+    authorizer = session.query(UserAuthorizer).filter(UserAuthorizer.user_id==user_id).first()
+    if authorizer:
+        session.delete(authorizer)
     session.commit()
     session.refresh(actual_user)
+
     session.close()
     return success_response(message=f"User deleted successfully")
 

@@ -63,7 +63,8 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         "token_type": "bearer",
         "roles": access_token["roles"],
         "permissions": access_token["permissions"],
-        "verified_at": access_token['verified_at']
+        "verified_at": access_token['verified_at'],
+        'authorizer': access_token['authorizer']
     }
     return success_response(data=response)
 
