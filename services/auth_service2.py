@@ -20,6 +20,7 @@ from models.cassia_roles import CassiaRole
 from models.cassia_permissions import CassiaPermission
 from models.role_has_permissions import RoleHasPermission
 from models.cassia_user_session import CassiaUserSession
+from models.cassia_user_authorizer import UserAuthorizer
 import pandas as pd
 import numpy as np
 import uuid
@@ -111,13 +112,16 @@ def generate_token(username, password):
     session.add(session_id)
     session.commit()
     session.refresh(session_id)
+    authorizer = session.query(UserAuthorizer).filter(
+        UserAuthorizer.user_id == user.user_id).first()
     session.close()
 
     return {
         'access_token': access_token["token"],
         "roles": roles["roles"],
         "permissions": roles["permissions"],
-        "verified_at": user.verified_at
+        "verified_at": user.verified_at,
+        'authorizer': 1 if authorizer else 0
     }
 
 
