@@ -501,7 +501,7 @@ def path_leaf(path):
 
 
 
-async def register_ack(eventid, message, current_session):
+async def register_ack(eventid, message, current_session, close):
 
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
@@ -528,9 +528,10 @@ async def register_ack(eventid, message, current_session):
     try:
         params = {
             "eventids": eventid,
-            "action": 6,
+            "action": 5 if close else 4,
             "message": message
         }
+
         response = api_zabbix.do_request(method='event.acknowledge',
                                          params=params)
         ackid = text(
