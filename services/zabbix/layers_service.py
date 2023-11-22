@@ -162,3 +162,14 @@ group by c.latitude, c.longitude
     """ print(data.to_string()) """
     session_zabbix.close()
     return success_response(data=data.to_dict(orient="records"))
+
+
+async def get_switches_connectivity():
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text(f"call sp_switchConnectivity()")
+    switches = session.execute(statement)
+    data = pd.DataFrame(switches).replace(np.nan, "")
+    session.close()
+
+    return success_response(data=data.to_dict(orient="records"))
