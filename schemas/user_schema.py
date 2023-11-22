@@ -32,5 +32,4 @@ class UserRegister(UserBase):
         example="strongpass"
     ) """
     roles: Optional[str]
-    authorizer: int = Field(...,
-                            example=1)
+    authorizer: Optional[int]
