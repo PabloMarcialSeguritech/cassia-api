@@ -11,8 +11,8 @@ class CassiaMail(DB_Zabbix.Base):
     autorizer_user_id = Column(Integer, ForeignKey(
         "cassia_users.user_id"), nullable=True)
     request_date = Column(DateTime, default=datetime.now)
-    process_id = Column(Integer, ForeignKey(
-        "cassia_ci_process.process_id"), nullable=False)
+    process_id = Column(Integer,  nullable=False)
     comments = Column(Text, unique=False, nullable=False)
-    action = Column(Integer, nullable=False, default=0)
+    action = Column(Integer, nullable=True, default=None)
     action_comments = Column(Text, unique=False, nullable=False)
+    cassia_conf_id = Column(Integer, nullable=False)
