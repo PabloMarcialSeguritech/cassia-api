@@ -671,6 +671,11 @@ cassia_users re on re.user_id =cm.request_user_id
 left join cassia_ci_process pr on pr.process_id = cm.process_id 
                      where action IS NULL""")
     requests = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+    if not requests.empty:
+        requests['request_date'] = pd.to_datetime(requests.request_date)
+        requests['request_date'] = requests['request_date'].dt.strftime(
+            '%d/%m/%Y %H:%M:%S')
+
     session.close()
     return success_response(data=requests.to_dict("records"))
 

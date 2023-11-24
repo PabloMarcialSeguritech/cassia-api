@@ -517,7 +517,8 @@ async def register_ack(eventid, message, current_session, close):
 
     try:
         api_zabbix = ZabbixAPI(settings.zabbix_server_url)
-        api_zabbix.login(user='CASSIA-Hidalgo', password='123qwe...')
+        api_zabbix.login(user=settings.zabbix_user,
+                         password=settings.zabbix_password)
 
     except:
         session.close()
