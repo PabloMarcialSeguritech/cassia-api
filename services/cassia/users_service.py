@@ -385,20 +385,22 @@ async def update_user(user_id, user: user_schema.UserRegister):
             session.commit()
     if mail_nuevo:
         await send_email(email_to=actual_user.mail, body=body)
-    authroizer = session.query(UserAuthorizer).filter(
-        UserAuthorizer.user_id == actual_user.user_id).first()
-    if user.authorizer == 0:
-        if authroizer:
-            session.delete(authroizer)
-            session.commit()
+
     if user.authorizer:
-        if not authroizer:
-            authorizer_create = UserAuthorizer(
-                user_id=actual_user.user_id
-            )
-            session.add(authorizer_create)
-            session.commit()
-            session.refresh(authorizer_create)
+        authroizer = session.query(UserAuthorizer).filter(
+            UserAuthorizer.user_id == actual_user.user_id).first()
+        if user.authorizer == 0:
+            if authroizer:
+                session.delete(authroizer)
+                session.commit()
+        if user.authorizer:
+            if not authroizer:
+                authorizer_create = UserAuthorizer(
+                    user_id=actual_user.user_id
+                )
+                session.add(authorizer_create)
+                session.commit()
+                session.refresh(authorizer_create)
     # db_user.save()
     user_response = user_schema.User(
         user_id=actual_user.user_id,
@@ -425,7 +427,8 @@ async def delete_user(user_id):
     for role_model in roles_actual:
         session.delete(role_model)
     actual_user.deleted_at = datetime.now()
-    authorizer = session.query(UserAuthorizer).filter(UserAuthorizer.user_id==user_id).first()
+    authorizer = session.query(UserAuthorizer).filter(
+        UserAuthorizer.user_id == user_id).first()
     if authorizer:
         session.delete(authorizer)
     session.commit()
