@@ -71,7 +71,8 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype=""):
                 '',
                 '',
                 0,
-                ''
+                '',
+                0
             )
                 for r in alertas_rfid], columns=['Time', 'severity', 'hostid',
                                                  'Host', 'latitude', 'longitude',
@@ -81,7 +82,8 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype=""):
                                                  'r_eventid',
                                                  'TimeRecovery',
                                                  'Ack',
-                                                 'Ack_message'])
+                                                 'Ack_message',
+                                                 "manual_close"])
 
         else:
             statement = text("call sp_catCity()")
@@ -113,7 +115,8 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype=""):
                 '',
                 '',
                 0,
-                ''
+                '',
+                0
             )
                 for r in alertas_rfid], columns=['Time', 'severity', 'hostid',
                                                  'Host', 'latitude', 'longitude',
@@ -123,7 +126,8 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype=""):
                                                  'r_eventid',
                                                  'TimeRecovery',
                                                  'Ack',
-                                                 'Ack_message'])
+                                                 'Ack_message',
+                                                 "manual_close"])
 
         data = pd.concat([alertas_rfid, data],
                          ignore_index=True).replace(np.nan, "")
