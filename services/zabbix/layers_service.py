@@ -164,10 +164,11 @@ group by c.latitude, c.longitude
     return success_response(data=data.to_dict(orient="records"))
 
 
-async def get_switches_connectivity():
+async def get_switches_connectivity(municipality_id):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-    statement = text(f"call sp_switchConnectivity()")
+    
+    statement = text(f"call sp_switchConnectivity('{municipality_id}')")
     switches = session.execute(statement)
     data = pd.DataFrame(switches).replace(np.nan, "")
     session.close()
