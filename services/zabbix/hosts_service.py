@@ -21,6 +21,8 @@ settings = Settings()
 def get_host_filter(municipalityId, dispId, subtype_id):
     if subtype_id == "0":
         subtype_id = ""
+    if dispId == "0":
+        dispId = ""
     print(subtype_id)
 
     print(type(subtype_id))
