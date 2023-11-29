@@ -45,6 +45,27 @@ async def get_devices_by_municipality(municipalityId):
     return success_response(data=data.to_dict(orient="records"))
 
 
+async def get_devices_by_municipality_map(municipalityId):
+    db_zabbix = DB_Zabbix()
+
+    session = db_zabbix.Session()
+    statement = text(f"call sp_catDevice('{municipalityId}')")
+    devices = db_zabbix.Session().execute(statement)
+    data = pd.DataFrame(devices).replace(np.nan, "")
+    df = {'dispId': 0, "name": "TODAS",
+          "id": 0}
+
+    if len(data) > 0:
+        data["id"] = data["dispId"]
+        if len(data.loc[data["dispId"] == "0"]) == 0:
+            data = pd.concat(
+                [pd.DataFrame(df, index=[0]), data], ignore_index=True)
+    else:
+        data = pd.DataFrame(df, index=[0])
+    session.close()
+    return success_response(data=data.to_dict(orient="records"))
+
+
 def get_subtypes(techId):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
