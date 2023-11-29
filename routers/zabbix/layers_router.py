@@ -42,3 +42,14 @@ def get_hosts_filter(municipalityId: str = "0", dispId: str = "", subtype_id: st
 )
 def get_hosts_filter(municipalityId: str = "0"):
     return layers_service.get_carreteros2(municipalityId)
+
+
+@layers_router.get(
+    '/switches_connectivity/{municipality_id}',
+    tags=["Zabbix - Layers"],
+    status_code=status.HTTP_200_OK,
+    summary="Get switches connectivity info",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_switches_connectivity(municipality_id="0"):
+    return await layers_service.get_switches_connectivity(municipality_id)

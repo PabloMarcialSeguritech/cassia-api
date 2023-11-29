@@ -46,6 +46,7 @@ class Settings(BaseSettings):
 
     zabbix_api_token: str = os.getenv('ZABBIX_API_TOKEN')
     zabbix_server_url: str = os.getenv('ZABBIX_SERVER_URL')
+
     env: str = f'{env}'
 
     MAIL_USERNAME: str = os.getenv('MAIL_USERNAME')
@@ -78,5 +79,14 @@ class Settings(BaseSettings):
         abreviatura_estado: str = os.getenv('ABREVIATURA_ESTADO')
     except:
         pass
-
+    zabbix_user: str = "Admin"
+    try:
+        zabbix_user: str = os.getenv('ZABBIX_USER')
+    except:
+        pass
+    zabbix_password: str = "zabbix"
+    try:
+        zabbix_password: str = os.getenv('ZABBIX_PASSWORD')
+    except:
+        pass
     """ cassia_traffic: bool = True if int(os.getenv('TRAFFIC')) == 1 else False """

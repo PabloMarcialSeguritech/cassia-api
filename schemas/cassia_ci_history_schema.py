@@ -34,7 +34,7 @@ class CiHistoryBase(BaseModel):
                            example="Daniel Pérez")
     created_at: datetime
     closed_at: Optional[datetime]
-    status: Literal['Iniciada', 'Cerrada', 'Cancelada']
+    status: Optional[Literal['Cerrada', 'Cancelada']]
 
 
 class CiHistory(CiHistoryBase):

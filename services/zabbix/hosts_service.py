@@ -21,6 +21,8 @@ settings = Settings()
 def get_host_filter(municipalityId, dispId, subtype_id):
     if subtype_id == "0":
         subtype_id = ""
+    if dispId == "0":
+        dispId = ""
     print(subtype_id)
 
     print(type(subtype_id))
@@ -213,8 +215,8 @@ from_unixtime(vl.clock,'%d/%m/%Y %H:%i:%s')as Date,
 vl.value as Metric  FROM hosts h
 INNER JOIN items i ON (h.hostid  = i.hostid)
 INNER JOIN  vw_lastValue_history_uint vl  ON (i.itemid=vl.itemid)
-WHERE  h.hostid = {host_id} AND i.name like 'Interface Bridge-Aggregation_: Speed'
-OR i.name like 'Interface Bridge-Aggregation_: Bits%'
+WHERE  h.hostid = {host_id} AND (i.name like 'Interface Bridge-Aggregation_: Speed'
+OR i.name like 'Interface Bridge-Aggregation_: Bits%')
 """)
 
     metrics = pd.DataFrame(session.execute(statement)).replace(np.nan, "")

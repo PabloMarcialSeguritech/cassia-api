@@ -12,22 +12,19 @@ import pandas as pd
 @as_form
 class CiMailBase(BaseModel):
 
-    request_user_id: str = Field(...,  example="1")
-    autorizer_user_id: str = Field(..., example="2")
-
-    request_date: datetime = Field(..., example="2023-08-24 17:15:23")
     process_id: str = Field(..., example="3")
     comments: str = Field(..., example='')
 
 
 class CiMail(CiMailBase):
     mail_id: int = Field(..., example="1")
-
+    autorizer_user_id: str = Field(..., example="2")
+    request_date: datetime = Field(..., example="2023-08-24 17:15:23")
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
 
 
 class CiMailAuthorize(BaseModel):
-    action: int = Field(..., example=1)
+    action: bool = Field(...)
     action_comments: Optional[str] = Field(..., example="")

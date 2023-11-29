@@ -5,6 +5,7 @@ from schemas import cassia_ci_history_schema
 from schemas import cassia_ci_element_schema
 from typing import List, Optional
 import services.cassia.cis_service as cis_service
+from schemas import cassia_ci_mail
 cis_router = APIRouter(prefix="/ci_elements")
 
 
@@ -223,11 +224,44 @@ async def get_ci_process():
 
 
 @cis_router.post(
-    '/history/authorization/{ci_element_history_id}',
+    '/history/authorization/create/{ci_element_history_id}',
     tags=["Cassia - CI's Elements - Authorizations"],
     status_code=status.HTTP_200_OK,
     summary="Get catalog of process",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_ci_process():
-    return await cis_service.get_ci_process()
+async def create_authorization_request(ci_element_history_id, ci_authorization_data: cassia_ci_mail.CiMailBase, current_session=Depends(auth_service2.get_current_user_session)):
+    return await cis_service.create_authorization_request(ci_element_history_id, ci_authorization_data, current_session)
+
+
+@cis_router.post(
+    '/history/authorization/cancel/{ci_element_history_id}',
+    tags=["Cassia - CI's Elements - Authorizations"],
+    status_code=status.HTTP_200_OK,
+    summary="Get catalog of process",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def cancel_authorization_request(ci_element_history_id, current_session=Depends(auth_service2.get_current_user_session)):
+    return await cis_service.cancel_authorization_request(ci_element_history_id, current_session)
+
+
+@cis_router.get(
+    '/history/requests/get',
+    tags=["Cassia - CI's Elements - Authorizations"],
+    status_code=status.HTTP_200_OK,
+    summary="Get pending requests",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_authorization_requests(current_session=Depends(auth_service2.get_current_user_session)):
+    return await cis_service.get_authorization_requests(current_session)
+
+
+@cis_router.post(
+    '/history/authorization/authorize/{cassia_mail_id}',
+    tags=["Cassia - CI's Elements - Authorizations"],
+    status_code=status.HTTP_200_OK,
+    summary="Authorize o decline a request",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def authorize_request(cassia_mail_id, ci_authorization_data: cassia_ci_mail.CiMailAuthorize, current_session=Depends(auth_service2.get_current_user_session)):
+    return await cis_service.authorize_request(cassia_mail_id, ci_authorization_data, current_session)

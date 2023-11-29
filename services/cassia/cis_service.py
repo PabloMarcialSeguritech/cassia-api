@@ -11,6 +11,8 @@ from models.cassia_ci_element import CassiaCIElement
 from models.cassia_ci_relations import CassiaCIRelation
 from models.cassia_ci_history import CassiaCIHistory
 from models.cassia_ci_document import CassiaCIDocument
+from models.cassia_mail import CassiaMail
+from models.cassia_user_authorizer import UserAuthorizer
 from datetime import datetime
 from fastapi.responses import FileResponse
 import os
@@ -362,7 +364,7 @@ async def delete_ci_element_doc(doc_id):
 async def get_ci_element_history(element_id):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-
+    print("so es este")
     query = text(f"""
     select cce.element_id,cce.folio,cce.ip,h.name,cce.technology ,cce.device_name,
 cce.description,his.hardware_brand,his.hardware_model,his.software_version,
@@ -374,6 +376,7 @@ where cch.status="Cerrada" and cch.deleted_at is NULL
 order by closed_at desc limit 1
 ) his on cce.element_id=his.element_id
 WHERE deleted_at is NULL
+and cce.element_id={element_id}
     """)
     ci_element = pd.DataFrame(session.execute(query)).replace(np.nan, "")
     if ci_element.empty:
@@ -440,11 +443,9 @@ async def create_ci_history_record(ci_element_history_data: cassia_ci_history_sc
         created_at=ci_element_history_data.created_at,
         closed_at=ci_element_history_data.closed_at,
         session_id=current_session.session_id.hex,
-        status=ci_element_history_data.status
     )
-    match ci_element_history_data.status:
-        case 'Iniciada':
-            element.status_conf = 'Sin cerrar'
+
+    element.status_conf = 'Sin cerrar'
 
     session.add(ci_element_history)
     session.commit()
@@ -468,35 +469,62 @@ async def update_ci_history_record(ci_element_history_id, ci_element_history_dat
         CassiaCIHistory.conf_id == ci_element_history_id,
         CassiaCIHistory.deleted_at == None
     ).first()
-    ci_element_history.element_id = ci_element_history_data.element_id,
-    ci_element_history.change_type = ci_element_history_data.change_type,
-    ci_element_history.description = ci_element_history_data.description,
-    ci_element_history.justification = ci_element_history_data.justification,
-    ci_element_history.hardware_no_serie = ci_element_history_data.hardware_no_serie,
-    ci_element_history.hardware_brand = ci_element_history_data.hardware_brand,
-    ci_element_history.hardware_model = ci_element_history_data.hardware_model,
-    ci_element_history.software_version = ci_element_history_data.software_version,
-    ci_element_history.responsible_name = ci_element_history_data.responsible_name,
-    ci_element_history.auth_name = ci_element_history_data.auth_name,
-    ci_element_history.created_at = ci_element_history_data.created_at,
-    ci_element_history.closed_at = ci_element_history_data.closed_at,
-    ci_element_history.session_id = current_session.session_id.hex,
-    ci_element_history.status = ci_element_history_data.status
+    if not ci_element_history:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="La configuracion no existe")
+    match ci_element_history.status:
+        case "No iniciado":
+            ci_element_history.element_id = ci_element_history_data.element_id
+            ci_element_history.change_type = ci_element_history_data.change_type
+            ci_element_history.description = ci_element_history_data.description
+            ci_element_history.justification = ci_element_history_data.justification
+            ci_element_history.hardware_no_serie = ci_element_history_data.hardware_no_serie
+            ci_element_history.hardware_brand = ci_element_history_data.hardware_brand
+            ci_element_history.hardware_model = ci_element_history_data.hardware_model
+            ci_element_history.software_version = ci_element_history_data.software_version
+            ci_element_history.responsible_name = ci_element_history_data.responsible_name
+            ci_element_history.auth_name = ci_element_history_data.auth_name
+            ci_element_history.created_at = ci_element_history_data.created_at
+            ci_element_history.closed_at = ci_element_history_data.closed_at
+            ci_element_history.session_id = current_session.session_id.hex
+        case "Pendiente de autorizacion":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="No se puede actulizar un registro pendiente de autorización, para actualizar por favor cancele la solicitud")
+        case "Iniciado":
+            ci_element_histories = session.query(CassiaCIHistory).filter(
+                CassiaCIHistory.element_id == ci_element_history_data.element_id,
+                CassiaCIHistory.deleted_at == None,
+                CassiaCIHistory.status == 'Iniciado',
+                CassiaCIHistory.conf_id != ci_element_history_id
+            ).first()
+            if ci_element_history_data.status == "Cerrada":
+                print("si entra")
+                print(ci_element_histories)
+                if ci_element_histories:
+                    print("si entra 1")
+                    element.status_conf = 'Sin cerrar'
+                else:
+                    print("si entra 2")
+                    print(element.status_conf)
+                    element.status_conf = 'Cerradas'
+                    print(element.status_conf)
+            if ci_element_history_data.status == "Cancelada":
+                if ci_element_histories:
+                    element.status_conf = 'Sin cerrar'
+                else:
+                    element.status_conf = 'Cerradas'
+            print("aqui")
+            print("actual", ci_element_history.status)
+            print("nuevo", ci_element_history_data.status)
 
-    ci_element_histories = session.query(CassiaCIHistory).filter(
-        CassiaCIHistory.element_id == ci_element_history_data.element_id,
-        CassiaCIHistory.deleted_at == None,
-        CassiaCIHistory.status == 'Iniciada'
-    ).first()
-    if ci_element_histories:
-        element.status_conf = 'Sin cerrar'
-    else:
-        element.status_conf = 'Cerradas'
+            ci_element_history.status = ci_element_history_data.status
+            ci_element_history.session_id = current_session.session_id.hex
+
     session.commit()
     session.refresh(element)
     session.refresh(ci_element_history)
     session.close()
-
+    print(element.status)
     return success_response(data=ci_element_history)
 
 
@@ -511,6 +539,9 @@ async def delete_ci_history_record(ci_element_history_id,  current_session):
     if not ci_element_history:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Element CI History not exists")
+    if ci_element_history.status != "No iniciado":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="No puedes eliminar configuraciones autorizadas, canceladas o cerradas.")
     ci_element_history.deleted_at = datetime.now()
     ci_element_history.session_id = current_session.session_id.hex
     ci_element_history.updated_at = datetime.now()
@@ -557,3 +588,140 @@ async def get_ci_process():
         process_catalog["value"] = process_catalog["process_id"]
     session.close()
     return success_response(data=process_catalog.to_dict(orient="records"))
+
+
+async def create_authorization_request(ci_element_history_id, ci_authorization, current_session):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    ci_element_history = session.query(CassiaCIHistory).filter(
+        CassiaCIHistory.conf_id == ci_element_history_id,
+        CassiaCIHistory.deleted_at == None
+    ).first()
+    if not ci_element_history:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="El elemento de configuracion no existe")
+    if ci_element_history.status != "No iniciado":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Solo puedes crear solicitudes en los elementos de configuracion con estatus 'No iniciado'")
+
+    ci_authorization_exist = session.query(CassiaMail).filter(
+        CassiaMail.cassia_conf_id == ci_element_history_id,
+        CassiaMail.autorizer_user_id == None,
+        CassiaMail.action == None
+    ).first()
+    if ci_authorization_exist:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="La solicitud ya existe")
+    ci_mail = CassiaMail(
+        request_user_id=current_session.user_id,
+        process_id=ci_authorization.process_id,
+        comments=ci_authorization.comments,
+        request_date=datetime.now(),
+        cassia_conf_id=ci_element_history_id
+    )
+    ci_element_history.status = 'Pendiente de autorizacion'
+    session.add(ci_mail)
+    session.commit()
+    session.refresh(ci_mail)
+    session.close()
+    return success_response(data=ci_mail, message="Solicitud creada correctamente")
+
+
+async def cancel_authorization_request(ci_element_history_id, current_session):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    ci_element_history = session.query(CassiaCIHistory).filter(
+        CassiaCIHistory.conf_id == ci_element_history_id,
+        CassiaCIHistory.deleted_at == None
+    ).first()
+    if not ci_element_history:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="El elemento de configuracion no existe")
+    if ci_element_history.status != "Pendiente de autorizacion":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Solo puedes cancelar solicitudes en los elementos de configuracion con estatus 'Pendiente de autorizacion'")
+
+    ci_authorization = session.query(CassiaMail).filter(
+        CassiaMail.cassia_conf_id == ci_element_history_id,
+        CassiaMail.autorizer_user_id == None,
+        CassiaMail.action == None
+    ).first()
+    if not ci_authorization:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="No hay solicitudes creadas.")
+    ci_authorization.action = 0
+    ci_authorization.action_comments = 'Cancelada por el solicitante'
+    ci_element_history.status = "No iniciado"
+    session.commit()
+    session.refresh(ci_authorization)
+    session.close()
+    return success_response(data=ci_authorization, message="Solicitud cancelada correctamente")
+
+
+async def get_authorization_requests(current_session):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    authorizer = session.query(UserAuthorizer).filter(
+        UserAuthorizer.user_id == current_session.user_id).first()
+    if not authorizer:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="No tienes permiso para autorizar una solicitud")
+    statement = text("""select cm.mail_id,re.name as user_request,cm.request_date,pr.name as process_name,cm.comments  from cassia_mail cm left join
+cassia_users re on re.user_id =cm.request_user_id 
+left join cassia_ci_process pr on pr.process_id = cm.process_id 
+                     where action IS NULL""")
+    requests = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+    if not requests.empty:
+        requests['request_date'] = pd.to_datetime(requests.request_date)
+        requests['request_date'] = requests['request_date'].dt.strftime(
+            '%d/%m/%Y %H:%M:%S')
+
+    session.close()
+    return success_response(data=requests.to_dict("records"))
+
+
+async def authorize_request(cassia_mail_id, ci_authorization_data, current_session):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    authorizer = session.query(UserAuthorizer).filter(
+        UserAuthorizer.user_id == current_session.user_id).first()
+    if not authorizer:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="No tienes permiso para autorizar una solicitud")
+
+    ci_authorization_get = session.query(CassiaMail).filter(
+        CassiaMail.mail_id == cassia_mail_id,
+    ).first()
+    if not ci_authorization_get:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="La solicitud no existe")
+    ci_element_history = session.query(CassiaCIHistory).filter(
+        CassiaCIHistory.conf_id == ci_authorization_get.cassia_conf_id).first()
+    if not ci_element_history:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="El elemento de configuracion no existe")
+    if ci_authorization_data.action:
+        ci_element_history.status = "Iniciado"
+    else:
+        ci_element_history.status = 'Cancelada'
+        ci_element = session.query(CassiaCIElement).filter(
+            CassiaCIElement.element_id == ci_element_history.element_id).first()
+
+        ci_element_histories = session.query(CassiaCIHistory).filter(
+            CassiaCIHistory.element_id == ci_element.element_id,
+            CassiaCIHistory.deleted_at == None,
+            CassiaCIHistory.status == 'Iniciado',
+            CassiaCIHistory.conf_id != ci_element_history.conf_id
+        ).first()
+        if ci_element_histories:
+            ci_element.status_conf = 'Sin cerrar'
+        else:
+            ci_element.status_conf = 'Cerradas'
+    ci_authorization_get.action = ci_authorization_data.action
+    ci_authorization_get.action_comments = ci_authorization_data.action_comments
+    ci_authorization_get.autorizer_user_id = current_session.user_id
+
+    session.commit()
+    session.refresh(ci_authorization_get)
+    session.close()
+    return success_response(data=ci_authorization_get, message="Solicitud actualizada correctamente")
