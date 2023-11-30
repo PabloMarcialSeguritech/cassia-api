@@ -47,6 +47,20 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype=""):
         tech_host_type = "11,2"
     if subtype != "" and tech_host_type == "":
         tech_host_type = "0"
+    switch_config = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "switch_id").first()
+    switch_id = "12"
+
+    if switch_config:
+        switch_id = switch_config.value
+
+    metric_switch_val = "Interface Bridge-Aggregation_: Bits"
+    metric_switch = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "switch_throughtput").first()
+    if metric_switch:
+        metric_switch_val = metric_switch.value
+    if subtype == metric_switch_val:
+        subtype = ""
     statement = text(
         f"call sp_viewProblem('{municipalityId}','{tech_host_type}','{subtype}')")
 
