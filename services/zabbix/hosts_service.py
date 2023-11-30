@@ -23,11 +23,29 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         subtype_id = ""
     if dispId == "0":
         dispId = ""
+
     print(subtype_id)
 
     print(type(subtype_id))
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
+    switch_config = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "switch_id").first()
+    switch_id = "12"
+    switch_troughtput = False
+    if switch_config:
+        switch_id = switch_config.value
+
+    metric_switch_val = "Interface Bridge-Aggregation_: Bits"
+    metric_switch = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "switch_throughtput").first()
+    if metric_switch:
+        metric_switch_val = metric_switch.value
+    if subtype_id == metric_switch_val:
+        subtype_id = ""
+
+        if dispId == switch_id:
+            switch_troughtput = True
 
     """ if subtype_id == "376276" or subtype_id == "375090":
         subtype_host_filter = '376276,375090'
@@ -131,9 +149,12 @@ def get_host_filter(municipalityId, dispId, subtype_id):
 
     statement6 = ""
     if subtype_id != "":
-
         statement6 = text(
             f"CALL sp_MetricViewH('{municipalityId}','{dispId}','{subtype_id}')")
+    if switch_troughtput:
+        statement6 = text(
+            f"call sp_switchThroughtput('{municipalityId}','{switch_id}','{metric_switch_val}')")
+        print(statement6)
     if statement6 != "":
         subgroup_data = session.execute(statement6)
     data6 = pd.DataFrame(subgroup_data).replace(np.nan, "")
