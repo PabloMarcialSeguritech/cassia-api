@@ -30,10 +30,10 @@ from pyzabbix.api import ZabbixAPI
 settings = Settings()
 
 
-def get_problems_filter(municipalityId, tech_host_type=0, subtype=""):
+def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities=""):
+
     if subtype == "0":
         subtype = ""
-    print("Si es este")
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     rfid_config = session.query(CassiaConfig).filter(
@@ -62,7 +62,7 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype=""):
     if subtype == metric_switch_val:
         subtype = ""
     statement = text(
-        f"call sp_viewProblem('{municipalityId}','{tech_host_type}','{subtype}')")
+        f"call sp_viewProblem('{municipalityId}','{tech_host_type}','{subtype}','{severities}')")
 
     problems = session.execute(statement)
     data = pd.DataFrame(problems).replace(np.nan, "")
