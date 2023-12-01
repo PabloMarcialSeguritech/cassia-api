@@ -23,8 +23,8 @@ alerts_router = APIRouter()
     summary="Get problems by municipality ID, device type and technology, and subtype",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: str = ""):
-    return alerts_service.get_problems_filter(municipalityId, tech_host_type, subtype)
+def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
+    return alerts_service.get_problems_filter(municipalityId, tech_host_type, subtype, severities)
 
 
 @alerts_router.post(
