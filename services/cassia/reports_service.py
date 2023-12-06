@@ -407,7 +407,7 @@ async def download_graphic_data_multiple(municipality_id: list, tech_id: list, b
 
     for ind in range(len(municipality_id)):
         statement = text(f"""
-        call sp_connectivity1('{municipality_id[ind]}','{tech_id[ind]}','{brand_id[ind]}','{model_id[ind]}','{init_date}','{end_date}');
+        call sp_connectivity('{municipality_id[ind]}','{tech_id[ind]}','{brand_id[ind]}','{model_id[ind]}','{init_date}','{end_date}');
         """)
         data = pd.DataFrame(session.execute(statement))
         data_insert = data
@@ -796,7 +796,7 @@ def process_data_conectivity(municipality_id, tech_id, brand_id, model_id, init_
     if len(municipality_id) == 1:
         if municipality_id[0] == '0':
             statement = text(f"""
-            call sp_connectivityM1('{tech_id[0]}','{brand_id[0]}','{model_id[0]}','{init_date}','{end_date}');
+            call sp_connectivityM('{tech_id[0]}','{brand_id[0]}','{model_id[0]}','{init_date}','{end_date}');
             """)
             data = pd.DataFrame(session.execute(statement))
             """ print(data.to_string()) """
@@ -868,7 +868,7 @@ def process_data_conectivity(municipality_id, tech_id, brand_id, model_id, init_
     for ind in range(len(municipality_id)):
         """ print(municipality_id) """
         statement = text(f"""
-        call sp_connectivity1('{municipality_id[ind]}','{tech_id[ind]}','{brand_id[ind]}','{model_id[ind]}','{init_date}','{end_date}');
+        call sp_connectivity('{municipality_id[ind]}','{tech_id[ind]}','{brand_id[ind]}','{model_id[ind]}','{init_date}','{end_date}');
         """)
         data = pd.DataFrame(session.execute(statement))
         """ print(data) """
