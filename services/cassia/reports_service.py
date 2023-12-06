@@ -47,9 +47,26 @@ async def get_graphic_data_multiple(municipality_id: list, tech_id: list, brand_
 
 def process_data(data, end_date, init_date, metric_name):
     if not data.empty:
+
         number = data['itemid'].nunique()
-        data = data.groupby(['time']).sum(
-        ).astype(float).apply(lambda x: round(x/number*100, 6)).reset_index()
+        if metric_name == "Disponibilidad":
+            print("AAAAAAAAA")
+            print(number)
+            """ print(data) """
+            data_a = data.loc[data["time"] == "2023-12-06 07:15:01"]
+            data_a = data_a.sum()
+            print(data_a)
+        print(data)
+        data = data.groupby(['time']).agg(
+            {'Avg_min': 'mean', 'num': 'mean'}).reset_index()
+        data['Avg_min'] = data['Avg_min'].apply(lambda x: x*100)
+        print(data)
+        """ data = data.groupby(['time']).sum(
+        ).astype(float).apply(lambda x: round(x/number*100, 6)).reset_index() """
+        """ data = data.groupby(['time']).sum(
+        ).astype(float).apply(lambda x: round(x/number*100, 6)).reset_index() """
+        if metric_name == "Disponibilidad":
+            print(data)
         data = data[['time', 'num', 'Avg_min']]
         diff = end_date-init_date
         hours = diff.days*24 + diff.seconds//3600
@@ -93,6 +110,14 @@ def process_data(data, end_date, init_date, metric_name):
             data = data[['date', 'num', 'Avg_min']]
             data.rename(columns={'date': 'time'}, inplace=True)
             data_range = "medios dias"
+        if hours >= 1 and hours <= 3:
+            """ print(data) """
+            data = data.groupby(
+                [pd.to_datetime(data['time']).dt.floor('15min').rename("date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            """ print(data) """
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True)
+            data_range = "minutos"
 
         tiempo = f"{len(data)} {data_range}"
         dias = round(hours / 24, 6)
@@ -321,6 +346,7 @@ async def get_graphic_data(municipality_id: str, tech_id: str, brand_id: str, mo
             data = data[['date', 'num', 'Avg_min']]
             data.rename(columns={'date': 'time'}, inplace=True)
             data_range = "dias"
+
             """ print("aqui") """
         tiempo = f"{len(data)} {data_range}"
         dias = round(hours / 24, 6)
@@ -381,7 +407,7 @@ async def download_graphic_data_multiple(municipality_id: list, tech_id: list, b
 
     for ind in range(len(municipality_id)):
         statement = text(f"""
-        call sp_connectivity('{municipality_id[ind]}','{tech_id[ind]}','{brand_id[ind]}','{model_id[ind]}','{init_date}','{end_date}');
+        call sp_connectivity1('{municipality_id[ind]}','{tech_id[ind]}','{brand_id[ind]}','{model_id[ind]}','{init_date}','{end_date}');
         """)
         data = pd.DataFrame(session.execute(statement))
         data_insert = data
@@ -770,7 +796,7 @@ def process_data_conectivity(municipality_id, tech_id, brand_id, model_id, init_
     if len(municipality_id) == 1:
         if municipality_id[0] == '0':
             statement = text(f"""
-            call sp_connectivityM('{tech_id[0]}','{brand_id[0]}','{model_id[0]}','{init_date}','{end_date}');
+            call sp_connectivityM1('{tech_id[0]}','{brand_id[0]}','{model_id[0]}','{init_date}','{end_date}');
             """)
             data = pd.DataFrame(session.execute(statement))
             """ print(data.to_string()) """
@@ -783,8 +809,8 @@ def process_data_conectivity(municipality_id, tech_id, brand_id, model_id, init_
                 print(type(municipios))
                 ans = [y for x, y in data.groupby('municipality')]
 
-                ans = [{'index': x['municipality'].values[0], 'data':process_data(x[['templateid', 'itemid', 'time', 'num', 'Avg_min']],
-                                                                                  end_date, init_date, x['municipality'].values[0])} for x in ans]
+                ans = [{'index': x['municipality'].values[0], 'data': process_data(x[['templateid', 'itemid', 'time', 'num', 'Avg_min']],
+                                                                                   end_date, init_date, x['municipality'].values[0])} for x in ans]
                 promedios_general = [x['data']['data'].iloc[:, [2]].mean()
                                      for x in ans]
 
@@ -842,7 +868,7 @@ def process_data_conectivity(municipality_id, tech_id, brand_id, model_id, init_
     for ind in range(len(municipality_id)):
         """ print(municipality_id) """
         statement = text(f"""
-        call sp_connectivity('{municipality_id[ind]}','{tech_id[ind]}','{brand_id[ind]}','{model_id[ind]}','{init_date}','{end_date}');
+        call sp_connectivity1('{municipality_id[ind]}','{tech_id[ind]}','{brand_id[ind]}','{model_id[ind]}','{init_date}','{end_date}');
         """)
         data = pd.DataFrame(session.execute(statement))
         """ print(data) """
@@ -1062,8 +1088,8 @@ def process_data_alignment(municipality_id, tech_id, brand_id, model_id, init_da
                 municipios = data.municipality.unique().tolist()
                 ans = [y for x, y in data.groupby('municipality')]
 
-                ans = [{'index': x['municipality'].values[0], 'data':process_data(x[['templateid', 'itemid', 'time', 'num', 'Avg_min']],
-                                                                                  end_date, init_date, x['municipality'].values[0])} for x in ans]
+                ans = [{'index': x['municipality'].values[0], 'data': process_data(x[['templateid', 'itemid', 'time', 'num', 'Avg_min']],
+                                                                                   end_date, init_date, x['municipality'].values[0])} for x in ans]
                 promedios_general = [x['data']['data'].iloc[:, [2]].mean()
                                      for x in ans]
                 """ print(ans)
