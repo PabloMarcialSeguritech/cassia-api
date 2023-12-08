@@ -6,6 +6,7 @@ import numpy as np
 from utils.traits import success_response
 from models.interface_action import InterfaceAction
 from models.interface_model import Interface
+from models.cassia_actions import CassiaAction
 from fastapi import HTTPException, status
 
 
@@ -119,3 +120,22 @@ async def delete_interface_action_relation(int_act_id):
     session.commit()
     session.close()
     return success_response(message="Relacion eliminada correctamente")
+
+
+async def change_status(action_id, status):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+
+    action = session.query(CassiaAction).filter(
+        CassiaAction.action_id == action_id
+    ).first()
+    if not action:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Action not exist")
+    if status:
+        action.active = 1
+    else:
+        action.active = 0
+    session.commit()
+    session.refresh(action)
+    return success_response(data=action, message="Acción actualizada correctamente")
