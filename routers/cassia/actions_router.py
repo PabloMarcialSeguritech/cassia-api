@@ -21,6 +21,17 @@ async def get_actions():
     return await actions_service.get_actions()
 
 
+@actions_router.post(
+    '/change-status/{action_id}',
+    tags=["Cassia - Actions"],
+    status_code=status.HTTP_200_OK,
+    summary="Change action status",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def change_status(action_id, status:bool=Form(...)):
+    return await actions_service.change_status(action_id, status)
+
+
 @actions_router.get(
     '/search_host/{ip}',
     tags=["Cassia - Actions"],
