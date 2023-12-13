@@ -50,10 +50,10 @@ async def get_ci_element_relations(action_id):
             status_code=status.HTTP_400_BAD_REQUEST, detail="Action not exists")
 
     relations = text(f"""
-    select i.hostid,i.interfaceid,i.ip, h.name
-from interface i left join hosts h on i.hostid=h.hostid where i.interfaceid in(
-SELECT interface_id from interface_action ia
-where action_id={action_id})""")
+    select ia.int_act_id ,i.hostid, i.interfaceid, i.ip, h.name
+from interface_action ia left join interface i on
+ia.interface_id = i.interfaceid left join hosts h 
+on i.hostid = h.hostid where ia.action_id ={action_id}""")
     relations = pd.DataFrame(
         session.execute(relations)).replace(np.nan, "")
 
