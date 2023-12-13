@@ -28,7 +28,7 @@ async def get_actions():
     summary="Change action status",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def change_status(action_id, status:bool=Form(...)):
+async def change_status(action_id, status: bool = Form(...)):
     return await actions_service.change_status(action_id, status)
 
 
@@ -44,7 +44,7 @@ async def get_host_by_ip(ip: str):
 
 
 @actions_router.get(
-    '/relations/{element_id}',
+    '/relations/{action_id}',
     tags=["Cassia - Actions"],
     status_code=status.HTTP_200_OK,
     summary="Get CIs element relations by id",
