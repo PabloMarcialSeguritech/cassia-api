@@ -2,7 +2,7 @@ from fastapi import APIRouter
 import services.zabbix.host_management_service as hosts_management_service
 from fastapi import Depends, status, Path
 from services import auth_service2
-import services.zabbix.interface_service as interface_service
+""" import services.zabbix.interface_service as interface_service """
 
 host_management_router = APIRouter(prefix="/hosts_management")
 
