@@ -22,6 +22,18 @@ settings = Settings()
 abreviatura_estado = settings.abreviatura_estado
 
 
+async def get_ci_elements_technologies():
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    query = text(f"""call sp_catCiTechnology()""")
+    results = pd.DataFrame(session.execute(query)).replace(np.nan, "")
+    if not results.empty:
+        results['id'] = results['tech_id']
+        results['value'] = results['technology']
+    session.close()
+    return success_response(data=results.to_dict(orient="records"))
+
+
 async def get_host_by_ip(ip: str):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
@@ -30,7 +42,22 @@ async def get_host_by_ip(ip: str):
     where hostid in (select DISTINCT hostid from interface i 
     where ip = '{ip}')    
     """)
-    results = pd.DataFrame(session.execute(query)).replace(np.nan, "")
+    hosts = pd.DataFrame(session.execute(query)).replace(np.nan, "")
+    query = text(f"""call sp_cassiaCILocation('{ip}')""")
+    locations = pd.DataFrame(session.execute(query)).replace(np.nan, "")
+    results = pd.DataFrame()
+    if not locations.empty:
+        results = pd.merge(hosts, locations, how="left", on="hostid")
+    else:
+        if not hosts.empty:
+            results = hosts
+            results['location'] = ["Sin coordenadas" for i in len(hosts)]
+    """ print(hosts.to_string())
+    print(locations.to_string()) """
+    """ response = dict()
+    response.update(resume)
+    response.update({'history': acks.to_dict(orient="records")})
+    response.update({'tickets': tickets.to_dict(orient='records')}) """
     session.close()
     return success_response(data=results.to_dict(orient="records"))
 
@@ -40,9 +67,10 @@ async def get_ci_elements():
     session = db_zabbix.Session()
     query = text(f"""
     select cce.element_id,cce.folio,cce.ip,h.name,cce.technology ,cce.device_name,
-cce.description,his.hardware_brand,his.hardware_model,his.software_version,
-cce.location, cce.criticality, cce.status, cce.status_conf from cassia_ci_element cce 
+cce.description,cce.referencia,his.hardware_brand,his.hardware_model,his.software_version,
+cce.location, cce.criticality, cce.status, cce.status_conf, cct.tech_name from cassia_ci_element cce 
 left join hosts h on h.hostid =cce.host_id 
+left join cassia_ci_tech cct on cct.tech_id=cce.tech_id
 left join (
 SELECT cch.element_id, cch.hardware_brand,cch.hardware_model,cch.software_version from cassia_ci_history cch
 where cch.status="Cerrada" and cch.deleted_at is NULL
@@ -59,8 +87,9 @@ WHERE deleted_at is NULL
 async def get_ci_element(element_id):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-    statement = text(f"""select cce.*, h.name from cassia_ci_element cce 
+    statement = text(f"""select cce.*,cct.tech_name, h.name from cassia_ci_element cce 
 left join hosts h on h.hostid =cce.host_id 
+left join cassia_ci_tech cct on cct.tech_id=cce.tech_id
 where cce.element_id='{element_id}' and cce.deleted_at is NULL""")
     element = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
     if element.empty:
@@ -81,21 +110,32 @@ async def create_ci_element(ci_element_data: cassia_ci_element_schema.CiElementB
     if len(host) < 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="host_id not exists")
+    query = text(
+        f"select tech_id from cassia_ci_tech where tech_id={ci_element_data.tech_id}")
+    tech = pd.DataFrame(session.execute(query)).replace(np.nan, "")
+    if len(tech) < 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="tech_id not exists")
     cassia_ci_element = CassiaCIElement(
         ip=ci_element_data.ip,
         host_id=ci_element_data.host_id,
-        technology=ci_element_data.technology,
-        folio=ci_element_data.folio,
+        folio="",
         device_name=ci_element_data.device_name,
         description=ci_element_data.description,
         location=ci_element_data.location,
         criticality=ci_element_data.criticality,
         status=ci_element_data.status,
         status_conf='Creado',
-        session_id=current_session.session_id.hex
+        session_id=current_session.session_id.hex,
+        tech_id=ci_element_data.tech_id
     )
 
     session.add(cassia_ci_element)
+    session.commit()
+    session.refresh(cassia_ci_element)
+    folio = cassia_ci_element.element_id
+    folio = str(folio).zfill(5)
+    cassia_ci_element.folio = f"CI-{abreviatura_estado}-{folio}"
     session.commit()
     session.refresh(cassia_ci_element)
     session.close()
@@ -118,9 +158,14 @@ async def update_ci_element(element_id: str, ci_element_data: cassia_ci_element_
     if len(host) < 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="host_id not exists")
+    query = text(
+        f"select tech_id from cassia_ci_tech where tech_id={ci_element_data.tech_id}")
+    tech = pd.DataFrame(session.execute(query)).replace(np.nan, "")
+    if len(tech) < 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="tech_id not exists")
     element.ip = ci_element_data.ip
-    element.technology = ci_element_data.technology
-    element.folio = ci_element_data.folio
+
     element.description = ci_element_data.description
     element.criticality = ci_element_data.criticality
     element.session_id = current_session.session_id.hex
@@ -129,6 +174,7 @@ async def update_ci_element(element_id: str, ci_element_data: cassia_ci_element_
     element.location = ci_element_data.location
     element.status = ci_element_data.status
     element.updated_at = datetime.now()
+    element.tech_id = ci_element_data.tech_id
     session.commit()
     session.refresh(element)
     session.close()
@@ -364,12 +410,13 @@ async def delete_ci_element_doc(doc_id):
 async def get_ci_element_history(element_id):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-    print("so es este")
+
     query = text(f"""
     select cce.element_id,cce.folio,cce.ip,h.name,cce.technology ,cce.device_name,
 cce.description,his.hardware_brand,his.hardware_model,his.software_version,
-cce.location, cce.criticality, cce.status, cce.status_conf from cassia_ci_element cce 
+cce.location, cce.criticality, cce.status, cce.status_conf,cce.referencia,cce.tech_id, cct.tech_name from cassia_ci_element cce 
 left join hosts h on h.hostid =cce.host_id 
+left join cassia_ci_tech cct on cct.tech_id=cce.tech_id
 left join (
 SELECT cch.element_id, cch.hardware_brand,cch.hardware_model,cch.software_version from cassia_ci_history cch
 where cch.status="Cerrada" and cch.deleted_at is NULL

@@ -10,6 +10,17 @@ cis_router = APIRouter(prefix="/ci_elements")
 
 
 @cis_router.get(
+    '/technologies',
+    tags=["Cassia - CI's Elements"],
+    status_code=status.HTTP_200_OK,
+    summary="Get CIs elements technologies catalog",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_ci_elements_technologies():
+    return await cis_service.get_ci_elements_technologies()
+
+
+@cis_router.get(
     '/search_host/{ip}',
     tags=["Cassia - CI's Elements"],
     status_code=status.HTTP_200_OK,
