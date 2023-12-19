@@ -13,13 +13,15 @@ import pandas as pd
 class CiElementBase(BaseModel):
     ip: str = Field(..., max_length=16, example="172.18.206.105")
     host_id: int = Field(..., example="10659")
-    folio: str = Field(..., max_length=20, example="CI-GTO-00001")
-    technology: str = Field(..., max_length=120, example="Red municipal")
-    device_name: str = Field(..., max_length=120, example="Suscriptor")
-    description: str = Field(..., max_length=254, example="Descripcion")
+    """ folio: str = Field(..., max_length=20, example="CI-GTO-00001") """
+    """ technology: str = Field(..., max_length=120, example="Red municipal") """
+    device_name: Optional[str] = Field(max_length=120, example="Suscriptor")
+    referencia: Optional[str] = Field(example="001")
+    description: Optional[str] = Field(example="Descripcion")
     location: str = Field(..., max_length=120, example="Estado Guanajuato")
     criticality: int = Field(..., example="1")
     status: Literal['Activo', 'Inactivo']
+    tech_id: int = Field(..., example=1)
 
 
 class CiElement(CiElementBase):
