@@ -390,9 +390,8 @@ def get_info_actions(ip):
     session.close()
 
     if not data.empty:
-        response = {"actions": [action_ping_by_default]}
         response['actions'].extend(data.to_dict(orient='records'))
-
+    response = {"actions": [action_ping_by_default]}
     return success_response(data=response)
 
 
