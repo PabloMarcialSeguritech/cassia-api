@@ -3,7 +3,6 @@ import services.zabbix.hosts_service as hosts_service
 from fastapi import Depends, status, Path
 from services import auth_service
 from services import auth_service2
-import services.zabbix.interface_service as interface_service
 from fastapi.responses import HTMLResponse
 import asyncio
 
@@ -41,15 +40,6 @@ def get_hosts_filter(municipalityId: str, dispId: str = "", subtype_id: str = ""
 )
 def get_host_relations(municipalityId: str):
     return hosts_service.get_host_correlation_filter(municipalityId)
-
-
-@hosts_router.post('/ping/{hostId}',
-                   tags=["Zabbix - Hosts"],
-                   status_code=status.HTTP_200_OK,
-                   summary="Create a ping on a device",
-                   dependencies=[Depends(auth_service2.get_current_user_session)])
-def create_ping(hostId: int = Path(description="ID of Host", example="10596")):
-    return interface_service.create_ping(hostId)
 
 
 @hosts_router.get('/detail/health/{hostId}',
@@ -143,10 +133,21 @@ async def send(websocket, index):
     await send(websocket, index + 1)
 
 
-@hosts_router.post('/reboot/{hostId}',
+@hosts_router.get('/actions/{ip}',
                    tags=["Zabbix - Hosts"],
                    status_code=status.HTTP_200_OK,
-                   summary="Reboot on a server",
+                  summary="Get actions info",
                    dependencies=[Depends(auth_service2.get_current_user_session)])
-def reboot(hostId: int = Path(description="ID of Host", example="10596")):
-    return hosts_service.reboot(hostId)
+def get_info_actions(ip: str = Path(description="IP address", example="192.168.100.1")):
+    return hosts_service.get_info_actions(ip)
+
+
+@hosts_router.post('/action/{ip}/{id_action}',
+                   tags=["Zabbix - Hosts"],
+                   status_code=status.HTTP_200_OK,
+                   summary="Run action on a server",
+                   dependencies=[Depends(auth_service2.get_current_user_session)])
+def run_action(ip: str = Path(description="IP address", example="192.168.100.1"),
+               id_action: int = Path(description="ID action", example="119")):
+    return hosts_service.prepare_action(ip, id_action)
+

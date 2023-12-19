@@ -518,7 +518,9 @@ def path_leaf(path):
     return tail or ntpath.basename(head)
 
 
+
 async def register_ack(eventid, message, current_session, close):
+
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     statement = text(
@@ -542,6 +544,7 @@ async def register_ack(eventid, message, current_session, close):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al concectar con Zabbix",
         )
+
     try:
         params = {
             "eventids": eventid,
@@ -604,6 +607,7 @@ async def get_acks(eventid):
         )
     finally:
         session.close()
+
     now = datetime.now(pytz.timezone(
         'America/Mexico_City')).replace(tzinfo=None)
     clock_problem = problem.iloc[0]['clock']
@@ -697,3 +701,4 @@ async def delete_ticket(ticket_id):
     session.close()
 
     return success_response(message="El ticket fue eliminado correctamente")
+

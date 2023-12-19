@@ -38,6 +38,7 @@ async def get_problems_filter(eventid: str = "34975081", message: str = Form(max
     return await alerts_service.register_ack(eventid, message, current_user_session, close)
 
 
+
 @alerts_router.get(
     '/problems/acknowledge/{eventid}',
     tags=["Zabbix - Problems(Alerts) - Acknowledge"],
@@ -46,6 +47,7 @@ async def get_problems_filter(eventid: str = "34975081", message: str = Form(max
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def get_problems_filter(eventid: str = "34975081"):
+
     return await alerts_service.get_acks(eventid)
 
 
