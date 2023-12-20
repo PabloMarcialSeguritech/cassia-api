@@ -384,6 +384,7 @@ def get_info_actions(ip):
         "protocol": "ssh",
         "action_id": -1
     }
+    response = {"actions": [action_ping_by_default]}
     # Eliminar la columna 'comand'
     if 'comand' in data.columns:
         data = data.drop(columns=['comand'])
@@ -391,7 +392,7 @@ def get_info_actions(ip):
 
     if not data.empty:
         response['actions'].extend(data.to_dict(orient='records'))
-    response = {"actions": [action_ping_by_default]}
+
     return success_response(data=response)
 
 
