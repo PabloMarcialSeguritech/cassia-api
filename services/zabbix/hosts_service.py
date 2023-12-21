@@ -16,6 +16,7 @@ from fastapi.exceptions import HTTPException
 from fastapi import status
 from services.cassia.configurations_service import get_configuration
 import json
+import re
 
 settings = Settings()
 
@@ -292,13 +293,13 @@ SELECT from_unixtime(p.clock,'%d/%m/%Y %H:%i:%s' ) as Time,
     )
         for r in alertas_rfid], columns=['Time', 'severity', 'hostid',
                                          'Host', 'latitude', 'longitude',
-                                                 'ip',
-                                                 'Problem', 'Estatus',
-                                                 'eventid',
-                                                 'r_eventid',
-                                                 'TimeRecovery',
-                                                 'Ack',
-                                                 'Ack_message'])
+                                         'ip',
+                                         'Problem', 'Estatus',
+                                         'eventid',
+                                         'r_eventid',
+                                         'TimeRecovery',
+                                         'Ack',
+                                         'Ack_message'])
     data = pd.concat([alertas_rfid, alerts],
                      ignore_index=True).replace(np.nan, "")
 
@@ -457,6 +458,15 @@ def run_action(ip, command, dict_credentials_list):
         "ip": ip
     }
     try:
+        # Check if the command contains the word "ping"
+        if "ping" in command:
+            # Extract the IP address from the ping command
+            ping_ip = extract_ip_from_ping_command(command)
+            if ping_ip:
+                data['ip'] = ping_ip
+            else:
+                print("Unable to extract IP address from the ping command.")
+                return success_response(message="Invalid ping command")
         ssh_client.connect(
             hostname=ssh_host, username=ssh_user.decode(), password=ssh_pass.decode())
         _stdin, _stdout, _stderr = ssh_client.exec_command(command)
@@ -478,3 +488,12 @@ def get_credentials_for_proxy(ip):
     data = pd.DataFrame(aps).replace(np.nan, "")
     session.close()
     return data.to_dict(orient="records")
+
+
+def extract_ip_from_ping_command(command):
+    # Use regular expression to find the IP address in the ping command
+    match = re.search(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', command)
+    if match:
+        return match.group()
+    else:
+        return None
