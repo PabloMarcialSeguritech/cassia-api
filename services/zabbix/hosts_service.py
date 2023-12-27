@@ -227,14 +227,14 @@ async def get_host_metrics(host_id):
             item_ids = pd.DataFrame()
 
     statement = text(f"""
-                     SELECT h.hostid,i.itemid, i.templateid,i.name,
+                     SELECT h.hostid,i.itemid, i.templateid,i.name,i.units,
 from_unixtime(vl.clock,'%d/%m/%Y %H:%i:%s')as Date,
 vl.value as Metric  FROM hosts h
 INNER JOIN items i ON (h.hostid  = i.hostid)
 INNER JOIN  vw_lastValue_history vl  ON (i.itemid=vl.itemid)
 WHERE  h.hostid = {host_id} AND i.templateid in {template_ids}
 UNION
-SELECT h.hostid,i.itemid, i.templateid,i.name,
+SELECT h.hostid,i.itemid, i.templateid,i.name, i.units,
 from_unixtime(vl.clock,'%d/%m/%Y %H:%i:%s')as Date,
 vl.value as Metric  FROM hosts h
 INNER JOIN items i ON (h.hostid  = i.hostid)
@@ -411,7 +411,8 @@ def prepare_action(ip, id_action):
     if id_action == -1:
         response = get_configuration()
         try:
-            data = json.loads(response.body)  # Utiliza el método json() de tu objeto JSONResponse
+            # Utiliza el método json() de tu objeto JSONResponse
+            data = json.loads(response.body)
             # Verifica que la respuesta sea valida y contiene el campo 'data'
             if 'data' in data and isinstance(data['data'], list):
                 # Itera sobre la lista de diccionarios en 'data'
@@ -421,7 +422,8 @@ def prepare_action(ip, id_action):
                         # Obtiene el valor asociado con 'ping_by_proxy'
                         value = config.get('value')
                         if value:
-                            dict_credentials_list = get_credentials_for_proxy(ip)
+                            dict_credentials_list = get_credentials_for_proxy(
+                                ip)
                         else:
                             dict_credentials_list = get_credentials(ip)
                         if dict_credentials_list is None or not dict_credentials_list:
@@ -436,7 +438,8 @@ def prepare_action(ip, id_action):
     else:
         db_zabbix = DB_Zabbix()
         session = db_zabbix.Session()
-        action = session.query(CassiaActionModel).filter(CassiaActionModel.action_id == id_action).first()
+        action = session.query(CassiaActionModel).filter(
+            CassiaActionModel.action_id == id_action).first()
         session.close()
         if action is None:
             return success_response(message="ID acción necesaria")

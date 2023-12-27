@@ -2,9 +2,32 @@ from fastapi import APIRouter
 import services.zabbix.host_management_service as hosts_management_service
 from fastapi import Depends, status, Path
 from services import auth_service2
+from schemas import host_management_schema
 """ import services.zabbix.interface_service as interface_service """
 
 host_management_router = APIRouter(prefix="/hosts_management")
+
+
+@host_management_router.get(
+    '/',
+    tags=["Zabbix - Hosts Management "],
+    status_code=status.HTTP_200_OK,
+    summary="Get hosts",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_hosts():
+    return await hosts_management_service.get_hosts()
+
+
+@host_management_router.get(
+    '/protocols',
+    tags=["Zabbix - Hosts Management "],
+    status_code=status.HTTP_200_OK,
+    summary="Get protocols",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_protocols():
+    return await hosts_management_service.get_protocols()
 
 
 @host_management_router.get(
@@ -40,26 +63,26 @@ async def get_groups():
     return await hosts_management_service.get_proxys()
 
 
-@host_management_router.get(
-    '/create',
+@host_management_router.post(
+    '/',
     tags=["Zabbix - Hosts Management "],
     status_code=status.HTTP_200_OK,
     summary="Create host",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def create_host():
-    return await hosts_management_service.create_host()
+async def create_host(host_data: host_management_schema.HostManagementBase):
+    return await hosts_management_service.create_host(host_data)
 
 
-@host_management_router.get(
-    '/update',
+@host_management_router.put(
+    '/{hostid}',
     tags=["Zabbix - Hosts Management "],
     status_code=status.HTTP_200_OK,
     summary="Update host",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def create_host():
-    return await hosts_management_service.update_host()
+async def update_host(hostid, host_data: host_management_schema.HostManagementUpdate):
+    return await hosts_management_service.update_host(hostid, host_data)
 
 
 @host_management_router.get(
