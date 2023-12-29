@@ -215,33 +215,21 @@ async def get_host_metrics(host_id):
     template_ids = pd.DataFrame(template_ids).replace(np.nan, "")
 
     if len(template_ids) > 1:
-        item_ids = pd.DataFrame(template_ids['itemid'])
-        template_ids = tuple(template_ids['templateid'].values.tolist())
+
+        template_ids = ",".join(
+            map(str, template_ids['templateid'].values.tolist()))
 
     else:
         if len(template_ids) == 1:
-            item_ids = pd.DataFrame(template_ids['itemid'])
-            template_ids = f"({template_ids['templateid'][0]})"
+
+            template_ids = f"{template_ids['templateid'][0]}"
         else:
-            template_ids = "(0)"
-            item_ids = pd.DataFrame()
+            template_ids = "0"
 
     statement = text(f"""
-                     SELECT h.hostid,i.itemid, i.templateid,i.name,i.units,
-from_unixtime(vl.clock,'%d/%m/%Y %H:%i:%s')as Date,
-vl.value as Metric  FROM hosts h
-INNER JOIN items i ON (h.hostid  = i.hostid)
-INNER JOIN  vw_lastValue_history vl  ON (i.itemid=vl.itemid)
-WHERE  h.hostid = {host_id} AND i.templateid in {template_ids}
-UNION
-SELECT h.hostid,i.itemid, i.templateid,i.name, i.units,
-from_unixtime(vl.clock,'%d/%m/%Y %H:%i:%s')as Date,
-vl.value as Metric  FROM hosts h
-INNER JOIN items i ON (h.hostid  = i.hostid)
-INNER JOIN  vw_lastValue_history_uint vl  ON (i.itemid=vl.itemid)
-WHERE  h.hostid = {host_id} AND (i.name like 'Interface Bridge-Aggregation_: Speed'
-OR i.name like 'Interface Bridge-Aggregation_: Bits%')
+call sp_hostHealt({host_id},'{template_ids}');
 """)
+    print(statement)
 
     metrics = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
     session.close()
