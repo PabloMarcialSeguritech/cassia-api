@@ -127,7 +127,8 @@ async def create_ci_element(ci_element_data: cassia_ci_element_schema.CiElementB
         status=ci_element_data.status,
         status_conf='Creado',
         session_id=current_session.session_id.hex,
-        tech_id=ci_element_data.tech_id
+        tech_id=ci_element_data.tech_id,
+        referencia=ci_element_data.referencia
     )
 
     session.add(cassia_ci_element)
@@ -175,6 +176,7 @@ async def update_ci_element(element_id: str, ci_element_data: cassia_ci_element_
     element.status = ci_element_data.status
     element.updated_at = datetime.now()
     element.tech_id = ci_element_data.tech_id
+    element.referencia = ci_element_data.referencia
     session.commit()
     session.refresh(element)
     session.close()
