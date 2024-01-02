@@ -7,13 +7,16 @@ import numpy as np
 from paramiko import SSHClient, AutoAddPolicy
 from paramiko.ssh_exception import AuthenticationException, BadHostKeyException, SSHException
 from cryptography.fernet import Fernet
-from models.interface_model import Interface as InterfaceModel
 from models.cassia_config import CassiaConfig
 from models.cassia_arch_traffic_events import CassiaArchTrafficEvent
+from models.cassia_actions import CassiaAction as CassiaActionModel
 import socket
 
 from fastapi.exceptions import HTTPException
 from fastapi import status
+from services.cassia.configurations_service import get_configuration
+import json
+import re
 
 settings = Settings()
 
@@ -212,33 +215,21 @@ async def get_host_metrics(host_id):
     template_ids = pd.DataFrame(template_ids).replace(np.nan, "")
 
     if len(template_ids) > 1:
-        item_ids = pd.DataFrame(template_ids['itemid'])
-        template_ids = tuple(template_ids['templateid'].values.tolist())
+
+        template_ids = ",".join(
+            map(str, template_ids['templateid'].values.tolist()))
 
     else:
         if len(template_ids) == 1:
-            item_ids = pd.DataFrame(template_ids['itemid'])
-            template_ids = f"({template_ids['templateid'][0]})"
+
+            template_ids = f"{template_ids['templateid'][0]}"
         else:
-            template_ids = "(0)"
-            item_ids = pd.DataFrame()
+            template_ids = "0"
 
     statement = text(f"""
-                     SELECT h.hostid,i.itemid, i.templateid,i.name,
-from_unixtime(vl.clock,'%d/%m/%Y %H:%i:%s')as Date,
-vl.value as Metric  FROM hosts h
-INNER JOIN items i ON (h.hostid  = i.hostid)
-INNER JOIN  vw_lastValue_history vl  ON (i.itemid=vl.itemid)
-WHERE  h.hostid = {host_id} AND i.templateid in {template_ids}
-UNION
-SELECT h.hostid,i.itemid, i.templateid,i.name,
-from_unixtime(vl.clock,'%d/%m/%Y %H:%i:%s')as Date,
-vl.value as Metric  FROM hosts h
-INNER JOIN items i ON (h.hostid  = i.hostid)
-INNER JOIN  vw_lastValue_history_uint vl  ON (i.itemid=vl.itemid)
-WHERE  h.hostid = {host_id} AND (i.name like 'Interface Bridge-Aggregation_: Speed'
-OR i.name like 'Interface Bridge-Aggregation_: Bits%')
+call sp_hostHealt({host_id},'{template_ids}');
 """)
+    print(statement)
 
     metrics = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
     session.close()
@@ -290,13 +281,13 @@ SELECT from_unixtime(p.clock,'%d/%m/%Y %H:%i:%s' ) as Time,
     )
         for r in alertas_rfid], columns=['Time', 'severity', 'hostid',
                                          'Host', 'latitude', 'longitude',
-                                                 'ip',
-                                                 'Problem', 'Estatus',
-                                                 'eventid',
-                                                 'r_eventid',
-                                                 'TimeRecovery',
-                                                 'Ack',
-                                                 'Ack_message'])
+                                         'ip',
+                                         'Problem', 'Estatus',
+                                         'eventid',
+                                         'r_eventid',
+                                         'TimeRecovery',
+                                         'Ack',
+                                         'Ack_message'])
     data = pd.concat([alertas_rfid, alerts],
                      ignore_index=True).replace(np.nan, "")
 
@@ -356,38 +347,6 @@ order by a.Longitud,a.Latitud
     return success_response(data=data.to_dict(orient="records"))
 
 
-def reboot(hostid):
-    db_zabbix = DB_Zabbix()
-    session = db_zabbix.Session()
-    interface = session.query(InterfaceModel).filter(
-        InterfaceModel.hostid == hostid).first()
-    if interface is None:
-        return success_response(message="Host no encontrado")
-    else:
-        ssh_host = settings.ssh_host_client
-        ssh_user = decrypt(settings.ssh_user_client, settings.ssh_key_gen)
-        ssh_pass = decrypt(settings.ssh_pass_client, settings.ssh_key_gen)
-        ssh_client = SSHClient()
-        ssh_client.set_missing_host_key_policy(AutoAddPolicy())
-        data = {
-            "reboot": "false",
-            "hostid": str(interface.hostid),
-            "ip": interface.ip
-        }
-        try:
-            ssh_client.connect(
-                hostname=ssh_host, username=ssh_user.decode(), password=ssh_pass.decode())
-            _stdin, _stdout, _stderr = ssh_client.exec_command("reboot")
-            error_lines = _stderr.readlines()
-            if not error_lines:
-                data['reboot'] = 'true'
-            else:
-                print(error_lines)
-        except (BadHostKeyException, AuthenticationException, SSHException, socket.error) as e:
-            print(e)
-        return success_response(data=data)
-
-
 def encrypt(plaintext, key):
     fernet = Fernet(key)
     return fernet.encrypt(plaintext.encode())
@@ -396,3 +355,136 @@ def encrypt(plaintext, key):
 def decrypt(encriptedText, key):
     fernet = Fernet(key)
     return fernet.decrypt(encriptedText.encode())
+
+
+def get_info_actions(ip):
+    response = None
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text(f"call sp_GetInfoAccion('{ip}')")
+    aps = session.execute(statement)
+    data = pd.DataFrame(aps).replace(np.nan, "")
+    action_ping_by_default = {
+        "hostid": None,
+        "host": "",
+        "ip": ip,
+        "interfaceid": None,
+        "name": "Ping",
+        "protocol": "ssh",
+        "action_id": -1
+    }
+    response = {"actions": [action_ping_by_default]}
+    # Eliminar la columna 'comand'
+    if 'comand' in data.columns:
+        data = data.drop(columns=['comand'])
+    session.close()
+
+    if not data.empty:
+        response['actions'].extend(data.to_dict(orient='records'))
+
+    return success_response(data=response)
+
+
+def get_credentials(ip):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text(f"call sp_getCredentials('{ip}')")
+    aps = session.execute(statement)
+    data = pd.DataFrame(aps).replace(np.nan, "")
+    session.close()
+    return data.to_dict(orient="records")
+
+
+def prepare_action(ip, id_action):
+    if id_action == -1:
+        response = get_configuration()
+        try:
+            # Utiliza el método json() de tu objeto JSONResponse
+            data = json.loads(response.body)
+            # Verifica que la respuesta sea valida y contiene el campo 'data'
+            if 'data' in data and isinstance(data['data'], list):
+                # Itera sobre la lista de diccionarios en 'data'
+                for config in data['data']:
+                    # Busca el diccionario con el nombre 'ping_by_proxy'
+                    if config.get('name') == 'ping_by_proxy':
+                        # Obtiene el valor asociado con 'ping_by_proxy'
+                        value = config.get('value')
+                        if value:
+                            dict_credentials_list = get_credentials_for_proxy(
+                                ip)
+                        else:
+                            dict_credentials_list = get_credentials(ip)
+                        if dict_credentials_list is None or not dict_credentials_list:
+                            return success_response(message="Credenciales no encontradas")
+                        else:
+                            dict_credentials = dict_credentials_list[0]
+                            return run_action(dict_credentials['ip'], 'ping -c 4 ' + ip,
+                                              dict_credentials_list)
+        except json.JSONDecodeError:
+            print("Error decoding JSON response")
+
+    else:
+        db_zabbix = DB_Zabbix()
+        session = db_zabbix.Session()
+        action = session.query(CassiaActionModel).filter(
+            CassiaActionModel.action_id == id_action).first()
+        session.close()
+        if action is None:
+            return success_response(message="ID acción necesaria")
+        dict_credentials_list = get_credentials(ip)
+        if dict_credentials_list is None or not dict_credentials_list:
+            return success_response(message="Credenciales no encontradas")
+        return run_action(ip, action.comand, get_credentials(ip))
+
+
+def run_action(ip, command, dict_credentials_list):
+    dict_credentials = dict_credentials_list[0]
+    ssh_host = ip
+    ssh_user = decrypt(dict_credentials['usr'], settings.ssh_key_gen)
+    ssh_pass = decrypt(dict_credentials['psswrd'], settings.ssh_key_gen)
+    ssh_client = SSHClient()
+    ssh_client.set_missing_host_key_policy(AutoAddPolicy())
+    data = {
+        "action": "false",
+        "ip": ip
+    }
+    try:
+        # Check if the command contains the word "ping"
+        if "ping" in command:
+            # Extract the IP address from the ping command
+            ping_ip = extract_ip_from_ping_command(command)
+            if ping_ip:
+                data['ip'] = ping_ip
+            else:
+                print("Unable to extract IP address from the ping command.")
+                return success_response(message="Invalid ping command")
+        ssh_client.connect(
+            hostname=ssh_host, username=ssh_user.decode(), password=ssh_pass.decode())
+        _stdin, _stdout, _stderr = ssh_client.exec_command(command)
+        error_lines = _stderr.readlines()
+        if not error_lines:
+            data['action'] = 'true'
+        else:
+            print(error_lines)
+    except (BadHostKeyException, AuthenticationException, SSHException, socket.error) as e:
+        print(e)
+    return success_response(data=data)
+
+
+def get_credentials_for_proxy(ip):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text(f"call sp_proxy_credential('{ip}')")
+    aps = session.execute(statement)
+    data = pd.DataFrame(aps).replace(np.nan, "")
+    session.close()
+    return data.to_dict(orient="records")
+
+
+def extract_ip_from_ping_command(command):
+    # Use regular expression to find the IP address in the ping command
+    match = re.search(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', command)
+    if match:
+        return match.group()
+    else:
+        return None
