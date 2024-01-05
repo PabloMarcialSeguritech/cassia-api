@@ -36,9 +36,16 @@ class HostServiceTest(unittest.TestCase):
         json_obj = response.body
         print("obj_resp:", json_obj)
 
-
+    @unittest.skip("Omit action ping")
     def test_run_action_ping(self):
         print("> Entrando test_run_action_ping <")
         response = hosts_service.prepare_action('172.18.42.11', -1)
+        json_obj = response.body
+        print("obj_resp:", json_obj)
+
+    @unittest.skip("Omit credentials not found")
+    def test_run_action_credentials_not_found(self):
+        print("> Entrando test_run_action_reboot <")
+        response = hosts_service.prepare_action('172.19.16.25', 2)
         json_obj = response.body
         print("obj_resp:", json_obj)

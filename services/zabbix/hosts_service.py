@@ -2,7 +2,7 @@ from utils.settings import Settings
 import pandas as pd
 from utils.db import DB_Zabbix, DB_C5
 from sqlalchemy import text
-from utils.traits import success_response
+from utils.traits import success_response, failure_response
 import numpy as np
 from paramiko import SSHClient, AutoAddPolicy
 from paramiko.ssh_exception import AuthenticationException, BadHostKeyException, SSHException
@@ -17,6 +17,8 @@ from fastapi import status
 from services.cassia.configurations_service import get_configuration
 import json
 import re
+import time
+from pythonping import ping
 
 settings = Settings()
 
@@ -415,7 +417,7 @@ def prepare_action(ip, id_action):
                         else:
                             dict_credentials_list = get_credentials(ip)
                         if dict_credentials_list is None or not dict_credentials_list:
-                            return success_response(message="Credenciales no encontradas")
+                            return failure_response(message="Credenciales no encontradas")
                         else:
                             dict_credentials = dict_credentials_list[0]
                             return run_action(dict_credentials['ip'], 'ping -c 4 ' + ip,
@@ -430,10 +432,10 @@ def prepare_action(ip, id_action):
             CassiaActionModel.action_id == id_action).first()
         session.close()
         if action is None:
-            return success_response(message="ID acción necesaria")
+            return failure_response(message="ID acción necesaria")
         dict_credentials_list = get_credentials(ip)
         if dict_credentials_list is None or not dict_credentials_list:
-            return success_response(message="Credenciales no encontradas")
+            return failure_response(message="Credenciales no encontradas")
         return run_action(ip, action.comand, get_credentials(ip))
 
 
@@ -444,10 +446,12 @@ def run_action(ip, command, dict_credentials_list):
     ssh_pass = decrypt(dict_credentials['psswrd'], settings.ssh_key_gen)
     ssh_client = SSHClient()
     ssh_client.set_missing_host_key_policy(AutoAddPolicy())
+
     data = {
         "action": "false",
         "ip": ip
     }
+
     try:
         # Check if the command contains the word "ping"
         if "ping" in command:
@@ -457,18 +461,91 @@ def run_action(ip, command, dict_credentials_list):
                 data['ip'] = ping_ip
             else:
                 print("Unable to extract IP address from the ping command.")
-                return success_response(message="Invalid ping command")
+                return failure_response(message="Comando de ping invalido")
+
         ssh_client.connect(
             hostname=ssh_host, username=ssh_user.decode(), password=ssh_pass.decode())
+
         _stdin, _stdout, _stderr = ssh_client.exec_command(command)
         error_lines = _stderr.readlines()
+
         if not error_lines:
             data['action'] = 'true'
+            if "reboot" in command:
+                # Esperar al servidor que este offline
+                timeout_offline = 120000  # Ajustar el timeout
+                start_time_offline = time.time()
+                while True:
+                    try:
+                        response = ping(data['ip'], count=1)
+                        if not response.success():
+                            offline_time = time.time() - start_time_offline
+                            print(f"Accion reboot - el servidor esta offline. Tiempo fuera de linea: {offline_time} segundos.")
+                            break
+                    except Exception as e:
+                        print(f"Error durante ping: {str(e)}")
+
+                    if time.time() - start_time_offline > timeout_offline:
+                        print("Tiempo fuera de linea agotado.")
+                        return failure_response(message="Verificación de reboot tiempo de espera agotado")
+
+                    time.sleep(10)  # Ajustar el intervalo entre intentos de ping
+
+                # Esperar a que el servidor se encuentre online
+                timeout_online = 120000  # Ajustar el timeout
+                start_time_online = time.time()
+                while True:
+                    try:
+                        response = ping(data['ip'], count=1)
+                        if response.success():
+                            online_time = time.time() - start_time_online
+                            print(f"Servidor esta en linea de nuevo. Tiempo online: {online_time} segundos.")
+                            data['total_time'] = offline_time + online_time
+                            break
+                    except Exception as e:
+                        print(f"Error durante el ping: {str(e)}")
+
+                    if time.time() - start_time_online > timeout_online:
+                        print("Timeout alcanzado. El servidor no volvio a estar online.")
+                        return failure_response(message="Verificación de reboot tiempo de espera agotado")
+
+                    time.sleep(10)  # Ajustar el intervalo entre intentos de ping
+
+            return success_response(data=data)
         else:
-            print(error_lines)
-    except (BadHostKeyException, AuthenticationException, SSHException, socket.error) as e:
-        print(e)
-    return success_response(data=data)
+            error_msg = " ".join(error_lines)
+            print(f"Problema de conexión al servidor. Detalles: {error_msg}")
+            return failure_response(message=f"Problema de conexión al servidor",
+                                    recommendation="revisar que tenga conexión estable ala dirección del servidor")
+
+    except BadHostKeyException as e:
+
+        error_msg = f"Error de clave de host"
+        print(f"Error de clave de host: {str(e)}")
+        return failure_response(message=error_msg)
+
+    except AuthenticationException as e:
+
+        error_msg = "Error de autenticación"
+        print(f"Error de autenticación: {str(e)}")
+        return failure_response(message=error_msg,
+                                recommendation="revisar que estén correctas las credenciales ssh")
+
+    except SSHException as e:
+
+        error_msg = "Problema de conexión por SSH"
+        print(f"Problema de conexión por SSH: {str(e)}")
+        return failure_response(message=error_msg)
+
+    except socket.error as e:
+
+        error_msg = "Error de conexión de socket"
+        print(f"Error de conexión de socket: {str(e)}")
+        return failure_response(message=error_msg)
+
+    finally:
+
+        ssh_client.close()
 
 
 def get_credentials_for_proxy(ip):

@@ -42,3 +42,17 @@ def as_form(cls: Type[BaseModel]):
     as_form_func.__signature__ = sig  # type: ignore
     setattr(cls, 'as_form', as_form_func)
     return cls
+
+
+def failure_response(status: str = "no ejecutado con exito", message: str = "unsuccessful", success: bool = False,
+                     data: any = {"action": "false"}, status_code: int = 200,
+                     recommendation: str = ""):
+    response = {
+        'status': status,
+        'message': message,
+        'success': success,
+        'data': data,
+        'status_code': status_code,
+        'recommendation': recommendation
+    }
+    return JSONResponse(content=jsonable_encoder(response), status_code=status_code)
