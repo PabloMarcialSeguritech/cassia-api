@@ -147,7 +147,7 @@ def get_info_actions(ip: str = Path(description="IP address", example="192.168.1
                    status_code=status.HTTP_200_OK,
                    summary="Run action on a server",
                    dependencies=[Depends(auth_service2.get_current_user_session)])
-def run_action(ip: str = Path(description="IP address", example="192.168.100.1"),
+async def run_action(ip: str = Path(description="IP address", example="192.168.100.1"),
                id_action: int = Path(description="ID action", example="119")):
-    return hosts_service.prepare_action(ip, id_action)
+    return await hosts_service.prepare_action(ip, id_action)
 
