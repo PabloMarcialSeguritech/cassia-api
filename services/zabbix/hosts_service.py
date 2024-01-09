@@ -397,9 +397,9 @@ def get_credentials(ip):
     return data.to_dict(orient="records")
 
 
-def prepare_action(ip, id_action):
+async def prepare_action(ip, id_action):
     if id_action == -1:
-        response = get_configuration()
+        response = await get_configuration()
         try:
             # Utiliza el método json() de tu objeto JSONResponse
             data = json.loads(response.body)
