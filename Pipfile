@@ -27,6 +27,7 @@ httpx = "*"
 openpyxl = "*"
 xlsxwriter = "*"
 pymssql = "*"
+slack-sdk = "*"
 
 [dev-packages]
 
