@@ -211,25 +211,8 @@ def get_host_correlation_filter(host_group_id):
 async def get_host_metrics(host_id):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-    statement = text(
-        f"select DISTINCT i.templateid,i.itemid  from items i where hostid={host_id} AND i.templateid IS NOT NULL")
-    template_ids = session.execute(statement)
-    template_ids = pd.DataFrame(template_ids).replace(np.nan, "")
-
-    if len(template_ids) > 1:
-
-        template_ids = ",".join(
-            map(str, template_ids['templateid'].values.tolist()))
-
-    else:
-        if len(template_ids) == 1:
-
-            template_ids = f"{template_ids['templateid'][0]}"
-        else:
-            template_ids = "0"
-
     statement = text(f"""
-call sp_hostHealt({host_id},'{template_ids}');
+call sp_hostHealt({host_id});
 """)
     print(statement)
 
@@ -436,10 +419,11 @@ async def prepare_action(ip, id_action):
         dict_credentials_list = get_credentials(ip)
         if dict_credentials_list is None or not dict_credentials_list:
             return failure_response(message="Credenciales no encontradas")
-        return run_action(ip, action.comand, get_credentials(ip))
+
+        return run_action(ip, action.comand, get_credentials(ip), action.verification_id)
 
 
-def run_action(ip, command, dict_credentials_list):
+def run_action(ip, command, dict_credentials_list, verification_id):
     dict_credentials = dict_credentials_list[0]
     ssh_host = ip
     ssh_user = decrypt(dict_credentials['usr'], settings.ssh_key_gen)
@@ -471,6 +455,7 @@ def run_action(ip, command, dict_credentials_list):
 
         if not error_lines:
             data['action'] = 'true'
+
             if "reboot" in command:
                 # Esperar al servidor que este offline
                 timeout_offline = 120000  # Ajustar el timeout
@@ -480,7 +465,8 @@ def run_action(ip, command, dict_credentials_list):
                         response = ping(data['ip'], count=1)
                         if not response.success():
                             offline_time = time.time() - start_time_offline
-                            print(f"Accion reboot - el servidor esta offline. Tiempo fuera de linea: {offline_time} segundos.")
+                            print(
+                                f"Accion reboot - el servidor esta offline. Tiempo fuera de linea: {offline_time} segundos.")
                             break
                     except Exception as e:
                         print(f"Error durante ping: {str(e)}")
@@ -489,7 +475,8 @@ def run_action(ip, command, dict_credentials_list):
                         print("Tiempo fuera de linea agotado.")
                         return failure_response(message="Verificación de reboot tiempo de espera agotado")
 
-                    time.sleep(10)  # Ajustar el intervalo entre intentos de ping
+                    # Ajustar el intervalo entre intentos de ping
+                    time.sleep(10)
 
                 # Esperar a que el servidor se encuentre online
                 timeout_online = 120000  # Ajustar el timeout
@@ -499,21 +486,39 @@ def run_action(ip, command, dict_credentials_list):
                         response = ping(data['ip'], count=1)
                         if response.success():
                             online_time = time.time() - start_time_online
-                            print(f"Servidor esta en linea de nuevo. Tiempo online: {online_time} segundos.")
+                            print(
+                                f"Servidor esta en linea de nuevo. Tiempo online: {online_time} segundos.")
                             data['total_time'] = offline_time + online_time
                             break
                     except Exception as e:
                         print(f"Error durante el ping: {str(e)}")
 
                     if time.time() - start_time_online > timeout_online:
-                        print("Timeout alcanzado. El servidor no volvio a estar online.")
+                        print(
+                            "Timeout alcanzado. El servidor no volvio a estar online.")
                         return failure_response(message="Verificación de reboot tiempo de espera agotado")
 
-                    time.sleep(10)  # Ajustar el intervalo entre intentos de ping
-
+                    # Ajustar el intervalo entre intentos de ping
+                    time.sleep(10)
+            match verification_id:
+                case 3:
+                    data['result'] = get_status(_stdout.read().decode())
+                case 4:
+                    data['result'] = check_status(
+                        command, ssh_client, 'Started', 'iniciado')
+                case 5:
+                    data['result'] = check_status(
+                        command, ssh_client, 'Stopped', 'parado')
+                case 6:
+                    data['result'] = check_status(
+                        command, ssh_client, 'Started', 'reiniciado')
             return success_response(data=data)
         else:
+
             error_msg = " ".join(error_lines)
+            if "service could not be found" in error_msg:
+                return failure_response(message=f"Servicio no encontrado",
+                                        recommendation="revisar que el servidor tenga disponible el servicio")
             print(f"Problema de conexión al servidor. Detalles: {error_msg}")
             return failure_response(message=f"Problema de conexión al servidor",
                                     recommendation="revisar que tenga conexión estable ala dirección del servidor")
@@ -565,3 +570,41 @@ def extract_ip_from_ping_command(command):
         return match.group()
     else:
         return None
+
+
+def check_status(command, ssh_client, command_verification, accion):
+    service = command.split()
+    service = service[-1]
+    _stdin, _stdout, _stderr = ssh_client.exec_command(
+        f"systemctl status {service}")
+    result_status = _stdout.read().decode()
+    result_status = result_status.splitlines()
+    result_status = result_status[-1]
+    if command_verification in result_status:
+        return f"Servicio {service} {accion} correctamente"
+    else:
+        return "Accion no realizada correctamente"
+
+
+def get_status(cadena):
+    lineas = cadena.splitlines()
+    result = ""
+    for linea in lineas:
+        if "Active" in linea:
+            if "running" in linea:
+                result = "Servicio activo (El servicio está en ejecución y funcionando normalmente)"
+            if "inactive" in linea:
+                result = "Servicio inactivo (El servicio no está en ejecución y no se puede iniciar)"
+            if "activating" in linea:
+                result = "Activando servicio (El servicio está en proceso de iniciar)"
+            if "deactivating" in linea:
+                result = "Desactivando servicio (El servicio está en proceso de detenerse)"
+            if "failed" in linea:
+                result = "Fallo en el servicio (El servicio ha fallado al iniciar o ha sido detenido debido a un error)"
+            if "exited" in linea:
+                result = "Servicio finalizado (El servicio se ha detenido de manera normal después de haber estado en ejecución)"
+            if "listening" in linea:
+                result = "Escuchando servicio (El servicio está escuchando y esperando conexiones)"
+            if "plugged" in linea:
+                result = "Servicio enchufado (Indica que el servicio está enchufado en el socket de activación)"
+    return result
