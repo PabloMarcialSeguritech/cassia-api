@@ -62,7 +62,7 @@ def get_session(token: str):
     if user_session.end_date != None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Session has expired",
+            detail="La sesión ha expirado.",
         )
     return user_session
 
@@ -90,7 +90,7 @@ def generate_token(username, password):
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email/username or password",
+            detail="Nombre de usuario/correo electronico o contraseña incorrecta.",
             headers={"WWW-Authenticate": "Bearer"},
         )
     roles = get_roles(user.user_id)
@@ -179,7 +179,7 @@ def get_roles(user_id):
 async def get_current_user_session(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
-        detail="Could not validate credentials",
+        detail="No se pudieron validar las credenciales.",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
@@ -197,7 +197,7 @@ async def get_current_user_session(token: str = Depends(oauth2_scheme)):
     if session_user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Could not find user",
+            detail="No se puede encontrar el usuario.",
         )
     return session_user
 
@@ -213,7 +213,7 @@ async def logout(current_user_session):
     session.commit()
     session.refresh(current_session)
     session.close()
-    return success_response(message="Logout successfully")
+    return success_response(message="Sesión cerrada correctamente.")
 
 
 async def logout_all(current_user_session):
@@ -229,4 +229,4 @@ async def logout_all(current_user_session):
         session.commit()
         session.refresh(current_session)
     session.close()
-    return success_response(message="Logout successfully in all devices")
+    return success_response(message="Sesión cerrada correctamente en todos los dispositivos.")
