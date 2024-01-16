@@ -11,3 +11,4 @@ class CassiaAction(DB_Zabbix.Base):
     protocol = Column(String(length=10), unique=False, nullable=False)
     comand = Column(String(length=120), unique=False, nullable=False)
     active = Column(Integer, nullable=True)
+    verification_id = Column(Integer, nullable=True)
