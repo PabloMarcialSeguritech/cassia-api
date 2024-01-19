@@ -456,7 +456,7 @@ def run_action(ip, command, dict_credentials_list, verification_id):
         if not error_lines:
             data['action'] = 'true'
 
-            if "reboot" in command:
+            if "reboot" or "shutdown /r /f /t 0" in command:
                 # Esperar al servidor que este offline
                 timeout_offline = 120000  # Ajustar el timeout
                 start_time_offline = time.time()
