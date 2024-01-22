@@ -2,7 +2,7 @@ from utils.settings import Settings
 import pandas as pd
 from utils.db import DB_Zabbix
 from sqlalchemy import text, func
-
+import pytz
 import numpy as np
 from utils.traits import success_response
 from models.cassia_slack_user_notification import CassiaSlackUserNotification
@@ -51,14 +51,17 @@ async def get_items(skip, limit, current_session):
             df_result.replace(np.nan, "")
             df_result['eventid'] = df_result['eventid'].apply(
                 lambda event: str(event))
+            now = datetime.now(pytz.timezone(
+                'America/Mexico_City'))
             if not last_date:
+
                 create_register = CassiaSlackUserNotification(
                     user_id=current_session.user_id,
-                    last_date=datetime.now()
+                    last_date=now
                 )
                 session.add(create_register)
             else:
-                last_date.last_date = datetime.now()
+                last_date.last_date = now
             session.commit()
 
     return success_response(data=df_result.to_dict(orient='records'))
