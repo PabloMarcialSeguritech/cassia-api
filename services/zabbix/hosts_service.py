@@ -451,12 +451,14 @@ def run_action(ip, command, dict_credentials_list, verification_id):
             hostname=ssh_host, username=ssh_user.decode(), password=ssh_pass.decode())
 
         _stdin, _stdout, _stderr = ssh_client.exec_command(command)
+
         error_lines = _stderr.readlines()
 
         if not error_lines:
             data['action'] = 'true'
 
-            if "reboot" or "shutdown /r /f /t 0" in command:
+            if "reboot" in command or "shutdown /r /f /t 0" in command:
+
                 # Esperar al servidor que este offline
                 timeout_offline = 120000  # Ajustar el timeout
                 start_time_offline = time.time()
@@ -500,6 +502,7 @@ def run_action(ip, command, dict_credentials_list, verification_id):
 
                     # Ajustar el intervalo entre intentos de ping
                     time.sleep(10)
+
             match verification_id:
                 case 3:
                     data['result'] = get_status(_stdout.read().decode())
@@ -512,6 +515,7 @@ def run_action(ip, command, dict_credentials_list, verification_id):
                 case 6:
                     data['result'] = check_status(
                         command, ssh_client, 'Started', 'reiniciado')
+
             return success_response(data=data)
         else:
 

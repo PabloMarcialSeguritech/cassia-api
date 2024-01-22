@@ -84,7 +84,8 @@ Eventid: {mensajes_a_enviar['eventid'][ind]}
                 response = client.chat_postMessage(
                     channel=slack_channel, text=mensaje)
                 print("Mensaje enviado:", response['ts'])
-
+                now = datetime.now(pytz.timezone(
+                    'America/Mexico_City'))
                 notification = CassiaSlackNotification(
                     uuid=message_uuid,
                     message=mensaje,
@@ -95,7 +96,7 @@ Eventid: {mensajes_a_enviar['eventid'][ind]}
                     severity=mensajes_a_enviar['severity'][ind],
                     eventid=mensajes_a_enviar['eventid'][ind],
                     status=mensajes_a_enviar['Estatus'][ind],
-                    message_date=datetime.now(),
+                    message_date=now,
                     hostid=mensajes_a_enviar['hostid'][ind],
                     ip=mensajes_a_enviar['ip'][ind],
                     latitude=mensajes_a_enviar['latitude'][ind],
