@@ -41,10 +41,14 @@ async def send_messages():
     with db_zabbix.Session() as session:
         statement = text(
             f"call sp_viewProblem('0','','','{slack_problem_severities}')")
+
         problems = pd.DataFrame(session.execute(statement))
+        if not problems.empty:
+            problems = problems[problems['Problem']
+                                == 'Unavailable by ICMP ping']
 
         mensajes = text(
-            "select eventid from cassia_slack_notifications where eventid is not null")
+            "select eventid from cassia_slack_notifications where local=1")
         mensajes = pd.DataFrame(session.execute(mensajes))
         mensajes_a_enviar = pd.DataFrame()
 
@@ -66,6 +70,11 @@ Dispositivo: {mensajes_a_enviar['Host'][ind]}
 Estado: {mensajes_a_enviar['Estatus'][ind]}
 Problema: {mensajes_a_enviar['Problem'][ind]}
 Severidad: {mensajes_a_enviar['severity'][ind]}
+Ip: {mensajes_a_enviar['ip'][ind]}
+Hostid: {mensajes_a_enviar['hostid'][ind]}
+Latitud: {mensajes_a_enviar['latitude'][ind]}
+Longitud: {mensajes_a_enviar['longitude'][ind]}
+Eventid: {mensajes_a_enviar['eventid'][ind]}
 {estado}
 {message_uuid}"""
 
@@ -86,7 +95,12 @@ Severidad: {mensajes_a_enviar['severity'][ind]}
                     severity=mensajes_a_enviar['severity'][ind],
                     eventid=mensajes_a_enviar['eventid'][ind],
                     status=mensajes_a_enviar['Estatus'][ind],
-                    message_date=datetime.now()
+                    message_date=datetime.now(),
+                    hostid=mensajes_a_enviar['hostid'][ind],
+                    ip=mensajes_a_enviar['ip'][ind],
+                    latitude=mensajes_a_enviar['latitude'][ind],
+                    longitude=mensajes_a_enviar['longitude'][ind],
+                    local=1
                 )
                 session.add(notification)
                 session.commit()
@@ -98,28 +112,31 @@ Severidad: {mensajes_a_enviar['severity'][ind]}
     print(f"terminado {guardados} guardados")
 
 
-@slack_scheduler.task(("every 60 seconds & slack_notify"), execution="thread")
+""" @slack_scheduler.task(("every 60 seconds & slack_notify"), execution="thread") """
+
+
 async def get_messages():
     db_zabbix = DB_Zabbix()
 
     with db_zabbix.Session() as session:
         client = WebClient(token=slack_token)
-        hora_anterior = datetime.now() - timedelta(seconds=70)
+        hora_anterior = datetime.now() - timedelta(minutes=700)
         timestamp_hora_anterior = int(hora_anterior.timestamp())
 
         try:
             response = client.conversations_history(
                 channel=slack_channel, oldest=timestamp_hora_anterior)
+            print(response)
             """ mensajes = [mensaje['text'] for mensaje in response['messages'] if mensaje.get(
                 'bot_id') == slack_bot] """
             mensajes = [mensaje['text'] for mensaje in response['messages'] if mensaje.get(
                 'bot_id') == slack_bot]
-
+            print(mensajes)
             uuids = set(get_uuids(mensajes))
 
             data = process_messages(mensajes, uuids)
             mensajes_a_guardar = pd.DataFrame(data, columns=[
-                'uuid', 'message', 'state', 'problem_date', 'host', 'incident', 'severity', 'status'])
+                'uuid', 'message', 'state', 'problem_date', 'host', 'incident', 'severity', 'status', 'ip', 'hostid', 'latitude', 'longitude', 'eventid'])
 
             mensajes_creados = text(
                 f"select uuid from cassia_slack_notifications csn where uuid in ({','.join(uuids) if len(uuids) else 0})")
@@ -140,7 +157,9 @@ async def get_messages():
             print("Error al obtener mensajes:", e.response["error"])
 
 
-@slack_scheduler.task(("every 60 seconds & slack_notify"), execution="thread")
+""" @slack_scheduler.task(("every 60 seconds & slack_notify"), execution="thread") """
+
+
 async def drop_duplicates():
     db_zabbix = DB_Zabbix()
 
@@ -184,6 +203,11 @@ def process_messages(messages: list[str], uuids: set):
         status = lineas[3][8:]
         problema = lineas[4][10:]
         severidad = lineas[5][11:]
+        ip = lineas[6][4:]
+        hostid = lineas[7][8:]
+        latitud = lineas[8][9:]
+        longitud = lineas[9][10:]
+        eventid = lineas[10][9:]
         estado = lineas[-2]
         uuid = lineas[-1]
 
@@ -196,7 +220,12 @@ def process_messages(messages: list[str], uuids: set):
                 'host': dispositivo,
                 'incident': problema,
                 'severity': severidad,
-                'status': status
+                'status': status,
+                'ip': ip,
+                'hostid': hostid,
+                'latitude': latitud,
+                'longitude': longitud,
+                'eventid': eventid
             }
             data.append(objeto)
 

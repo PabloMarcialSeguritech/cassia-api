@@ -21,3 +21,8 @@ class CassiaSlackNotification(DB_Zabbix.Base):
     severity = Column(Integer, nullable=True)
     eventid = Column(Integer, nullable=True)
     status = Column(String(length=100), nullable=True)
+    hostid = Column(String(length=100), nullable=True)
+    ip = Column(String(length=25), nullable=True)
+    latitude = Column(String(length=25), nullable=True)
+    longitude = Column(String(length=25), nullable=True)
+    local = Column(Integer, nullable=True, default=0)
