@@ -44,8 +44,8 @@ async def send_messages():
 
         problems = pd.DataFrame(session.execute(statement))
         if not problems.empty:
-            problems = problems[problems['Problem']
-                                == 'Unavailable by ICMP ping']
+            problems = problems[(problems['Problem']
+                                == 'Unavailable by ICMP ping') | (problems['Problem'] == "ICMP: Unavailable by ICMP ping")]
 
         mensajes = text(
             "select eventid from cassia_slack_notifications where local=1")
@@ -135,7 +135,7 @@ async def get_messages():
 
             data = process_messages(mensajes, uuids)
             mensajes_a_guardar = pd.DataFrame(data, columns=[
-                'uuid', 'message', 'state', 'problem_date', 'host', 'incident', 'severity', 'status', 'ip', 'hostid', 'latitude', 'longitude', 'eventid'])
+                'uuid', 'message', 'state', 'problem_date', 'host', 'incident', 'severity', 'status', 'ip', 'hostid', 'latitude', 'longitude', 'eventid', "message_date"])
 
             mensajes_creados = text(
                 f"select uuid from cassia_slack_notifications csn where uuid in ({','.join(uuids) if len(uuids) else 0})")
@@ -156,7 +156,7 @@ async def get_messages():
             print("Error al obtener mensajes:", e.response["error"])
 
 
-@slack_scheduler.task(("every 60 seconds & slack_notify"), execution="thread")
+@slack_scheduler.task(("every 20 seconds & slack_notify"), execution="thread")
 async def drop_duplicates():
     db_zabbix = DB_Zabbix()
 
@@ -174,7 +174,7 @@ HAVING count(*)>1""")
 
             delete = text(f"""Delete from cassia_slack_notifications 
                           where uuid in({uuids_duplicados})
-                          and eventid is null""")
+                          and local=0""")
             session.execute(delete)
             session.commit()
             print("limpiados")
@@ -207,7 +207,8 @@ def process_messages(messages: list[str], uuids: set):
         eventid = lineas[10][9:]
         estado = lineas[-2]
         uuid = lineas[-1]
-
+        now = datetime.now(pytz.timezone(
+            'America/Mexico_City'))
         if uuid not in uuids:
             objeto = {
                 'uuid': uuid,
@@ -222,7 +223,8 @@ def process_messages(messages: list[str], uuids: set):
                 'hostid': hostid,
                 'latitude': latitud,
                 'longitude': longitud,
-                'eventid': eventid
+                'eventid': eventid,
+                "message_date": now
             }
             data.append(objeto)
 
