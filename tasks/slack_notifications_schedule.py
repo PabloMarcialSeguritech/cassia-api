@@ -83,7 +83,7 @@ Eventid: {mensajes_a_enviar['eventid'][ind]}
                     mensajes_a_enviar['Time'][ind], '%d/%m/%Y %H:%M:%S')
                 response = client.chat_postMessage(
                     channel=slack_channel, text=mensaje)
-                print("Mensaje enviado:", response['ts'])
+
                 now = datetime.now(pytz.timezone(
                     'America/Mexico_City'))
                 notification = CassiaSlackNotification(
