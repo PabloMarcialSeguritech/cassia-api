@@ -39,7 +39,7 @@ async def get_items(skip, limit, current_session):
             CassiaSlackUserNotification.user_id == current_session.user_id
         ).first()
         df_result = pd.read_sql(session.query(
-            CassiaSlackNotification).offset(
+            CassiaSlackNotification).order_by(CassiaSlackNotification.message_date.desc()).offset(
             skip).limit(limit).statement, session.bind)
         if not df_result.empty:
             if last_date:
@@ -60,6 +60,5 @@ async def get_items(skip, limit, current_session):
             else:
                 last_date.last_date = datetime.now()
             session.commit()
-        print(df_result)
 
     return success_response(data=df_result.to_dict(orient='records'))
