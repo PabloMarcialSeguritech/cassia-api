@@ -112,15 +112,13 @@ Eventid: {mensajes_a_enviar['eventid'][ind]}
     print(f"terminado {guardados} guardados")
 
 
-""" @slack_scheduler.task(("every 60 seconds & slack_notify"), execution="thread") """
-
-
+@slack_scheduler.task(("every 60 seconds & slack_notify"), execution="thread")
 async def get_messages():
     db_zabbix = DB_Zabbix()
 
     with db_zabbix.Session() as session:
         client = WebClient(token=slack_token)
-        hora_anterior = datetime.now() - timedelta(minutes=700)
+        hora_anterior = datetime.now() - timedelta(seconds=70)
         timestamp_hora_anterior = int(hora_anterior.timestamp())
 
         try:
@@ -157,9 +155,7 @@ async def get_messages():
             print("Error al obtener mensajes:", e.response["error"])
 
 
-""" @slack_scheduler.task(("every 60 seconds & slack_notify"), execution="thread") """
-
-
+@slack_scheduler.task(("every 60 seconds & slack_notify"), execution="thread")
 async def drop_duplicates():
     db_zabbix = DB_Zabbix()
 
