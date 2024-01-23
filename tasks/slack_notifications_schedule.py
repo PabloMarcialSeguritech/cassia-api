@@ -14,6 +14,7 @@ import uuid
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from models.cassia_slack_notification import CassiaSlackNotification
+from models.cassia_config import CassiaConfig
 import time
 # Creating the Rocketry app
 slack_scheduler = Grouper()
@@ -39,6 +40,12 @@ async def send_messages():
     guardados = 0
     db_zabbix = DB_Zabbix()
     with db_zabbix.Session() as session:
+        id_estado = session.query(CassiaConfig).filter(
+            CassiaConfig.name == 'state_id').first()
+        if id_estado:
+            id_estado = id_estado.value
+        else:
+            id_estado = 0
         statement = text(
             f"call sp_viewProblem('0','','','{slack_problem_severities}')")
 
@@ -75,6 +82,7 @@ Hostid: {mensajes_a_enviar['hostid'][ind]}
 Latitud: {mensajes_a_enviar['latitude'][ind]}
 Longitud: {mensajes_a_enviar['longitude'][ind]}
 Eventid: {mensajes_a_enviar['eventid'][ind]}
+{id_estado}
 {estado}
 {message_uuid}"""
 
@@ -101,7 +109,8 @@ Eventid: {mensajes_a_enviar['eventid'][ind]}
                     ip=mensajes_a_enviar['ip'][ind],
                     latitude=mensajes_a_enviar['latitude'][ind],
                     longitude=mensajes_a_enviar['longitude'][ind],
-                    local=1
+                    local=1,
+                    state_id=id_estado
                 )
                 session.add(notification)
                 session.commit()
@@ -135,7 +144,7 @@ async def get_messages():
 
             data = process_messages(mensajes, uuids)
             mensajes_a_guardar = pd.DataFrame(data, columns=[
-                'uuid', 'message', 'state', 'problem_date', 'host', 'incident', 'severity', 'status', 'ip', 'hostid', 'latitude', 'longitude', 'eventid', "message_date"])
+                'uuid', 'message', 'state', 'problem_date', 'host', 'incident', 'severity', 'status', 'ip', 'hostid', 'latitude', 'longitude', 'eventid', "message_date", "state_id"])
 
             mensajes_creados = text(
                 f"select uuid from cassia_slack_notifications csn where uuid in ({','.join(uuids) if len(uuids) else 0})")
@@ -205,10 +214,12 @@ def process_messages(messages: list[str], uuids: set):
         latitud = lineas[8][9:]
         longitud = lineas[9][10:]
         eventid = lineas[10][9:]
+        id_estado = lineas[-3]
         estado = lineas[-2]
         uuid = lineas[-1]
         now = datetime.now(pytz.timezone(
             'America/Mexico_City'))
+
         if uuid not in uuids:
             objeto = {
                 'uuid': uuid,
@@ -224,7 +235,8 @@ def process_messages(messages: list[str], uuids: set):
                 'latitude': latitud,
                 'longitude': longitud,
                 'eventid': eventid,
-                "message_date": now
+                "message_date": now,
+                "state_id": id_estado
             }
             data.append(objeto)
 
