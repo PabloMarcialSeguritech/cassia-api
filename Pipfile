@@ -26,7 +26,7 @@ fastapi-mail = "*"
 httpx = "*"
 openpyxl = "*"
 xlsxwriter = "*"
-pymssql = "*"
+pymssql = {version = "<2.2.9"}
 slack-sdk = "*"
 
 [dev-packages]
