@@ -26,3 +26,4 @@ class CassiaSlackNotification(DB_Zabbix.Base):
     latitude = Column(String(length=25), nullable=True)
     longitude = Column(String(length=25), nullable=True)
     local = Column(Integer, nullable=True, default=0)
+    state_id = Column(String(length=25), nullable=True)
