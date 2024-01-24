@@ -515,7 +515,77 @@ def run_action(ip, command, dict_credentials_list, verification_id):
                 case 6:
                     data['result'] = check_status(
                         command, ssh_client, 'Started', 'reiniciado')
+                case 7:
+                    result_response = check_status_sql_server(
+                        _stdout, ssh_client)
+                    if not result_response['status']:
+                        return failure_response(message=f"Problema de conexión al servidor",
+                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+                    data['result'] = result_response['result']
+                case 8:
+                    service_name = _stdout.read().decode(encoding="utf-8")
+                    result_response = start_stop_sql_server_windows(
+                        service_name, ssh_client, 'start', 'RUNNING', "Error al iniciar el servicio. Tiempo limite de espera excedido.")
 
+                    if not result_response['status']:
+                        return failure_response(message=result_response['message_error'],
+                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+                    data['result'] = result_response['result']
+                case 9:
+                    service_name = _stdout.read().decode(encoding="utf-8")
+                    result_response = start_stop_sql_server_windows(
+                        service_name, ssh_client, 'stop', 'STOPPED', "Error al detener el servicio. Tiempo limite de espera excedido.")
+
+                    if not result_response['status']:
+                        return failure_response(message=result_response['message_error'],
+                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+                    data['result'] = result_response['result']
+                case 10:
+                    service_name = _stdout.read().decode(encoding="utf-8")
+                    result_response_stop = start_stop_sql_server_windows(
+                        service_name, ssh_client, 'stop', 'STOPPED', "Error al detener el servicio. Tiempo limite de espera excedido.")
+                    if not result_response_stop['status']:
+                        return failure_response(message=result_response_stop['message_error'],
+                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+
+                    result_response_start = start_stop_sql_server_windows(
+                        service_name, ssh_client, 'start', 'RUNNING', "Error al iniciar el servicio. Tiempo limite de espera excedido.")
+                    if not result_response_start['status']:
+                        return failure_response(message=result_response_start['message_error'],
+                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+
+                    data['result'] = "Servicio reiniciado correctamente"
+                case 11:
+                    data['result'] = get_status_windows(
+                        _stdout.read().decode('utf-8'))
+                case 12:
+                    result_response = check_start_stop_windows_service(
+                        'GenetecServer', ssh_client, 'start', 'RUNNING', 'Error al iniciar el servicio. Tiempo limite de espera excedido.')
+                    if not result_response['status']:
+                        return failure_response(message=result_response_start['message_error'],
+                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+                    data['result'] = result_response['result']
+                case 13:
+                    result_response = check_start_stop_windows_service(
+                        'GenetecServer', ssh_client, 'stop', 'STOPPED', 'Error al detener el servicio. Tiempo limite de espera excedido.')
+                    if not result_response['status']:
+                        return failure_response(message=result_response_start['message_error'],
+                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+                    data['result'] = result_response['result']
+                case 14:
+                    result_response_stop = start_stop_windows_service(
+                        "GenetecServer", ssh_client, 'stop', 'STOPPED', "Error al detener el servicio. Tiempo limite de espera excedido.")
+                    if not result_response_stop['status']:
+                        return failure_response(message=result_response_stop['message_error'],
+                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+
+                    result_response_start = start_stop_windows_service(
+                        "GenetecServer", ssh_client, 'start', 'RUNNING', "Error al iniciar el servicio. Tiempo limite de espera excedido.")
+                    if not result_response_start['status']:
+                        return failure_response(message=result_response_start['message_error'],
+                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+
+                    data['result'] = "Servicio reiniciado correctamente"
             return success_response(data=data)
         else:
 
@@ -612,3 +682,199 @@ def get_status(cadena):
             if "plugged" in linea:
                 result = "Servicio enchufado (Indica que el servicio está enchufado en el socket de activación)"
     return result
+
+
+def get_status_windows(cadena):
+    lineas = cadena.splitlines()
+    result = ""
+    for linea in lineas:
+        if "STATE" in linea:
+            if "RUNNING" in linea:
+                result = "Servicio activo (El servicio está en ejecución)"
+            if "STOPPED" in linea:
+                result = "Servicio inactivo (El servicio no está en ejecución)"
+            if "PAUSED" in linea:
+                result = "El servicio está pausado."
+            if "START_PENDING" in linea:
+                result = "El servicio está en proceso de inicio"
+            if "STOP_PENDING" in linea:
+                result = "El servicio está en proceso de detención"
+            if "CONTINUE_PENDING" in linea:
+                result = "El servicio está en proceso de reanudación después de estar pausado."
+            if "PAUSE_PENDING" in linea:
+                result = "El servicio está en proceso de pausa."
+    return result
+
+
+def check_status_sql_server(out, ssh_client):
+    service_name = out.read().decode(encoding="utf-8")
+    result_response = {'status': 0, 'result': '', 'message_error': ''}
+    if len(service_name) <= 0:
+        result_response["message_error"] = 'El servicio no existe en este host'
+        return result_response
+    service_name = service_name[14:]
+
+    comando = f"sc query {service_name}"
+    _stdin, _stdout, _stderr = ssh_client.exec_command(comando)
+    error_lines = _stderr.readlines()
+    """ sc query type= service state= all | findstr /C:"MSSQL" """
+    if not error_lines:
+        result_response['status'] = 1
+        result = _stdout.read().decode(encoding="utf-8")
+        result = result.encode().decode(
+            'unicode_escape')
+        result = get_status_windows(result)
+        result_response['result'] = result
+        return result_response
+    else:
+        error_msg = " ".join(error_lines)
+        result_response['message_error'] = error_msg
+        print(
+            f"Problema de conexión al servidor. Detalles: {error_msg}")
+        return result_response
+
+
+def start_stop_sql_server_windows(service_name, ssh_client, comand_st, verification_status, error_message):
+    result_response = {'status': 0, 'result': '', 'message_error': ''}
+    if len(service_name) <= 0:
+        result_response["message_error"] = 'El servicio no existe en este host'
+        return result_response
+    service_name = service_name[14:]
+
+    comando = f"sc {comand_st} {service_name}"
+    _stdin, _stdout, _stderr = ssh_client.exec_command(comando)
+
+    error_lines = _stderr.readlines()
+
+    if not error_lines:
+
+        cont = 0
+        while True:
+
+            comand = f"sc query {service_name}"
+
+            _stdin, _stdout, _stderr = ssh_client.exec_command(comand)
+            out = _stdout.read().decode(encoding="utf-8")
+
+            status = check_status_windows(
+                out, verification_status)
+
+            if status:
+                break
+            time.sleep(2)
+            cont += 1
+            if cont > 15:
+
+                result_response['status'] = 0
+                result_response['message_error'] = error_message
+                return result_response
+
+        result_response['status'] = 1
+
+        match comand_st:
+            case 'stop':
+
+                result_response['result'] = "El servicio se ha detenido correctamente"
+            case 'start':
+                result_response['result'] = "El servicio se ha iniciado correctamente"
+
+        return result_response
+    else:
+        error_msg = " ".join(error_lines)
+        result_response['message_error'] = error_msg
+        print(
+            f"Problema de conexión al servidor. Detalles: {error_msg}")
+        return result_response
+
+
+def start_stop_windows_service(service_name, ssh_client, comand_st, verification_status, error_message):
+    result_response = {'status': 0, 'result': '', 'message_error': ''}
+
+    comando = f"sc {comand_st} {service_name}"
+    _stdin, _stdout, _stderr = ssh_client.exec_command(comando)
+
+    error_lines = _stderr.readlines()
+
+    if not error_lines:
+
+        cont = 0
+        while True:
+
+            comand = f"sc query {service_name}"
+
+            _stdin, _stdout, _stderr = ssh_client.exec_command(comand)
+            out = _stdout.read().decode(encoding="utf-8")
+
+            status = check_status_windows(
+                out, verification_status)
+
+            if status:
+                break
+            time.sleep(2)
+            cont += 1
+            if cont > 15:
+
+                result_response['status'] = 0
+                result_response['message_error'] = error_message
+                return result_response
+
+        result_response['status'] = 1
+
+        match comand_st:
+            case 'stop':
+
+                result_response['result'] = "El servicio se ha detenido correctamente"
+            case 'start':
+                result_response['result'] = "El servicio se ha iniciado correctamente"
+
+        return result_response
+    else:
+        error_msg = " ".join(error_lines)
+        result_response['message_error'] = error_msg
+        print(
+            f"Problema de conexión al servidor. Detalles: {error_msg}")
+        return result_response
+
+
+def check_status_windows(cadena, status):
+    lineas = cadena.splitlines()
+    result = False
+    for linea in lineas:
+        if "STATE" in linea:
+            if status in linea:
+                return True
+    return result
+
+
+def check_start_stop_windows_service(service_name, ssh_client, comand_st, verification_status, error_message):
+    result_response = {'status': 0, 'result': '', 'message_error': ''}
+    cont = 0
+    while True:
+        comand = f"sc query {service_name}"
+        _stdin, _stdout, _stderr = ssh_client.exec_command(comand)
+        status = check_status_windows(
+            _stdout.read().decode(encoding="utf-8"), verification_status)
+        if status:
+            break
+        time.sleep(2)
+        cont += 1
+        error_lines = _stderr.readlines()
+        if cont > 15:
+
+            result_response['status'] = 0
+            result_response['message_error'] = error_message
+            return result_response
+        if error_lines:
+            result_response['status'] = 0
+            result_response['message_error'] = error_lines
+            return result_response
+
+    result_response['status'] = 1
+
+    match comand_st:
+        case 'stop':
+            result_response['result'] = "El servicio se ha detenido correctamente"
+        case 'start':
+            result_response['result'] = "El servicio se ha iniciado correctamente"
+
+    return result_response
