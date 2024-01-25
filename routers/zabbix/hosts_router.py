@@ -3,6 +3,7 @@ import services.zabbix.hosts_service as hosts_service
 from fastapi import Depends, status, Path
 from services import auth_service
 from services import auth_service2
+from models.cassia_user_session import CassiaUserSession
 from fastapi.responses import HTMLResponse
 import asyncio
 
@@ -134,10 +135,10 @@ async def send(websocket, index):
 
 
 @hosts_router.get('/actions/{ip}',
-                   tags=["Zabbix - Hosts"],
-                   status_code=status.HTTP_200_OK,
+                  tags=["Zabbix - Hosts"],
+                  status_code=status.HTTP_200_OK,
                   summary="Get actions info",
-                   dependencies=[Depends(auth_service2.get_current_user_session)])
+                  dependencies=[Depends(auth_service2.get_current_user_session)])
 def get_info_actions(ip: str = Path(description="IP address", example="192.168.100.1")):
     return hosts_service.get_info_actions(ip)
 
@@ -148,6 +149,5 @@ def get_info_actions(ip: str = Path(description="IP address", example="192.168.1
                    summary="Run action on a server",
                    dependencies=[Depends(auth_service2.get_current_user_session)])
 async def run_action(ip: str = Path(description="IP address", example="192.168.100.1"),
-               id_action: int = Path(description="ID action", example="119")):
-    return await hosts_service.prepare_action(ip, id_action)
-
+                     id_action: int = Path(description="ID action", example="119"), current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+    return await hosts_service.prepare_action(ip, id_action, current_user_session)
