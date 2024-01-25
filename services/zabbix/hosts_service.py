@@ -10,8 +10,11 @@ from cryptography.fernet import Fernet
 from models.cassia_config import CassiaConfig
 from models.cassia_arch_traffic_events import CassiaArchTrafficEvent
 from models.cassia_actions import CassiaAction as CassiaActionModel
+from models.interface_model import Interface
+from models.cassia_action_log import CassiaActionLog
 import socket
-
+from datetime import datetime
+import pytz
 from fastapi.exceptions import HTTPException
 from fastapi import status
 from services.cassia.configurations_service import get_configuration
@@ -380,7 +383,7 @@ def get_credentials(ip):
     return data.to_dict(orient="records")
 
 
-async def prepare_action(ip, id_action):
+async def prepare_action(ip, id_action, user_session):
     if id_action == -1:
         response = await get_configuration()
         try:
@@ -420,211 +423,310 @@ async def prepare_action(ip, id_action):
         if dict_credentials_list is None or not dict_credentials_list:
             return failure_response(message="Credenciales no encontradas")
 
-        return run_action(ip, action.comand, get_credentials(ip), action.verification_id)
+        return run_action(ip, action.comand, get_credentials(ip), action.verification_id, action.action_id, user_session)
 
 
-def run_action(ip, command, dict_credentials_list, verification_id):
+def run_action(ip, command, dict_credentials_list, verification_id, action_id, user_session):
     dict_credentials = dict_credentials_list[0]
     ssh_host = ip
     ssh_user = decrypt(dict_credentials['usr'], settings.ssh_key_gen)
     ssh_pass = decrypt(dict_credentials['psswrd'], settings.ssh_key_gen)
     ssh_client = SSHClient()
     ssh_client.set_missing_host_key_policy(AutoAddPolicy())
-
+    print(dict_credentials)
     data = {
         "action": "false",
         "ip": ip
     }
 
-    try:
-        # Check if the command contains the word "ping"
-        if "ping" in command:
-            # Extract the IP address from the ping command
-            ping_ip = extract_ip_from_ping_command(command)
-            if ping_ip:
-                data['ip'] = ping_ip
+    with DB_Zabbix().Session() as session:
+        try:
+            log = {'action_id': action_id,
+                   'clock': datetime.now(pytz.timezone('America/Mexico_City')),
+                   'session_id': user_session.session_id.hex,
+                   'interface_id': dict_credentials['interfaceid'] if (
+                       'interfaceid' in dict_credentials) else 1,
+                   'result': 0,
+                   'comments': None}
+
+            # Check if the command contains the word "ping"
+            if "ping" in command:
+                # Extract the IP address from the ping command
+                ping_ip = extract_ip_from_ping_command(command)
+                if ping_ip:
+                    data['ip'] = ping_ip
+                else:
+                    log['result'] = 0
+                    log['comments'] = f'Unable to extract IP address from the ping command.'
+                    action_log = CassiaActionLog(**log)
+                    session.add(action_log)
+                    session.commit()
+                    print("Unable to extract IP address from the ping command.")
+                    return failure_response(message="Comando de ping invalido")
+
+            ssh_client.connect(
+                hostname=ssh_host, username=ssh_user.decode(), password=ssh_pass.decode())
+
+            _stdin, _stdout, _stderr = ssh_client.exec_command(command)
+
+            error_lines = _stderr.readlines()
+
+            if not error_lines:
+                data['action'] = 'true'
+                log['result'] = 1
+                if "reboot" in command or "shutdown /r /f /t 0" in command:
+
+                    # Esperar al servidor que este offline
+                    timeout_offline = 120000  # Ajustar el timeout
+                    start_time_offline = time.time()
+                    while True:
+                        try:
+                            response = ping(data['ip'], count=1)
+                            if not response.success():
+                                offline_time = time.time() - start_time_offline
+                                print(
+                                    f"Accion reboot - el servidor esta offline. Tiempo fuera de linea: {offline_time} segundos.")
+                                break
+                        except Exception as e:
+                            print(f"Error durante ping: {str(e)}")
+
+                        if time.time() - start_time_offline > timeout_offline:
+                            print("Tiempo fuera de linea agotado.")
+                            log['result'] = 0
+                            log['comments'] = f'Tiempo fuera de linea agotado.'
+                            action_log = CassiaActionLog(**log)
+                            session.add(action_log)
+                            session.commit()
+                            return failure_response(message="Verificación de reboot tiempo de espera agotado")
+
+                        # Ajustar el intervalo entre intentos de ping
+                        time.sleep(10)
+
+                    # Esperar a que el servidor se encuentre online
+                    timeout_online = 120000  # Ajustar el timeout
+                    start_time_online = time.time()
+                    while True:
+                        try:
+                            response = ping(data['ip'], count=1)
+                            if response.success():
+                                online_time = time.time() - start_time_online
+                                print(
+                                    f"Servidor esta en linea de nuevo. Tiempo online: {online_time} segundos.")
+                                data['total_time'] = offline_time + online_time
+                                break
+                        except Exception as e:
+                            print(f"Error durante el ping: {str(e)}")
+
+                        if time.time() - start_time_online > timeout_online:
+                            print(
+                                "Timeout alcanzado. El servidor no volvio a estar online.")
+                            log['result'] = 0
+                            log['comments'] = f'Timeout alcanzado. El servidor no volvio a estar online.'
+                            action_log = CassiaActionLog(**log)
+                            session.add(action_log)
+                            session.commit()
+                            return failure_response(message="Verificación de reboot tiempo de espera agotado")
+
+                        # Ajustar el intervalo entre intentos de ping
+                        time.sleep(10)
+
+                match verification_id:
+                    case 3:
+                        data['result'] = get_status(_stdout.read().decode())
+                    case 4:
+                        data['result'] = check_status(
+                            command, ssh_client, 'Started', 'iniciado')
+                    case 5:
+                        data['result'] = check_status(
+                            command, ssh_client, 'Stopped', 'parado')
+                    case 6:
+                        data['result'] = check_status(
+                            command, ssh_client, 'Started', 'reiniciado')
+                    case 7:
+                        result_response = check_status_sql_server(
+                            _stdout, ssh_client)
+                        if not result_response['status']:
+                            log['result'] = 0
+                            log['comments'] = f'Servicio no instalado o servidor no disponible'
+                            action_log = CassiaActionLog(**log)
+                            session.add(action_log)
+                            session.commit()
+                            return failure_response(message=f"Problema de conexión al servidor",
+                                                    recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+                        data['result'] = result_response['result']
+                    case 8:
+                        service_name = _stdout.read().decode(encoding="utf-8")
+                        result_response = start_stop_sql_server_windows(
+                            service_name, ssh_client, 'start', 'RUNNING', "Error al iniciar el servicio. Tiempo limite de espera excedido.")
+
+                        if not result_response['status']:
+                            log['result'] = 0
+                            log['comments'] = result_response['message_error']
+                            action_log = CassiaActionLog(**log)
+                            session.add(action_log)
+                            session.commit()
+                            return failure_response(message=result_response['message_error'],
+                                                    recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+                        data['result'] = result_response['result']
+                    case 9:
+                        service_name = _stdout.read().decode(encoding="utf-8")
+                        result_response = start_stop_sql_server_windows(
+                            service_name, ssh_client, 'stop', 'STOPPED', "Error al detener el servicio. Tiempo limite de espera excedido.")
+
+                        if not result_response['status']:
+                            log['result'] = 0
+                            log['comments'] = result_response['message_error']
+                            action_log = CassiaActionLog(**log)
+                            session.add(action_log)
+                            session.commit()
+                            return failure_response(message=result_response['message_error'],
+                                                    recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+                        data['result'] = result_response['result']
+                    case 10:
+                        service_name = _stdout.read().decode(encoding="utf-8")
+                        result_response_stop = start_stop_sql_server_windows(
+                            service_name, ssh_client, 'stop', 'STOPPED', "Error al detener el servicio. Tiempo limite de espera excedido.")
+                        if not result_response_stop['status']:
+                            log['result'] = 0
+                            log['comments'] = result_response['message_error']
+                            action_log = CassiaActionLog(**log)
+                            session.add(action_log)
+                            session.commit()
+                            return failure_response(message=result_response_stop['message_error'],
+                                                    recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+
+                        result_response_start = start_stop_sql_server_windows(
+                            service_name, ssh_client, 'start', 'RUNNING', "Error al iniciar el servicio. Tiempo limite de espera excedido.")
+                        if not result_response_start['status']:
+                            log['result'] = 0
+                            log['comments'] = result_response['message_error']
+                            action_log = CassiaActionLog(**log)
+                            session.add(action_log)
+                            session.commit()
+                            return failure_response(message=result_response_start['message_error'],
+                                                    recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+
+                        data['result'] = "Servicio reiniciado correctamente"
+                    case 11:
+                        data['result'] = get_status_windows(
+                            _stdout.read().decode('utf-8'))
+                    case 12:
+                        result_response = check_start_stop_windows_service(
+                            'GenetecServer', ssh_client, 'start', 'RUNNING', 'Error al iniciar el servicio. Tiempo limite de espera excedido.')
+                        if not result_response['status']:
+                            log['result'] = 0
+                            log['comments'] = result_response['message_error']
+                            action_log = CassiaActionLog(**log)
+                            session.add(action_log)
+                            session.commit()
+                            return failure_response(message=result_response_start['message_error'],
+                                                    recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+                        data['result'] = result_response['result']
+                    case 13:
+                        result_response = check_start_stop_windows_service(
+                            'GenetecServer', ssh_client, 'stop', 'STOPPED', 'Error al detener el servicio. Tiempo limite de espera excedido.')
+                        if not result_response['status']:
+                            log['result'] = 0
+                            log['comments'] = result_response['message_error']
+                            action_log = CassiaActionLog(**log)
+                            session.add(action_log)
+                            session.commit()
+                            return failure_response(message=result_response_start['message_error'],
+                                                    recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+                        data['result'] = result_response['result']
+                    case 14:
+                        result_response_stop = start_stop_windows_service(
+                            "GenetecServer", ssh_client, 'stop', 'STOPPED', "Error al detener el servicio. Tiempo limite de espera excedido.")
+                        if not result_response_stop['status']:
+                            log['result'] = 0
+                            log['comments'] = result_response['message_error']
+                            action_log = CassiaActionLog(**log)
+                            session.add(action_log)
+                            session.commit()
+                            return failure_response(message=result_response_stop['message_error'],
+                                                    recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+
+                        result_response_start = start_stop_windows_service(
+                            "GenetecServer", ssh_client, 'start', 'RUNNING', "Error al iniciar el servicio. Tiempo limite de espera excedido.")
+                        if not result_response_start['status']:
+                            log['result'] = 0
+                            log['comments'] = result_response['message_error']
+                            action_log = CassiaActionLog(**log)
+                            session.add(action_log)
+                            session.commit()
+                            return failure_response(message=result_response_start['message_error'],
+                                                    recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
+
+                        data['result'] = "Servicio reiniciado correctamente"
+                action_log = CassiaActionLog(**log)
+                session.add(action_log)
+                session.commit()
+                return success_response(data=data)
             else:
-                print("Unable to extract IP address from the ping command.")
-                return failure_response(message="Comando de ping invalido")
 
-        ssh_client.connect(
-            hostname=ssh_host, username=ssh_user.decode(), password=ssh_pass.decode())
+                error_msg = " ".join(error_lines)
+                if "service could not be found" in error_msg:
+                    return failure_response(message=f"Servicio no encontrado",
+                                            recommendation="revisar que el servidor tenga disponible el servicio")
+                print(
+                    f"Problema de conexión al servidor. Detalles: {error_msg}")
+                log['comments'] = error_msg
+                action_log = CassiaActionLog(**log)
+                session.add(action_log)
+                session.commit()
+                return failure_response(message=f"Problema de conexión al servidor",
+                                        recommendation="revisar que tenga conexión estable ala dirección del servidor")
 
-        _stdin, _stdout, _stderr = ssh_client.exec_command(command)
+        except BadHostKeyException as e:
 
-        error_lines = _stderr.readlines()
+            error_msg = f"Error de clave de host"
+            print(f"Error de clave de host: {str(e)}")
+            log['comments'] = error_msg
+            action_log = CassiaActionLog(**log)
+            session.add(action_log)
+            session.commit()
+            return failure_response(message=error_msg)
 
-        if not error_lines:
-            data['action'] = 'true'
+        except AuthenticationException as e:
 
-            if "reboot" in command or "shutdown /r /f /t 0" in command:
+            error_msg = "Error de autenticación"
+            print(f"Error de autenticación: {str(e)}")
+            log['comments'] = error_msg
+            action_log = CassiaActionLog(**log)
+            session.add(action_log)
+            session.commit()
+            return failure_response(message=error_msg,
+                                    recommendation="revisar que estén correctas las credenciales ssh")
 
-                # Esperar al servidor que este offline
-                timeout_offline = 120000  # Ajustar el timeout
-                start_time_offline = time.time()
-                while True:
-                    try:
-                        response = ping(data['ip'], count=1)
-                        if not response.success():
-                            offline_time = time.time() - start_time_offline
-                            print(
-                                f"Accion reboot - el servidor esta offline. Tiempo fuera de linea: {offline_time} segundos.")
-                            break
-                    except Exception as e:
-                        print(f"Error durante ping: {str(e)}")
+        except SSHException as e:
 
-                    if time.time() - start_time_offline > timeout_offline:
-                        print("Tiempo fuera de linea agotado.")
-                        return failure_response(message="Verificación de reboot tiempo de espera agotado")
+            error_msg = "Problema de conexión por SSH"
+            print(f"Problema de conexión por SSH: {str(e)}")
+            log['comments'] = error_msg
+            action_log = CassiaActionLog(**log)
+            session.add(action_log)
+            session.commit()
+            return failure_response(message=error_msg)
 
-                    # Ajustar el intervalo entre intentos de ping
-                    time.sleep(10)
+        except socket.error as e:
 
-                # Esperar a que el servidor se encuentre online
-                timeout_online = 120000  # Ajustar el timeout
-                start_time_online = time.time()
-                while True:
-                    try:
-                        response = ping(data['ip'], count=1)
-                        if response.success():
-                            online_time = time.time() - start_time_online
-                            print(
-                                f"Servidor esta en linea de nuevo. Tiempo online: {online_time} segundos.")
-                            data['total_time'] = offline_time + online_time
-                            break
-                    except Exception as e:
-                        print(f"Error durante el ping: {str(e)}")
+            error_msg = "Error de conexión de socket"
+            print(f"Error de conexión de socket: {str(e)}")
+            log['comments'] = error_msg
+            action_log = CassiaActionLog(**log)
+            session.add(action_log)
+            session.commit()
+            return failure_response(message=error_msg)
+        except Exception as e:
+            print(e)
+            log['comments'] = f'Error desconocido: {e}'
+            action_log = CassiaActionLog(**log)
+            session.add(action_log)
+            session.commit()
+            return failure_response(message=e)
+        finally:
 
-                    if time.time() - start_time_online > timeout_online:
-                        print(
-                            "Timeout alcanzado. El servidor no volvio a estar online.")
-                        return failure_response(message="Verificación de reboot tiempo de espera agotado")
-
-                    # Ajustar el intervalo entre intentos de ping
-                    time.sleep(10)
-
-            match verification_id:
-                case 3:
-                    data['result'] = get_status(_stdout.read().decode())
-                case 4:
-                    data['result'] = check_status(
-                        command, ssh_client, 'Started', 'iniciado')
-                case 5:
-                    data['result'] = check_status(
-                        command, ssh_client, 'Stopped', 'parado')
-                case 6:
-                    data['result'] = check_status(
-                        command, ssh_client, 'Started', 'reiniciado')
-                case 7:
-                    result_response = check_status_sql_server(
-                        _stdout, ssh_client)
-                    if not result_response['status']:
-                        return failure_response(message=f"Problema de conexión al servidor",
-                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
-                    data['result'] = result_response['result']
-                case 8:
-                    service_name = _stdout.read().decode(encoding="utf-8")
-                    result_response = start_stop_sql_server_windows(
-                        service_name, ssh_client, 'start', 'RUNNING', "Error al iniciar el servicio. Tiempo limite de espera excedido.")
-
-                    if not result_response['status']:
-                        return failure_response(message=result_response['message_error'],
-                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
-                    data['result'] = result_response['result']
-                case 9:
-                    service_name = _stdout.read().decode(encoding="utf-8")
-                    result_response = start_stop_sql_server_windows(
-                        service_name, ssh_client, 'stop', 'STOPPED', "Error al detener el servicio. Tiempo limite de espera excedido.")
-
-                    if not result_response['status']:
-                        return failure_response(message=result_response['message_error'],
-                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
-                    data['result'] = result_response['result']
-                case 10:
-                    service_name = _stdout.read().decode(encoding="utf-8")
-                    result_response_stop = start_stop_sql_server_windows(
-                        service_name, ssh_client, 'stop', 'STOPPED', "Error al detener el servicio. Tiempo limite de espera excedido.")
-                    if not result_response_stop['status']:
-                        return failure_response(message=result_response_stop['message_error'],
-                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
-
-                    result_response_start = start_stop_sql_server_windows(
-                        service_name, ssh_client, 'start', 'RUNNING', "Error al iniciar el servicio. Tiempo limite de espera excedido.")
-                    if not result_response_start['status']:
-                        return failure_response(message=result_response_start['message_error'],
-                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
-
-                    data['result'] = "Servicio reiniciado correctamente"
-                case 11:
-                    data['result'] = get_status_windows(
-                        _stdout.read().decode('utf-8'))
-                case 12:
-                    result_response = check_start_stop_windows_service(
-                        'GenetecServer', ssh_client, 'start', 'RUNNING', 'Error al iniciar el servicio. Tiempo limite de espera excedido.')
-                    if not result_response['status']:
-                        return failure_response(message=result_response_start['message_error'],
-                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
-                    data['result'] = result_response['result']
-                case 13:
-                    result_response = check_start_stop_windows_service(
-                        'GenetecServer', ssh_client, 'stop', 'STOPPED', 'Error al detener el servicio. Tiempo limite de espera excedido.')
-                    if not result_response['status']:
-                        return failure_response(message=result_response_start['message_error'],
-                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
-                    data['result'] = result_response['result']
-                case 14:
-                    result_response_stop = start_stop_windows_service(
-                        "GenetecServer", ssh_client, 'stop', 'STOPPED', "Error al detener el servicio. Tiempo limite de espera excedido.")
-                    if not result_response_stop['status']:
-                        return failure_response(message=result_response_stop['message_error'],
-                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
-
-                    result_response_start = start_stop_windows_service(
-                        "GenetecServer", ssh_client, 'start', 'RUNNING', "Error al iniciar el servicio. Tiempo limite de espera excedido.")
-                    if not result_response_start['status']:
-                        return failure_response(message=result_response_start['message_error'],
-                                                recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
-
-                    data['result'] = "Servicio reiniciado correctamente"
-            return success_response(data=data)
-        else:
-
-            error_msg = " ".join(error_lines)
-            if "service could not be found" in error_msg:
-                return failure_response(message=f"Servicio no encontrado",
-                                        recommendation="revisar que el servidor tenga disponible el servicio")
-            print(f"Problema de conexión al servidor. Detalles: {error_msg}")
-            return failure_response(message=f"Problema de conexión al servidor",
-                                    recommendation="revisar que tenga conexión estable ala dirección del servidor")
-
-    except BadHostKeyException as e:
-
-        error_msg = f"Error de clave de host"
-        print(f"Error de clave de host: {str(e)}")
-        return failure_response(message=error_msg)
-
-    except AuthenticationException as e:
-
-        error_msg = "Error de autenticación"
-        print(f"Error de autenticación: {str(e)}")
-        return failure_response(message=error_msg,
-                                recommendation="revisar que estén correctas las credenciales ssh")
-
-    except SSHException as e:
-
-        error_msg = "Problema de conexión por SSH"
-        print(f"Problema de conexión por SSH: {str(e)}")
-        return failure_response(message=error_msg)
-
-    except socket.error as e:
-
-        error_msg = "Error de conexión de socket"
-        print(f"Error de conexión de socket: {str(e)}")
-        return failure_response(message=error_msg)
-
-    finally:
-
-        ssh_client.close()
+            ssh_client.close()
 
 
 def get_credentials_for_proxy(ip):
