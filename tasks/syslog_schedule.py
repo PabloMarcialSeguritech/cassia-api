@@ -31,7 +31,6 @@ async def update_syslog_data():
                 FROM SystemEvents 
                 WHERE in_cassia IS NULL
                 ORDER BY ID
-                LIMIT 1
             """)
 
         # Convertir los resultados a un DataFrame
