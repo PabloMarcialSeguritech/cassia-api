@@ -95,3 +95,42 @@ class DB_C5():
     Session = sessionmaker(bind=engine)
 
     Base = declarative_base()
+
+
+class DB_Syslog():  # Syslog DB connection class
+    DB_SYSLOG_NAME = settings.db_syslog_name
+    DB_SYSLOG_USER = settings.db_syslog_user
+    DB_SYSLOG_PASS = settings.db_syslog_pass
+    DB_SYSLOG_HOST = settings.db_syslog_host
+    DB_SYSLOG_PORT = settings.db_syslog_port
+
+    server = None
+    connection_string = ""
+
+    engine = None
+
+    Session = None
+
+    Base = declarative_base()
+
+    def __init__(self) -> None:
+
+        if settings.env == "dev":
+            self.server = SSHTunnelForwarder((settings.ssh_host, int(settings.ssh_port)),
+                                             ssh_password=settings.ssh_pass,
+                                             ssh_username=settings.ssh_user,
+                                             remote_bind_address=(settings.ssh_remote_bind_address, int(
+                                                 settings.ssh_remote_bind_port)),
+                                             local_bind_address=("127.0.0.1", 3306))
+            self.server.start()
+            self.connection_string = f"mysql+mysqldb://{self.DB_SYSLOG_USER}:{self.DB_SYSLOG_PASS}@{self.DB_SYSLOG_HOST}:{self.server.local_bind_port}/{self.DB_SYSLOG_NAME}"
+        else:
+            self.connection_string = f"mysql+mysqldb://{self.DB_SYSLOG_USER}:{self.DB_SYSLOG_PASS}@{self.DB_SYSLOG_HOST}:{self.DB_SYSLOG_PORT}/{self.DB_SYSLOG_NAME}"
+
+        self.engine = create_engine(
+            self.connection_string, echo=False, poolclass=NullPool, pool_recycle=1800)
+        self.Session = sessionmaker(bind=self.engine)
+
+    def stop(self) -> None:
+        if settings.env == "dev":
+            self.server.stop()
