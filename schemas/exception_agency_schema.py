@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import datetime
 
 
-class ExceptionAgencyBase(BaseModel):
+class CassiaExceptionAgencyBase(BaseModel):
     name: str = Field(
         ...,
         example="CFE",
@@ -12,7 +12,7 @@ class ExceptionAgencyBase(BaseModel):
     )
 
 
-class ExceptionAgency(ExceptionAgencyBase):
+class CassiaExceptionAgency(CassiaExceptionAgencyBase):
     exception_agency_id: int = Field(
         ...,
         example="5"
