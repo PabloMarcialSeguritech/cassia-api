@@ -4,32 +4,26 @@ from typing import Optional
 from datetime import datetime
 from utils.db import DB_Zabbix
 from models.problem_record import ProblemRecord
-from models.exception_agency import ExceptionAgency
+from models.cassia_exception_agency import CassiaExceptionAgency
 from fastapi.exceptions import HTTPException
 from fastapi import status
 
 
-class ExceptionsBase(BaseModel):
-    problemid: int = Field(
-        ...,
-        example="1"
-    )
+class CassiaExceptionsBase(BaseModel):
     exception_agency_id: int = Field(
         ...,
         example="2"
     )
-    description: str = Field(
-        ...,
-        example="Exception",
-        min_length=1
-    )
+    description: Optional[str]
+    hostid: str = Field(..., example="1")
+    created_at: datetime = Field(..., example="2024-01-31 18:08:47")
 
     @validator("exception_agency_id", pre=True)
     def check_exception_agency_relation(cls, v):
         db_zabbix = DB_Zabbix()
         session = db_zabbix.Session()
-        pr = session.query(ExceptionAgency).filter(
-            ExceptionAgency.exception_agency_id == v).first()
+        pr = session.query(CassiaExceptionAgency).filter(
+            CassiaExceptionAgency.exception_agency_id == v).first()
         session.close()
         db_zabbix.stop()
         if not pr:
@@ -40,11 +34,12 @@ class ExceptionsBase(BaseModel):
         return v
 
 
-class Exceptions(ExceptionsBase):
+class CassiaExceptions(CassiaExceptionsBase):
     exception_id: int = Field(
         ...,
         example="1"
     )
-    user_id: int = Field(..., example="1")
-    created_at: Optional[datetime] = None
-    deleted_at: Optional[datetime] = None
+
+
+class CassiaExceptionsClose(BaseModel):
+    closed_at: datetime = Field(..., example="2024-01-31 18:08:47")

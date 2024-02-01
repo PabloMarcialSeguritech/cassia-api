@@ -588,7 +588,7 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                             service_name, ssh_client, 'stop', 'STOPPED', "Error al detener el servicio. Tiempo limite de espera excedido.")
                         if not result_response_stop['status']:
                             log['result'] = 0
-                            log['comments'] = result_response['message_error']
+                            log['comments'] = result_response_stop['message_error']
                             action_log = CassiaActionLog(**log)
                             session.add(action_log)
                             session.commit()
@@ -599,7 +599,7 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                             service_name, ssh_client, 'start', 'RUNNING', "Error al iniciar el servicio. Tiempo limite de espera excedido.")
                         if not result_response_start['status']:
                             log['result'] = 0
-                            log['comments'] = result_response['message_error']
+                            log['comments'] = result_response_start['message_error']
                             action_log = CassiaActionLog(**log)
                             session.add(action_log)
                             session.commit()
@@ -639,7 +639,7 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                             "GenetecServer", ssh_client, 'stop', 'STOPPED', "Error al detener el servicio. Tiempo limite de espera excedido.")
                         if not result_response_stop['status']:
                             log['result'] = 0
-                            log['comments'] = result_response['message_error']
+                            log['comments'] = result_response_stop['message_error']
                             action_log = CassiaActionLog(**log)
                             session.add(action_log)
                             session.commit()
@@ -650,7 +650,7 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                             "GenetecServer", ssh_client, 'start', 'RUNNING', "Error al iniciar el servicio. Tiempo limite de espera excedido.")
                         if not result_response_start['status']:
                             log['result'] = 0
-                            log['comments'] = result_response['message_error']
+                            log['comments'] = result_response_start['message_error']
                             action_log = CassiaActionLog(**log)
                             session.add(action_log)
                             session.commit()

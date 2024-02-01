@@ -5,8 +5,8 @@ from sqlalchemy import text
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import HTTPException
-from models.exception_agency import ExceptionAgency
-from models.exceptions import Exceptions as ExceptionModel
+from models.cassia_exception_agency import CassiaExceptionAgency
+from models.cassia_exceptions import CassiaExceptions
 from models.problem_record import ProblemRecord
 from models.problem_records_history import ProblemRecordHistory
 from models.cassia_tickets import CassiaTicket as CassiaTicketModel
@@ -185,7 +185,7 @@ def get_exception_agencies():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     statement = text(
-        f"SELECT * FROM exception_agencies where deleted_at IS NULL")
+        f"SELECT * FROM cassia_exception_agencies where deleted_at IS NULL")
     rows = session.execute(statement)
     session.close()
     rows = pd.DataFrame(rows).replace(np.nan, "")
@@ -194,9 +194,9 @@ def get_exception_agencies():
     return success_response(data=rows.to_dict(orient="records"))
 
 
-def create_exception_agency(exception_agency: exception_agency_schema.ExceptionAgencyBase):
+def create_exception_agency(exception_agency: exception_agency_schema.CassiaExceptionAgencyBase):
     db_zabbix = DB_Zabbix()
-    exception_agency_new = ExceptionAgency(
+    exception_agency_new = CassiaExceptionAgency(
         name=exception_agency.name,
         created_at=datetime.now(),
         updated_at=datetime.now()
@@ -219,11 +219,11 @@ def create_exception_agency(exception_agency: exception_agency_schema.ExceptionA
                             status_code=status.HTTP_201_CREATED)
 
 
-def update_exception_agency(exception_agency_id: int, exception_agency: exception_agency_schema.ExceptionAgencyBase):
+def update_exception_agency(exception_agency_id: int, exception_agency: exception_agency_schema.CassiaExceptionAgencyBase):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-    exception_agency_search = session.query(ExceptionAgency).filter(
-        ExceptionAgency.exception_agency_id == exception_agency_id).first()
+    exception_agency_search = session.query(CassiaExceptionAgency).filter(
+        CassiaExceptionAgency.exception_agency_id == exception_agency_id).first()
     if not exception_agency_search:
         session.close()
         raise HTTPException(
@@ -249,8 +249,8 @@ def update_exception_agency(exception_agency_id: int, exception_agency: exceptio
 def delete_exception_agency(exception_agency_id: int):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-    exception_agency_search = session.query(ExceptionAgency).filter(
-        ExceptionAgency.exception_agency_id == exception_agency_id).first()
+    exception_agency_search = session.query(CassiaExceptionAgency).filter(
+        CassiaExceptionAgency.exception_agency_id == exception_agency_id).first()
     if not exception_agency_search:
         session.close()
         raise HTTPException(
@@ -268,61 +268,56 @@ def delete_exception_agency(exception_agency_id: int):
 """ Exceptions """
 
 
-def get_exceptions():
-    db_zabbix = DB_Zabbix()
-    session = db_zabbix.Session()
-    try:
-        rows = session.query(ExceptionModel).filter(
-            ExceptionModel.deleted_at == None).all()
-    finally:
-        session.close()
-        db_zabbix.stop()
-
+async def get_exceptions():
+    with DB_Zabbix().Session() as session:
+        try:
+            rows = session.query(CassiaExceptions).all()
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Internal error : {e}"
+            )
     return success_response(data=rows)
 
 
-def create_exception(exception: exception_schema.ExceptionsBase, current_user_id: int):
-    db_zabbix = DB_Zabbix()
-    session = db_zabbix.Session()
-    problem_record = session.query(ProblemRecord).filter(
-        ProblemRecord.problemid == exception.problemid and exception.deleted_at is None).first()
-    if not problem_record:
-        session.close()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Problem Record not exists",
-        )
-    if problem_record.estatus == "Excepcion":
-        session.close()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Exception already exists",
-        )
-    new_exception = ExceptionModel(
-        problemrecord_id=problem_record.problemrecord_id,
-        exception_agency_id=exception.exception_agency_id,
-        description=exception.description,
-        created_at=datetime.now(),
-        user_id=current_user_id
-    )
-    session.add(new_exception)
-    problem_record.estatus = "Excepcion"
-    problem_record.closed_at = datetime.now()
-    session.commit()
-    session.refresh(problem_record)
-    session.refresh(new_exception)
-    session.close()
-    db_zabbix.stop()
-    respose = {
-        "exception": new_exception,
-        "problem_record": problem_record
-    }
+async def create_exception(exception: exception_schema.CassiaExceptionsBase, current_user_session):
+    with DB_Zabbix().Session() as session:
+        query = text("SELECT hostid from hosts where hostid = :hostid")
+        host = session.execute(query, {'hostid': exception.hostid})
+        if host.fetchone() is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"El host con el id proporcionado no existe"
+            )
+        exception_dict = exception.dict()
+        exception_dict['session_id'] = current_user_session
+        exception_dict['closed_at'] = None
+        new_exception = CassiaExceptions(**exception_dict)
+        session.add(new_exception)
+        session.commit()
+        session.refresh(new_exception)
     return success_response(message="Excepcion creada correctamente",
-                            data=respose,
+                            data=new_exception,
                             status_code=status.HTTP_201_CREATED)
 
 
-def update_exception(exception_agency_id: int, exception_agency: exception_agency_schema.ExceptionAgencyBase):
+async def close_exception(exception_id, exception_data, current_user_session):
+    with DB_Zabbix().Session() as session:
+        exception = session.query(CassiaExceptions).filter(
+            CassiaExceptions.exception_id == exception_id).first()
+        if not exception:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"La Excepcion con el id proporcionado no existe"
+            )
+        exception.closed_at = exception_data.closed_at
+        session.commit()
+        session.refresh(exception)
+    return success_response(message="Excepcion cerrada correctamente",
+                            data=exception,
+                            status_code=status.HTTP_200_OK)
+
+""" def update_exception(exception_agency_id: int, exception_agency: exception_agency_schema.ExceptionAgencyBase):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     exception_agency_search = session.query(ExceptionAgency).filter(
@@ -367,7 +362,7 @@ def delete_exception(exception_agency_id: int):
     db_zabbix.stop()
     return success_response(message="Exception Agency Deleted")
 
-
+ """
 """ Change status """
 
 
@@ -516,7 +511,6 @@ async def download_file(message_id: str):
 def path_leaf(path):
     head, tail = ntpath.split(path)
     return tail or ntpath.basename(head)
-
 
 
 async def register_ack(eventid, message, current_session, close):
@@ -701,4 +695,3 @@ async def delete_ticket(ticket_id):
     session.close()
 
     return success_response(message="El ticket fue eliminado correctamente")
-

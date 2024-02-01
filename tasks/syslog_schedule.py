@@ -12,11 +12,9 @@ syslog_schedule = Grouper()
 SETTINGS = Settings()
 syslog = SETTINGS.cassia_syslog
 
-
 @syslog_schedule.cond('syslog')
 def is_syslog():
     return syslog
-
 
 @syslog_schedule.task(("every 30 seconds & syslog"), execution="thread")
 async def update_syslog_data():
@@ -24,23 +22,29 @@ async def update_syslog_data():
     session_syslog = db_syslog.Session()
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
+
     try:
-        # Consulta para seleccionar registros sin procesar
+        # Consulta para seleccionar registros sin procesar en bloques de 1000
         statement = text("""
                 SELECT ID, DeviceReportedTime, deviceIP, FromHost, Message, SysLogTag 
                 FROM SystemEvents 
                 WHERE in_cassia IS NULL
                 ORDER BY ID
+                LIMIT :batch_size OFFSET :offset
             """)
-
-        # Convertir los resultados a un DataFrame
-        syslog_records = pd.read_sql_query(statement, session_syslog.bind)
 
         # Procesar los registros en lotes
         batch_size = 1000
-        for i in range(0, len(syslog_records), batch_size):
-            batch = syslog_records[i:i + batch_size]
-            for index, record in batch.iterrows():
+        offset = 0
+        while True:
+            # Aplicar la consulta con el tamaño de lote y el offset actual
+            syslog_records = pd.DataFrame(session_syslog.execute(statement, {'batch_size': batch_size, 'offset': offset}))
+
+            # Salir del bucle si no hay más registros
+            if syslog_records.empty:
+                break
+
+            for index, record in syslog_records.iterrows():
                 try:
                     # Actualizar la base de datos de Zabbix
                     event_record = CassiaEventModel(
@@ -69,6 +73,9 @@ async def update_syslog_data():
                     session.rollback()
                     session_syslog.rollback()
                     print(f"Error: {e}")
+
+            # Incrementar el offset para la siguiente iteración
+            offset += batch_size
 
     except Exception as e:
         # Manejar errores según sea necesario

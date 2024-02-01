@@ -129,15 +129,23 @@ class Settings(BaseSettings):
     except:
         pass
 
+    cassia_syslog: bool = False
     try:
         cassia_syslog: bool = True if int(
             os.getenv('SYSLOG')) == 1 else False
 
     except:
         pass
-
-    db_syslog_name: str = os.getenv("DB_SYSLOG_NAME")
-    db_syslog_user: str = os.getenv('DB_SYSLOG_USER')
-    db_syslog_pass: str = os.getenv('DB_SYSLOG_PASS')
-    db_syslog_host: str = os.getenv('DB_SYSLOG_HOST')
-    db_syslog_port: str = os.getenv('DB_SYSLOG_PORT')
+    db_syslog_name: str = ""
+    db_syslog_user: str = ""
+    db_syslog_pass: str = ""
+    db_syslog_host: str = ""
+    db_syslog_port: str = ""
+    try:
+        db_syslog_name: str = os.getenv("DB_SYSLOG_NAME")
+        db_syslog_user: str = os.getenv('DB_SYSLOG_USER')
+        db_syslog_pass: str = os.getenv('DB_SYSLOG_PASS')
+        db_syslog_host: str = os.getenv('DB_SYSLOG_HOST')
+        db_syslog_port: str = os.getenv('DB_SYSLOG_PORT')
+    except:
+        pass

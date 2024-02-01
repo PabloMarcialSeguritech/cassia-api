@@ -3,8 +3,8 @@ from sqlalchemy import Column, Integer, String, DateTime
 from datetime import datetime
 
 
-class ExceptionAgency(DB_Zabbix.Base):
-    __tablename__ = "exception_agencies"
+class CassiaExceptionAgency(DB_Zabbix.Base):
+    __tablename__ = "cassia_exception_agencies"
     exception_agency_id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(length=120), nullable=False)
     created_at = Column(DateTime, default=datetime.now)

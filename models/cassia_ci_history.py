@@ -20,10 +20,10 @@ class CassiaCIHistory(DB_Zabbix.Base):
     software_version = Column(
         String(length=120), unique=False, nullable=False)
     responsible_name = Column(
-        String(length=120), unique=False, nullable=False)
+        String(length=120), unique=False, nullable=True)
     auth_name = Column(
         String(length=120), unique=False, nullable=False)
-    created_at = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, default=datetime.now)
     closed_at = Column(DateTime, default=None, nullable=True)
     deleted_at = Column(DateTime, default=None, nullable=True)

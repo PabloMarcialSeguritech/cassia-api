@@ -30,11 +30,11 @@ class CiHistoryBase(BaseModel):
                                   example="22.02")
     responsible_name: str = Field(..., max_length=120,
                                   example="Victor Hernández")
-    auth_name: str = Field(..., max_length=120,
-                           example="Daniel Pérez")
-    created_at: datetime
+    """ auth_name: str = Field(..., max_length=120,
+                           example="Daniel Pérez") """
+    """ created_at: datetime """
     closed_at: Optional[datetime]
-    status: Optional[Literal['Cerrada', 'Cancelada']]
+    status: Optional[Literal['No iniciado', 'Cerrada', 'Cancelada']]
 
 
 class CiHistory(CiHistoryBase):

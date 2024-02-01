@@ -38,7 +38,6 @@ async def get_problems_filter(eventid: str = "34975081", message: str = Form(max
     return await alerts_service.register_ack(eventid, message, current_user_session, close)
 
 
-
 @alerts_router.get(
     '/problems/acknowledge/{eventid}',
     tags=["Zabbix - Problems(Alerts) - Acknowledge"],
@@ -115,7 +114,7 @@ def get_agencies():
     summary="Create an Exception Agency",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def create_agency(exception_agency:  exception_agency_schemas.ExceptionAgencyBase = Body(...)):
+def create_agency(exception_agency:  exception_agency_schemas.CassiaExceptionAgencyBase = Body(...)):
     return alerts_service.create_exception_agency(exception_agency=exception_agency)
 
 
@@ -126,7 +125,7 @@ def create_agency(exception_agency:  exception_agency_schemas.ExceptionAgencyBas
     summary="Update an Exception Agency with the id given",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def create_agency(exception_agency_id, exception_agency:  exception_agency_schemas.ExceptionAgencyBase = Body(...)):
+def create_agency(exception_agency_id, exception_agency:  exception_agency_schemas.CassiaExceptionAgencyBase = Body(...)):
     return alerts_service.update_exception_agency(exception_agency_id=exception_agency_id, exception_agency=exception_agency)
 
 
@@ -151,8 +150,8 @@ def create_agency(exception_agency_id):
     summary="Get all Exceptions",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def get_agencies():
-    return alerts_service.get_exceptions()
+async def get_agencies():
+    return await alerts_service.get_exceptions()
 
 
 @alerts_router.post(
@@ -162,9 +161,19 @@ def get_agencies():
     summary="Create an Exception",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def create_agency(exception: exception_schema.ExceptionsBase = Body(...), current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+async def create_exception(exception: exception_schema.CassiaExceptionsBase = Body(...), current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+    return await alerts_service.create_exception(exception=exception, current_user_session=current_user_session.session_id.hex)
 
-    return alerts_service.create_exception(exception=exception, current_user_id=current_user_session.user_id)
+
+@alerts_router.post(
+    '/exceptions/close/{exception_id}',
+    tags=["Zabbix - Problems(Alerts) - Exceptions"],
+    status_code=status.HTTP_200_OK,
+    summary="Close an Exception",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def close_exception(exception_id, exception_data: exception_schema.CassiaExceptionsClose = Body(...), current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+    return await alerts_service.close_exception(exception_id=exception_id, exception_data=exception_data, current_user_session=current_user_session.session_id.hex)
 
 
 @alerts_router.post(
