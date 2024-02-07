@@ -346,29 +346,21 @@ def decrypt(encriptedText, key):
 
 
 def get_info_actions(ip):
-    response = None
+    response = dict()
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     statement = text(f"call sp_GetInfoAccion('{ip}')")
+    print("a")
     aps = session.execute(statement)
+    print("b")
     data = pd.DataFrame(aps).replace(np.nan, "")
-    action_ping_by_default = {
-        "hostid": None,
-        "host": "",
-        "ip": ip,
-        "interfaceid": None,
-        "name": "Ping",
-        "protocol": "ssh",
-        "action_id": -1
-    }
-    response = {"actions": [action_ping_by_default]}
-    # Eliminar la columna 'comand'
+    response['actions'] = []
     if 'comand' in data.columns:
         data = data.drop(columns=['comand'])
     session.close()
 
     if not data.empty:
-        response['actions'].extend(data.to_dict(orient='records'))
+        response['actions'] = data.to_dict(orient='records')
 
     return success_response(data=response)
 
@@ -384,7 +376,15 @@ def get_credentials(ip):
 
 
 async def prepare_action(ip, id_action, user_session):
-    if id_action == -1:
+    with DB_Zabbix().Session() as session:
+        ping_id = session.query(CassiaConfig).filter(
+            CassiaConfig.name == 'ping_id').first()
+        if ping_id:
+            ping_id = int(ping_id.value)
+        else:
+            ping_id = 0
+
+    if id_action == ping_id:
         response = await get_configuration()
         try:
             # Utiliza el método json() de tu objeto JSONResponse
@@ -403,11 +403,24 @@ async def prepare_action(ip, id_action, user_session):
                         else:
                             dict_credentials_list = get_credentials(ip)
                         if dict_credentials_list is None or not dict_credentials_list:
+                            log = {'action_id': ping_id,
+                                   'clock': datetime.now(pytz.timezone('America/Mexico_City')),
+                                   'session_id': user_session.session_id.hex,
+                                   'interface_id': None,
+                                   'result': 0,
+                                   'comments': f"Credenciales no encontradas para la ip {ip}"}
+                            with DB_Zabbix().Session() as session:
+                                log_register = CassiaActionLog(
+                                    **log
+                                )
+                                session.add(log_register)
+                                session.commit()
                             return failure_response(message="Credenciales no encontradas")
                         else:
                             dict_credentials = dict_credentials_list[0]
                             return run_action(dict_credentials['ip'], 'ping -c 4 ' + ip,
-                                              dict_credentials_list)
+                                              dict_credentials_list, 0, ping_id, user_session)
+
         except json.JSONDecodeError:
             print("Error decoding JSON response")
 
@@ -421,6 +434,18 @@ async def prepare_action(ip, id_action, user_session):
             return failure_response(message="ID acción necesaria")
         dict_credentials_list = get_credentials(ip)
         if dict_credentials_list is None or not dict_credentials_list:
+            with DB_Zabbix().Session() as session:
+                log = {'action_id': id_action,
+                       'clock': datetime.now(pytz.timezone('America/Mexico_City')),
+                       'session_id': user_session.session_id.hex,
+                       'interface_id': None,
+                       'result': 0,
+                       'comments': f"Credenciales no encontradas para la ip {ip}"}
+                log_register = CassiaActionLog(
+                    **log
+                )
+                session.add(log_register)
+                session.commit()
             return failure_response(message="Credenciales no encontradas")
 
         return run_action(ip, action.comand, get_credentials(ip), action.verification_id, action.action_id, user_session)
@@ -433,7 +458,6 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
     ssh_pass = decrypt(dict_credentials['psswrd'], settings.ssh_key_gen)
     ssh_client = SSHClient()
     ssh_client.set_missing_host_key_policy(AutoAddPolicy())
-    print(dict_credentials)
     data = {
         "action": "false",
         "ip": ip
@@ -619,7 +643,7 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                             action_log = CassiaActionLog(**log)
                             session.add(action_log)
                             session.commit()
-                            return failure_response(message=result_response_start['message_error'],
+                            return failure_response(message=result_response['message_error'],
                                                     recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
                         data['result'] = result_response['result']
                     case 13:
@@ -631,7 +655,7 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                             action_log = CassiaActionLog(**log)
                             session.add(action_log)
                             session.commit()
-                            return failure_response(message=result_response_start['message_error'],
+                            return failure_response(message=result_response['message_error'],
                                                     recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
                         data['result'] = result_response['result']
                     case 14:
@@ -663,7 +687,6 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                 session.commit()
                 return success_response(data=data)
             else:
-
                 error_msg = " ".join(error_lines)
                 if "service could not be found" in error_msg:
                     return failure_response(message=f"Servicio no encontrado",
@@ -865,7 +888,7 @@ def start_stop_sql_server_windows(service_name, ssh_client, comand_st, verificat
                 break
             time.sleep(2)
             cont += 1
-            if cont > 15:
+            if cont > 120:
 
                 result_response['status'] = 0
                 result_response['message_error'] = error_message
@@ -914,7 +937,7 @@ def start_stop_windows_service(service_name, ssh_client, comand_st, verification
                 break
             time.sleep(2)
             cont += 1
-            if cont > 15:
+            if cont > 120:
 
                 result_response['status'] = 0
                 result_response['message_error'] = error_message
@@ -961,7 +984,7 @@ def check_start_stop_windows_service(service_name, ssh_client, comand_st, verifi
         time.sleep(2)
         cont += 1
         error_lines = _stderr.readlines()
-        if cont > 15:
+        if cont > 120:
 
             result_response['status'] = 0
             result_response['message_error'] = error_message
