@@ -2,7 +2,7 @@ from utils.settings import Settings
 import pandas as pd
 from utils.db import DB_Zabbix, DB_Prueba
 from sqlalchemy import text
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import HTTPException
 from models.cassia_exception_agency import CassiaExceptionAgency
@@ -27,6 +27,9 @@ import shutil
 import pytz
 import pyzabbix
 from pyzabbix.api import ZabbixAPI
+import tempfile
+import os
+import ntpath
 settings = Settings()
 
 
@@ -98,6 +101,10 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
                                                  'Ack',
                                                  'Ack_message',
                                                  "manual_close"])
+            if not alertas_rfid.empty:
+                alertas_rfid['Time'] = pd.to_datetime(alertas_rfid['Time'])
+                alertas_rfid["Time"] = alertas_rfid['Time'].dt.strftime(
+                    '%d/%m/%Y %H:%M:%S')
 
         else:
             statement = text("call sp_catCity()")
@@ -142,40 +149,180 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
                                                  'Ack',
                                                  'Ack_message',
                                                  "manual_close"])
+            if not alertas_rfid.empty:
+                alertas_rfid['Time'] = pd.to_datetime(alertas_rfid['Time'])
+                alertas_rfid["Time"] = alertas_rfid['Time'].dt.strftime(
+                    '%d/%m/%Y %H:%M:%S')
 
         data = pd.concat([alertas_rfid, data],
                          ignore_index=True).replace(np.nan, "")
+        if not data.empty:
+            now = datetime.now(pytz.timezone('America/Mexico_City'))
+            data['fecha'] = pd.to_datetime(data['Time']).dt.tz_localize(
+                pytz.timezone('America/Mexico_City'))
+            data['diferencia'] = now-data['fecha']
+            data['dias'] = data['diferencia'].dt.days
+            data['horas'] = data['diferencia'].dt.components.hours
+            data['minutos'] = data['diferencia'].dt.components.minutes
+            data = data.drop(columns=['diferencia'])
+            data['diferencia'] = data.apply(
+                lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
 
-    """ statement = text(
-        "SELECT problemid,estatus FROM problem_records where estatus!='Cerrado'")
-    problem_records = db_zabbix.Session().execute(statement)
-    problem_records = pd.DataFrame(problem_records).replace(np.nan, "")
-    if len(problem_records) < 1:
-        problemids = "(0)"
-    else:
-        if len(problem_records) == 1:
-            problemids = f"({problem_records.iloc[0]['problemid']})"
-        else:
-            problemids = problem_records["problemid"].values.tolist()
-            problemids = tuple(problemids)
-    statement = text(
-        f"call sp_verificationProblem('{municipalityId}','{tech_host_type}','{subtype}','{problemids}')")
-    problems = db_zabbix.Session().execute(statement)
-    # call sp_verificationProblem('0','','','(1,2,3,4)');
-    db_zabbix.Session().close()
-    db_zabbix.stop()
-
-    # print(problems)
-    data = pd.DataFrame(problems)
-    data = data.replace(np.nan, "")
-    data["estatus"] = ""
-    for ind in data.index:
-        record = problem_records.loc[problem_records['problemid']
-                                     == data['eventid'][ind]]
-        data['estatus'][ind] = record.iloc[0]['estatus']
- """
     session.close()
     return success_response(data=data.to_dict(orient="records"))
+
+
+def get_problems_filter_report(municipalityId, tech_host_type=0, subtype="", severities=""):
+    with DB_Zabbix().Session() as session:
+        if subtype == "0":
+            subtype = ""
+        rfid_config = session.query(CassiaConfig).filter(
+            CassiaConfig.name == "rfid_id").first()
+        rfid_id = "9"
+        if rfid_config:
+            rfid_id = rfid_config.value
+        if subtype == "376276" or subtype == "375090":
+            subtype = '376276,375090'
+        if tech_host_type == "11":
+            tech_host_type = "11,2"
+        if subtype != "" and tech_host_type == "":
+            tech_host_type = "0"
+        switch_config = session.query(CassiaConfig).filter(
+            CassiaConfig.name == "switch_id").first()
+        switch_id = "12"
+
+        if switch_config:
+            switch_id = switch_config.value
+
+        metric_switch_val = "Interface Bridge-Aggregation_: Bits"
+        metric_switch = session.query(CassiaConfig).filter(
+            CassiaConfig.name == "switch_throughtput").first()
+        if metric_switch:
+            metric_switch_val = metric_switch.value
+        if subtype == metric_switch_val:
+            subtype = ""
+        statement = text(
+            f"call sp_viewProblem('{municipalityId}','{tech_host_type}','{subtype}','{severities}')")
+
+        problems = session.execute(statement)
+        data = pd.DataFrame(problems).replace(np.nan, "")
+        if tech_host_type == rfid_id:
+            if municipalityId == '0':
+                alertas_rfid = session.query(CassiaArchTrafficEvent).filter(
+                    CassiaArchTrafficEvent.closed_at == None,
+                ).all()
+                alertas_rfid = pd.DataFrame([(
+                    r.created_at,
+                    r.severity,
+                    r.hostid,
+                    r.hostname,
+                    r.latitude,
+                    r.longitude,
+                    r.ip,
+                    r.message,
+                    r.status,
+                    r.cassia_arch_traffic_events_id,
+                    '',
+                    '',
+                    0,
+                    '',
+                    0
+                )
+                    for r in alertas_rfid], columns=['Time', 'severity', 'hostid',
+                                                     'Host', 'latitude', 'longitude',
+                                                     'ip',
+                                                     'Problem', 'Estatus',
+                                                     'eventid',
+                                                     'r_eventid',
+                                                     'TimeRecovery',
+                                                     'Ack',
+                                                     'Ack_message',
+                                                     "manual_close"])
+                if not alertas_rfid.empty:
+                    alertas_rfid['Time'] = pd.to_datetime(alertas_rfid['Time'])
+                    alertas_rfid["Time"] = alertas_rfid['Time'].dt.strftime(
+                        '%d/%m/%Y %H:%M:%S')
+
+            else:
+                statement = text("call sp_catCity()")
+                municipios = session.execute(statement)
+                municipios = pd.DataFrame(municipios).replace(np.nan, "")
+
+                municipio = municipios.loc[municipios['groupid'].astype(str) ==
+                                           municipalityId]
+                if not municipio.empty:
+                    municipio = municipio['name'].item()
+                else:
+                    municipio = ''
+
+                alertas_rfid = session.query(CassiaArchTrafficEvent).filter(
+                    CassiaArchTrafficEvent.closed_at == None,
+                    CassiaArchTrafficEvent.municipality == municipio
+                ).all()
+                alertas_rfid = pd.DataFrame([(
+                    r.created_at,
+                    r.severity,
+                    r.hostid,
+                    r.hostname,
+                    r.latitude,
+                    r.longitude,
+                    r.ip,
+                    r.message,
+                    r.status,
+                    r.cassia_arch_traffic_events_id,
+                    '',
+                    '',
+                    0,
+                    '',
+                    0
+                )
+                    for r in alertas_rfid], columns=['Time', 'severity', 'hostid',
+                                                     'Host', 'latitude', 'longitude',
+                                                     'ip',
+                                                     'Problem', 'Estatus',
+                                                     'eventid',
+                                                     'r_eventid',
+                                                     'TimeRecovery',
+                                                     'Ack',
+                                                     'Ack_message',
+                                                     "manual_close"])
+                if not alertas_rfid.empty:
+                    alertas_rfid['Time'] = pd.to_datetime(alertas_rfid['Time'])
+                    alertas_rfid["Time"] = alertas_rfid['Time'].dt.strftime(
+                        '%d/%m/%Y %H:%M:%S')
+
+            data = pd.concat([alertas_rfid, data],
+                             ignore_index=True).replace(np.nan, "")
+            if not data.empty:
+                now = datetime.now(pytz.timezone('America/Mexico_City'))
+                data['fecha'] = pd.to_datetime(data['Time']).dt.tz_localize(
+                    pytz.timezone('America/Mexico_City'))
+                data['diferencia'] = now-data['fecha']
+                data['dias'] = data['diferencia'].dt.days
+                data['horas'] = data['diferencia'].dt.components.hours
+                data['minutos'] = data['diferencia'].dt.components.minutes
+
+                data['diferencia'] = data.apply(
+                    lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp_file:
+                    xlsx_filename = temp_file.name
+                    with pd.ExcelWriter(xlsx_filename, engine="xlsxwriter") as writer:
+                        data = data.sort_values(by='fecha', ascending=False)
+                        data = data.drop(columns=['diferencia', 'fecha'])
+
+                        """ data.rename(
+                            columns={'severity': 'Severidad', 'Time': 'Fecha', 'Problem': 'Incidencia'}) """
+
+                        data.to_excel(
+                            writer, sheet_name='Data', index=False)
+            else:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp_file:
+                    xlsx_filename = temp_file.name
+                    with pd.ExcelWriter(xlsx_filename, engine="xlsxwriter") as writer:
+                        data.to_excel(
+                            writer, sheet_name='Data', index=False)
+
+    return FileResponse(xlsx_filename, headers={"Content-Disposition": "attachment; filename=alertas.xlsx"}, media_type="application/vnd.ms-excel", filename="alertas.xlsx")
 
 
 """ Exception Agencies """

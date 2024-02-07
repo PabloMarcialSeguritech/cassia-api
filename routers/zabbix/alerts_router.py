@@ -12,6 +12,7 @@ from fastapi import Body
 from models.user_model import User
 from models.cassia_user_session import CassiaUserSession
 from fastapi import File, UploadFile, Form
+from fastapi.responses import FileResponse
 from typing import Optional
 alerts_router = APIRouter()
 
@@ -25,6 +26,18 @@ alerts_router = APIRouter()
 )
 def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
     return alerts_service.get_problems_filter(municipalityId, tech_host_type, subtype, severities)
+
+
+@alerts_router.get(
+    '/problems/download/{municipalityId}',
+    tags=["Zabbix - Problems(Alerts)"],
+    status_code=status.HTTP_200_OK,
+    summary="Get problems by municipality ID, device type and technology, and subtype in Excel",
+    response_class=FileResponse,
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
+    return alerts_service.get_problems_filter_report(municipalityId, tech_host_type, subtype, severities)
 
 
 @alerts_router.post(

@@ -436,18 +436,8 @@ and cce.element_id={element_id}
             detail="The CI Element not exists",
         )
     ci_element = ci_element.to_dict(orient='records')[0]
-    query = text(f"""
-select cch.*,cm.comments as authorization_comments from cassia_ci_history cch
-left join cassia_mail cm on cm.cassia_conf_id = cch.conf_id 
-                     where cch.deleted_at is Null and
-                     cch.element_id={element_id}""")
+    query = text(f"""CALL sp_ci_auth_comments('{element_id}')""")
     history = pd.DataFrame(session.execute(query)).replace(np.nan, "")
-    """ history = session.query(CassiaCIHistory).filter(
-        CassiaCIHistory.element_id == element_id,
-        CassiaCIHistory.deleted_at == None
-    ).all() """
-    """ results['folio'] = results['element_id'].apply(
-        lambda x: f"CI-{abreviatura_estado}-{str(x).zfill(5)}") """
     session.close()
     response = ci_element
     history = {'history': history.to_dict(orient='records')}
@@ -457,11 +447,11 @@ left join cassia_mail cm on cm.cassia_conf_id = cch.conf_id
 
 async def get_ci_element_history_detail(history_id):
     with DB_Zabbix().Session() as session:
-        query = text(f"""
-select cch.*,cm.comments as authorization_comments from cassia_ci_history cch
-left join cassia_mail cm on cm.cassia_conf_id = cch.conf_id 
-                     where cch.deleted_at is Null and
-                     cch.conf_id={history_id}""")
+        query = text(f"""select cch.*,cm.comments as request_comments, cm.action_comments as authorization_comments from cassia_ci_history cch
+left join (select cms.mail_id,cms.cassia_conf_id,cms.comments,cms.action_comments from cassia_mail cms where cms.cassia_conf_id={history_id} order by cms.mail_id desc limit 1) 
+cm on cm.cassia_conf_id = cch.conf_id 
+where cch.deleted_at is Null and
+cch.conf_id={history_id}""")
         history = pd.DataFrame(session.execute(query)).replace(np.nan, "")
         if history.empty:
             raise HTTPException(
