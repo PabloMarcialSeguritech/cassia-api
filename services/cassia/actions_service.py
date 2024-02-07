@@ -35,7 +35,8 @@ async def get_actions():
     select ca.action_id,ca.name, count(ia.interface_id) as aplicados,ca.active
 from cassia_action ca
 left join interface_action ia on ca.action_id =ia.action_id
-group by ca.action_id,ca.name ;  
+where ca.is_general=0
+group by ca.action_id,ca.name
     """)
     results = pd.DataFrame(session.execute(query)).replace(np.nan, "")
     session.close()
