@@ -105,6 +105,13 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
                 alertas_rfid['Time'] = pd.to_datetime(alertas_rfid['Time'])
                 alertas_rfid["Time"] = alertas_rfid['Time'].dt.strftime(
                     '%d/%m/%Y %H:%M:%S')
+                if severities != "":
+                    severities = severities.split(',')
+                    severities = [int(severity) for severity in severities]
+                else:
+                    severities = [1, 2, 3, 4, 5]
+                alertas_rfid = alertas_rfid[alertas_rfid['severity'].isin(
+                    severities)]
 
         else:
             statement = text("call sp_catCity()")
@@ -153,20 +160,27 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
                 alertas_rfid['Time'] = pd.to_datetime(alertas_rfid['Time'])
                 alertas_rfid["Time"] = alertas_rfid['Time'].dt.strftime(
                     '%d/%m/%Y %H:%M:%S')
+                if severities != "":
+                    severities = severities.split(',')
+                    severities = [int(severity) for severity in severities]
+                else:
+                    severities = [1, 2, 3, 4, 5]
+                alertas_rfid = alertas_rfid[alertas_rfid['severity'].isin(
+                    severities)]
 
         data = pd.concat([alertas_rfid, data],
                          ignore_index=True).replace(np.nan, "")
-        if not data.empty:
-            now = datetime.now(pytz.timezone('America/Mexico_City'))
-            data['fecha'] = pd.to_datetime(data['Time']).dt.tz_localize(
-                pytz.timezone('America/Mexico_City'))
-            data['diferencia'] = now-data['fecha']
-            data['dias'] = data['diferencia'].dt.days
-            data['horas'] = data['diferencia'].dt.components.hours
-            data['minutos'] = data['diferencia'].dt.components.minutes
-            data = data.drop(columns=['diferencia'])
-            data['diferencia'] = data.apply(
-                lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
+    if not data.empty:
+        now = datetime.now(pytz.timezone('America/Mexico_City'))
+        data['fecha'] = pd.to_datetime(data['Time'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
+            pytz.timezone('America/Mexico_City'))
+        data['diferencia'] = now-data['fecha']
+        data['dias'] = data['diferencia'].dt.days
+        data['horas'] = data['diferencia'].dt.components.hours
+        data['minutos'] = data['diferencia'].dt.components.minutes
+        data = data.drop(columns=['diferencia'])
+        data['diferencia'] = data.apply(
+            lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
 
     session.close()
     return success_response(data=data.to_dict(orient="records"))
@@ -242,6 +256,13 @@ def get_problems_filter_report(municipalityId, tech_host_type=0, subtype="", sev
                     alertas_rfid['Time'] = pd.to_datetime(alertas_rfid['Time'])
                     alertas_rfid["Time"] = alertas_rfid['Time'].dt.strftime(
                         '%d/%m/%Y %H:%M:%S')
+                    if severities != "":
+                        severities = severities.split(',')
+                        severities = [int(severity) for severity in severities]
+                    else:
+                        severities = [1, 2, 3, 4, 5]
+                    alertas_rfid = alertas_rfid[alertas_rfid['severity'].isin(
+                        severities)]
 
             else:
                 statement = text("call sp_catCity()")
@@ -291,36 +312,42 @@ def get_problems_filter_report(municipalityId, tech_host_type=0, subtype="", sev
                     alertas_rfid["Time"] = alertas_rfid['Time'].dt.strftime(
                         '%d/%m/%Y %H:%M:%S')
 
+                    if severities != "":
+                        severities = severities.split(',')
+                        severities = [int(severity) for severity in severities]
+                    else:
+                        severities = [1, 2, 3, 4, 5]
+                    alertas_rfid = alertas_rfid[alertas_rfid['severity'].isin(
+                        severities)]
+
             data = pd.concat([alertas_rfid, data],
                              ignore_index=True).replace(np.nan, "")
-            if not data.empty:
-                now = datetime.now(pytz.timezone('America/Mexico_City'))
-                data['fecha'] = pd.to_datetime(data['Time']).dt.tz_localize(
-                    pytz.timezone('America/Mexico_City'))
-                data['diferencia'] = now-data['fecha']
-                data['dias'] = data['diferencia'].dt.days
-                data['horas'] = data['diferencia'].dt.components.hours
-                data['minutos'] = data['diferencia'].dt.components.minutes
+        if not data.empty:
+            now = datetime.now(pytz.timezone('America/Mexico_City'))
+            print("a")
+            data['fecha'] = pd.to_datetime(data['Time'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
+                pytz.timezone('America/Mexico_City'))
+            print("b")
+            data['diferencia'] = now-data['fecha']
+            data['dias'] = data['diferencia'].dt.days
+            data['horas'] = data['diferencia'].dt.components.hours
+            data['minutos'] = data['diferencia'].dt.components.minutes
 
-                data['diferencia'] = data.apply(
-                    lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp_file:
-                    xlsx_filename = temp_file.name
-                    with pd.ExcelWriter(xlsx_filename, engine="xlsxwriter") as writer:
-                        data = data.sort_values(by='fecha', ascending=False)
-                        data = data.drop(columns=['diferencia', 'fecha'])
-
-                        """ data.rename(
-                            columns={'severity': 'Severidad', 'Time': 'Fecha', 'Problem': 'Incidencia'}) """
-
-                        data.to_excel(
-                            writer, sheet_name='Data', index=False)
-            else:
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp_file:
-                    xlsx_filename = temp_file.name
-                    with pd.ExcelWriter(xlsx_filename, engine="xlsxwriter") as writer:
-                        data.to_excel(
-                            writer, sheet_name='Data', index=False)
+            data['diferencia'] = data.apply(
+                lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp_file:
+                xlsx_filename = temp_file.name
+                with pd.ExcelWriter(xlsx_filename, engine="xlsxwriter") as writer:
+                    data = data.sort_values(by='fecha', ascending=False)
+                    data = data.drop(columns=['diferencia', 'fecha'])
+                    data.to_excel(
+                        writer, sheet_name='Data', index=False)
+        else:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp_file:
+                xlsx_filename = temp_file.name
+                with pd.ExcelWriter(xlsx_filename, engine="xlsxwriter") as writer:
+                    data.to_excel(
+                        writer, sheet_name='Data', index=False)
 
     return FileResponse(xlsx_filename, headers={"Content-Disposition": "attachment; filename=alertas.xlsx"}, media_type="application/vnd.ms-excel", filename="alertas.xlsx")
 

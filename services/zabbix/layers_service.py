@@ -154,8 +154,12 @@ group by c.latitude, c.longitude
     alerts = pd.DataFrame(session_zabbix.execute(
         statement)).replace(np.nan, "")
     if not alerts.empty:
+        print("1")
+        print(data)
+        print(alerts)
         data = pd.merge(data, alerts, how="left", left_on=[
             'latitude', 'longitude'], right_on=['latitude', 'longitude']).replace(np.nan, 0)
+        print("2")
     else:
         data['max_severity'] = [0 for al in range(len(data))]
 
