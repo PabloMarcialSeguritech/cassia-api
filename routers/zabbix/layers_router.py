@@ -45,6 +45,17 @@ def get_hosts_filter(municipalityId: str = "0"):
 
 
 @layers_router.get(
+    '/lpr/{municipalityId}',
+    tags=["Zabbix - Layers"],
+    status_code=status.HTTP_200_OK,
+    summary="Get traffic info",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+def get_hosts_filter(municipalityId: str = "0"):
+    return layers_service.get_lpr(municipalityId)
+
+
+@layers_router.get(
     '/switches_connectivity/{municipality_id}',
     tags=["Zabbix - Layers"],
     status_code=status.HTTP_200_OK,
