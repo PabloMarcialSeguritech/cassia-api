@@ -149,3 +149,10 @@ class Settings(BaseSettings):
         db_syslog_port: str = os.getenv('DB_SYSLOG_PORT')
     except:
         pass
+
+    cassia_traffic_syslog: bool = False
+    try:
+        cassia_traffic_syslog: bool = True if int(
+            os.getenv('TRAFFIC_SYSLOG')) == 1 else False
+    except:
+        pass
