@@ -448,7 +448,8 @@ async def prepare_action(ip, id_action, user_session):
                 session.commit()
             return failure_response(message="Credenciales no encontradas")
 
-        return run_action(ip, action.comand, get_credentials(ip), action.verification_id, action.action_id, user_session)
+        return run_action(ip, action.comand, get_credentials(ip), action.verification_id, action.action_id,
+                          user_session)
 
 
 def run_action(ip, command, dict_credentials_list, verification_id, action_id, user_session):
@@ -469,7 +470,7 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                    'clock': datetime.now(pytz.timezone('America/Mexico_City')),
                    'session_id': user_session.session_id.hex,
                    'interface_id': dict_credentials['interfaceid'] if (
-                       'interfaceid' in dict_credentials) else 1,
+                           'interfaceid' in dict_credentials) else 1,
                    'result': 0,
                    'comments': None}
 
@@ -494,6 +495,7 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
             _stdin, _stdout, _stderr = ssh_client.exec_command(command)
 
             error_lines = _stderr.readlines()
+            out = _stdout
 
             if not error_lines:
                 data['action'] = 'true'
@@ -555,6 +557,15 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                         time.sleep(10)
 
                 match verification_id:
+                    case 0:
+                        output_ping = _stdout.read().decode(encoding="utf-8")
+                        statistics_match = re.search(
+                            r'(\d+ packets transmitted, \d+ received, \d+% packet loss, time \d+ms)',
+                            output_ping)
+                        if statistics_match:
+                            data['action'] = 'false'
+                            log['result'] = 0
+                            log['comments'] = "El ping no tuvo respuesta (100% de pérdida de paquetes)"
                     case 3:
                         data['result'] = get_status(_stdout.read().decode())
                     case 4:
@@ -581,7 +592,8 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                     case 8:
                         service_name = _stdout.read().decode(encoding="utf-8")
                         result_response = start_stop_sql_server_windows(
-                            service_name, ssh_client, 'start', 'RUNNING', "Error al iniciar el servicio. Tiempo limite de espera excedido.")
+                            service_name, ssh_client, 'start', 'RUNNING',
+                            "Error al iniciar el servicio. Tiempo limite de espera excedido.")
 
                         if not result_response['status']:
                             log['result'] = 0
@@ -595,7 +607,8 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                     case 9:
                         service_name = _stdout.read().decode(encoding="utf-8")
                         result_response = start_stop_sql_server_windows(
-                            service_name, ssh_client, 'stop', 'STOPPED', "Error al detener el servicio. Tiempo limite de espera excedido.")
+                            service_name, ssh_client, 'stop', 'STOPPED',
+                            "Error al detener el servicio. Tiempo limite de espera excedido.")
 
                         if not result_response['status']:
                             log['result'] = 0
@@ -609,7 +622,8 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                     case 10:
                         service_name = _stdout.read().decode(encoding="utf-8")
                         result_response_stop = start_stop_sql_server_windows(
-                            service_name, ssh_client, 'stop', 'STOPPED', "Error al detener el servicio. Tiempo limite de espera excedido.")
+                            service_name, ssh_client, 'stop', 'STOPPED',
+                            "Error al detener el servicio. Tiempo limite de espera excedido.")
                         if not result_response_stop['status']:
                             log['result'] = 0
                             log['comments'] = result_response_stop['message_error']
@@ -620,7 +634,8 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                                                     recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
 
                         result_response_start = start_stop_sql_server_windows(
-                            service_name, ssh_client, 'start', 'RUNNING', "Error al iniciar el servicio. Tiempo limite de espera excedido.")
+                            service_name, ssh_client, 'start', 'RUNNING',
+                            "Error al iniciar el servicio. Tiempo limite de espera excedido.")
                         if not result_response_start['status']:
                             log['result'] = 0
                             log['comments'] = result_response_start['message_error']
@@ -636,7 +651,8 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                             _stdout.read().decode('utf-8'))
                     case 12:
                         result_response = check_start_stop_windows_service(
-                            'GenetecServer', ssh_client, 'start', 'RUNNING', 'Error al iniciar el servicio. Tiempo limite de espera excedido.')
+                            'GenetecServer', ssh_client, 'start', 'RUNNING',
+                            'Error al iniciar el servicio. Tiempo limite de espera excedido.')
                         if not result_response['status']:
                             log['result'] = 0
                             log['comments'] = result_response['message_error']
@@ -648,7 +664,8 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                         data['result'] = result_response['result']
                     case 13:
                         result_response = check_start_stop_windows_service(
-                            'GenetecServer', ssh_client, 'stop', 'STOPPED', 'Error al detener el servicio. Tiempo limite de espera excedido.')
+                            'GenetecServer', ssh_client, 'stop', 'STOPPED',
+                            'Error al detener el servicio. Tiempo limite de espera excedido.')
                         if not result_response['status']:
                             log['result'] = 0
                             log['comments'] = result_response['message_error']
@@ -660,7 +677,8 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                         data['result'] = result_response['result']
                     case 14:
                         result_response_stop = start_stop_windows_service(
-                            "GenetecServer", ssh_client, 'stop', 'STOPPED', "Error al detener el servicio. Tiempo limite de espera excedido.")
+                            "GenetecServer", ssh_client, 'stop', 'STOPPED',
+                            "Error al detener el servicio. Tiempo limite de espera excedido.")
                         if not result_response_stop['status']:
                             log['result'] = 0
                             log['comments'] = result_response_stop['message_error']
@@ -671,7 +689,8 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                                                     recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
 
                         result_response_start = start_stop_windows_service(
-                            "GenetecServer", ssh_client, 'start', 'RUNNING', "Error al iniciar el servicio. Tiempo limite de espera excedido.")
+                            "GenetecServer", ssh_client, 'start', 'RUNNING',
+                            "Error al iniciar el servicio. Tiempo limite de espera excedido.")
                         if not result_response_start['status']:
                             log['result'] = 0
                             log['comments'] = result_response_start['message_error']
@@ -682,6 +701,7 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                                                     recommendation="revisar que tenga conexión estable a la dirección del servidor y que el servidor tenga el servicio instalado")
 
                         data['result'] = "Servicio reiniciado correctamente"
+
                 action_log = CassiaActionLog(**log)
                 session.add(action_log)
                 session.commit()
@@ -889,7 +909,6 @@ def start_stop_sql_server_windows(service_name, ssh_client, comand_st, verificat
             time.sleep(2)
             cont += 1
             if cont > 120:
-
                 result_response['status'] = 0
                 result_response['message_error'] = error_message
                 return result_response
@@ -938,7 +957,6 @@ def start_stop_windows_service(service_name, ssh_client, comand_st, verification
             time.sleep(2)
             cont += 1
             if cont > 120:
-
                 result_response['status'] = 0
                 result_response['message_error'] = error_message
                 return result_response
@@ -985,7 +1003,6 @@ def check_start_stop_windows_service(service_name, ssh_client, comand_st, verifi
         cont += 1
         error_lines = _stderr.readlines()
         if cont > 120:
-
             result_response['status'] = 0
             result_response['message_error'] = error_message
             return result_response
