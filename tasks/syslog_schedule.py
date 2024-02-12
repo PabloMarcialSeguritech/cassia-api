@@ -12,9 +12,11 @@ syslog_schedule = Grouper()
 SETTINGS = Settings()
 syslog = SETTINGS.cassia_syslog
 
+
 @syslog_schedule.cond('syslog')
 def is_syslog():
     return syslog
+
 
 @syslog_schedule.task(("every 30 seconds & syslog"), execution="thread")
 async def update_syslog_data():
@@ -28,7 +30,7 @@ async def update_syslog_data():
         offset = 0
 
         while True:
-            # Consulta para seleccionar registros sin procesar en bloques de 100
+            # Consulta para seleccionar registros sin procesar en bloques de 1000
             statement = text("""
                 SELECT ID, DeviceReportedTime, deviceIP, FromHost, Message, SysLogTag 
                 FROM SystemEvents 
@@ -38,7 +40,8 @@ async def update_syslog_data():
             """)
 
             # Aplicar la consulta con el tamaño de lote y el offset actual
-            syslog_records = pd.DataFrame(session_syslog.execute(statement, {'batch_size': batch_size, 'offset': offset}))
+            syslog_records = pd.DataFrame(
+                session_syslog.execute(statement, {'batch_size': batch_size, 'offset': offset}))
 
             # Salir del bucle si no hay más registros
             if syslog_records.empty:
@@ -59,6 +62,7 @@ async def update_syslog_data():
             with session.begin():
                 # Bulk insert para Zabbix
                 session.bulk_save_objects(event_records)
+                session.commit()
 
             # Construir lista de IDs para la actualización en Syslog
             record_ids = syslog_records['ID'].tolist()
@@ -72,6 +76,7 @@ async def update_syslog_data():
                     WHERE ID IN :ids
                 """)
                 session_syslog.execute(update_statement, params={'ids': record_ids})
+                session_syslog.commit()
 
             # Incrementar el offset para la siguiente iteración
             offset += batch_size
