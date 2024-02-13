@@ -39,6 +39,8 @@ async def update_syslog_data():
                     SELECT ID, DeviceReportedTime, deviceIP, FromHost, Message, SysLogTag 
                     FROM SystemEvents 
                     WHERE in_cassia IS NULL
+                    AND SysLogTag="PlateReader(Verbose)"
+                    AND deviceIP IS NOT NULL
                     ORDER BY ID
                     LIMIT :batch_size OFFSET :offset
                 """)
@@ -108,7 +110,7 @@ inner join cassia_lpr_events cle on i.ip=cle.ip
 INNER JOIN hosts_groups hg on h.hostid= hg.hostid 
 inner join cat_municipality cm on hg.groupid =cm.groupid 
 where hi.device_id={lpr_id} and cle.SysLogTag ='PlateReader(Verbose)'
-and devicedReportedTime between DATE_ADD(now(),INTERVAL -1092000 SECOND) and DATE_ADD(now(),INTERVAL -1091970 SECOND)
+and devicedReportedTime between DATE_ADD(now(),INTERVAL -30 SECOND) and now()
 group by h.host ,i.ip,cle.ip, cm.name ,h.hostid 
 order by count(h.hostid) desc""")
         data = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
