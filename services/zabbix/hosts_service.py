@@ -560,7 +560,7 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                     case 0:
                         output_ping = _stdout.read().decode(encoding="utf-8")
                         statistics_match = re.search(
-                            r'(\d+ packets transmitted, \d+ received, \d+% packet loss, time \d+ms)',
+                            r'(\d+ packets transmitted, \d+ received, 100% packet loss, time \d+ms)',
                             output_ping)
                         if statistics_match:
                             data['action'] = 'false'
