@@ -8,6 +8,7 @@ from sqlalchemy import text
 import numpy as np
 from datetime import datetime
 import pytz
+import time
 # Creating the Rocketry app
 syslog_schedule = Grouper()
 
@@ -29,18 +30,25 @@ def is_traffic_syslog():
 
 @syslog_schedule.task(("every 30 seconds & syslog"), execution="thread")
 async def update_syslog_data():
-    with DB_Zabbix().Session() as session, DB_Syslog().Session() as session_syslog:
+    db_zabbix = DB_Zabbix()
+    with db_zabbix.Session() as session, DB_Syslog().Session() as session_syslog:
         try:
-            batch_size = 1000
+            batch_size = 900
             offset = 0
+            update_batch = 3600
+            update_ids_len = 0
+            record_ids = []
+
             while True:
+
                 # Consulta para seleccionar registros sin procesar en bloques de 100
                 statement = text("""
-                    SELECT ID, DeviceReportedTime, deviceIP, FromHost, Message, SysLogTag 
+                    SELECT ID, DeviceReportedTime as devicedReportedTime, deviceIP as ip, FromHost, Message as message, SysLogTag 
                     FROM SystemEvents 
                     WHERE in_cassia IS NULL
                     AND SysLogTag="PlateReader(Verbose)"
                     AND deviceIP IS NOT NULL
+                    AND DeviceReportedTime>'2024-02-15 10:00:00'
                     ORDER BY ID
                     LIMIT :batch_size OFFSET :offset
                 """)
@@ -49,11 +57,11 @@ async def update_syslog_data():
                     statement, {'batch_size': batch_size, 'offset': offset}))
 
                 # Salir del bucle si no hay más registros
-                if syslog_records.empty:
+                if syslog_records.empty and update_ids_len == 0:
                     break
 
                 # Construir lista de registros para bulk insert
-                event_records = [
+                """ event_records = [
                     CassiaEventModel(
                         devicedReportedTime=record['DeviceReportedTime'],
                         ip=record['deviceIP'],
@@ -61,31 +69,41 @@ async def update_syslog_data():
                         message=record['Message'],
                         SysLogTag=record['SysLogTag']
                     ) for _, record in syslog_records.iterrows()
-                ]
+                ] """
 
                 # Iniciar transacción para Zabbix
 
                 # Bulk insert para Zabbix
-                session.bulk_save_objects(event_records)
+
+                data_to_insert = syslog_records.drop(columns=['ID'])
+                data_to_insert = data_to_insert.to_dict(orient='records')
+                session.bulk_insert_mappings(
+                    CassiaEventModel, data_to_insert)
                 session.commit()
 
-                # Construir lista de IDs para la actualización en Syslog
-                record_ids = syslog_records['ID'].tolist()
+                if not syslog_records.empty:
+                    record_ids += syslog_records['ID'].tolist()
+                update_ids_len = len(record_ids)
 
-                # Iniciar transacción para Syslog
+                if update_ids_len >= update_batch or (syslog_records.empty):
+                    # Construir lista de IDs para la actualización en Syslog
 
-                # Actualizar la base de datos de Syslog
-                update_statement = text("""
-                        UPDATE SystemEvents
-                        SET in_cassia=1
-                        WHERE ID IN :ids
-                    """)
+                    # Iniciar transacción para Syslog
 
-                session_syslog.execute(
-                    update_statement, params={'ids': record_ids})
-                session_syslog.commit()
+                    # Actualizar la base de datos de Syslog
+                    update_statement = text("""
+                            UPDATE SystemEvents
+                            SET in_cassia=1
+                            WHERE ID IN :ids
+                        """)
 
-                # Incrementar el offset para la siguiente iteración
+                    session_syslog.execute(
+                        update_statement, params={'ids': record_ids})
+                    session_syslog.commit()
+
+                    update_ids_len = 0
+                    record_ids = []
+                    # Incrementar el offset para la siguiente iteración
                 offset += batch_size
 
         except Exception as e:
@@ -110,7 +128,7 @@ inner join cassia_lpr_events cle on i.ip=cle.ip
 INNER JOIN hosts_groups hg on h.hostid= hg.hostid 
 inner join cat_municipality cm on hg.groupid =cm.groupid 
 where hi.device_id={lpr_id} and cle.SysLogTag ='PlateReader(Verbose)'
-and devicedReportedTime between DATE_ADD(now(),INTERVAL -30 SECOND) and now()
+and devicedReportedTime between DATE_ADD(now(),INTERVAL -300 SECOND) and DATE_ADD(now(),INTERVAL -270 SECOND)
 group by h.host ,i.ip,cle.ip, cm.name ,h.hostid 
 order by count(h.hostid) desc""")
         data = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
