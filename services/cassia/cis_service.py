@@ -13,6 +13,7 @@ from models.cassia_ci_history import CassiaCIHistory
 from models.cassia_ci_document import CassiaCIDocument
 from models.cassia_mail import CassiaMail
 from models.cassia_user_authorizer import UserAuthorizer
+from models.user_model import User
 from datetime import datetime
 from fastapi.responses import FileResponse
 import os
@@ -435,36 +436,29 @@ and cce.element_id={element_id}
             detail="The CI Element not exists",
         )
     ci_element = ci_element.to_dict(orient='records')[0]
-    history = session.query(CassiaCIHistory).filter(
-        CassiaCIHistory.element_id == element_id,
-        CassiaCIHistory.deleted_at == None
-    ).all()
-    """ results['folio'] = results['element_id'].apply(
-        lambda x: f"CI-{abreviatura_estado}-{str(x).zfill(5)}") """
+    query = text(f"""CALL sp_ci_auth_comments('{element_id}')""")
+    history = pd.DataFrame(session.execute(query)).replace(np.nan, "")
     session.close()
-
     response = ci_element
-    history = {'history': history}
+    history = {'history': history.to_dict(orient='records')}
     response.update(history)
     return success_response(data=response)
 
 
 async def get_ci_element_history_detail(history_id):
-    db_zabbix = DB_Zabbix()
-    session = db_zabbix.Session()
-    history = session.query(CassiaCIHistory).filter(
-        CassiaCIHistory.conf_id == history_id,
-        CassiaCIHistory.deleted_at == None
-    ).first()
-    if not history:
-        session.close()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="The CI Element not exists",
-        )
-    session.close()
-
-    return success_response(data=history)
+    with DB_Zabbix().Session() as session:
+        query = text(f"""select cch.*,cm.comments as request_comments, cm.action_comments as authorization_comments from cassia_ci_history cch
+left join (select cms.mail_id,cms.cassia_conf_id,cms.comments,cms.action_comments from cassia_mail cms where cms.cassia_conf_id={history_id} order by cms.mail_id desc limit 1) 
+cm on cm.cassia_conf_id = cch.conf_id 
+where cch.deleted_at is Null and
+cch.conf_id={history_id}""")
+        history = pd.DataFrame(session.execute(query)).replace(np.nan, "")
+        if history.empty:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The CI Element not exists",
+            )
+    return success_response(data=history.to_dict(orient='records')[0])
 
 
 async def create_ci_history_record(ci_element_history_data: cassia_ci_history_schema, current_session):
@@ -488,9 +482,6 @@ async def create_ci_history_record(ci_element_history_data: cassia_ci_history_sc
         hardware_model=ci_element_history_data.hardware_model,
         software_version=ci_element_history_data.software_version,
         responsible_name=ci_element_history_data.responsible_name,
-        auth_name=ci_element_history_data.auth_name,
-        created_at=ci_element_history_data.created_at,
-        closed_at=ci_element_history_data.closed_at,
         session_id=current_session.session_id.hex,
     )
 
@@ -533,8 +524,8 @@ async def update_ci_history_record(ci_element_history_id, ci_element_history_dat
             ci_element_history.software_version = ci_element_history_data.software_version
             ci_element_history.responsible_name = ci_element_history_data.responsible_name
             ci_element_history.auth_name = ci_element_history_data.auth_name
-            ci_element_history.created_at = ci_element_history_data.created_at
-            ci_element_history.closed_at = ci_element_history_data.closed_at
+            """ ci_element_history.created_at = ci_element_history_data.created_at """
+            """ ci_element_history.closed_at = ci_element_history_data.closed_at """
             ci_element_history.session_id = current_session.session_id.hex
         case "Pendiente de autorizacion":
             raise HTTPException(
@@ -547,6 +538,7 @@ async def update_ci_history_record(ci_element_history_id, ci_element_history_dat
                 CassiaCIHistory.conf_id != ci_element_history_id
             ).first()
             if ci_element_history_data.status == "Cerrada":
+                ci_element_history.closed_at = ci_element_history_data.closed_at
                 print("si entra")
                 print(ci_element_histories)
                 if ci_element_histories:
@@ -558,6 +550,7 @@ async def update_ci_history_record(ci_element_history_id, ci_element_history_dat
                     element.status_conf = 'Cerradas'
                     print(element.status_conf)
             if ci_element_history_data.status == "Cancelada":
+                ci_element_history.closed_at = ci_element_history_data.closed_at
                 if ci_element_histories:
                     element.status_conf = 'Sin cerrar'
                 else:
@@ -715,9 +708,12 @@ async def get_authorization_requests(current_session):
     if not authorizer:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="No tienes permiso para autorizar una solicitud")
-    statement = text("""select cm.mail_id,re.name as user_request,cm.request_date,pr.name as process_name,cm.comments  from cassia_mail cm left join
+    statement = text("""select h.host,cce.folio,cce.element_id as ci_id,cch.conf_id as configuration_id, cm.mail_id,re.name as user_request,cm.request_date,pr.name as process_name,cm.comments  from cassia_mail cm left join
 cassia_users re on re.user_id =cm.request_user_id 
 left join cassia_ci_process pr on pr.process_id = cm.process_id 
+left join cassia_ci_history cch on cch.conf_id = cm.cassia_conf_id 
+left join cassia_ci_element cce  on cce.element_id =cch.element_id 
+left join hosts h on h.hostid = cce.host_id 
                      where action IS NULL""")
     requests = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
     if not requests.empty:
@@ -751,8 +747,9 @@ async def authorize_request(cassia_mail_id, ci_authorization_data, current_sessi
             status_code=status.HTTP_400_BAD_REQUEST, detail="El elemento de configuracion no existe")
     if ci_authorization_data.action:
         ci_element_history.status = "Iniciado"
+        ci_element_history.created_at = datetime.now()
     else:
-        ci_element_history.status = 'Cancelada'
+        ci_element_history.status = 'Rechazada'
         ci_element = session.query(CassiaCIElement).filter(
             CassiaCIElement.element_id == ci_element_history.element_id).first()
 
@@ -769,6 +766,10 @@ async def authorize_request(cassia_mail_id, ci_authorization_data, current_sessi
     ci_authorization_get.action = ci_authorization_data.action
     ci_authorization_get.action_comments = ci_authorization_data.action_comments
     ci_authorization_get.autorizer_user_id = current_session.user_id
+    user = session.query(User).filter(
+        User.user_id == current_session.user_id).first()
+    if user:
+        ci_element_history.auth_name = user.name
 
     session.commit()
     session.refresh(ci_authorization_get)

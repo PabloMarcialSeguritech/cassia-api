@@ -12,16 +12,20 @@ from fastapi import HTTPException, status
 
 async def get_host_by_ip(ip: str):
     db_zabbix = DB_Zabbix()
-    session = db_zabbix.Session()
-    query = text(f"""
-    SELECT h.hostid ,h.name,i2.interfaceid  FROM hosts h 
-join interface i2 on i2.hostid =h.hostid 
-    where h.hostid in (select DISTINCT i.hostid from interface i 
-    where ip = '{ip}')   
-    """)
-    results = pd.DataFrame(session.execute(query)).replace(np.nan, "")
-    session.close()
-    return success_response(data=results.to_dict(orient="records"))
+    with db_zabbix.Session() as session:
+        try:
+            query = text(f"""
+            SELECT h.hostid ,h.name,i2.interfaceid  FROM hosts h 
+        join interface i2 on i2.hostid =h.hostid 
+            where h.hostid in (select DISTINCT i.hostid from interface i 
+            where ip = :ip)   
+            """)
+            results = pd.DataFrame(session.execute(
+                query, {"ip": ip})).replace(np.nan, "")
+
+            return success_response(data=results.to_dict(orient="records"))
+        except Exception as e:
+            return success_response(success=False, status_code=500, message=str(e))
 
 
 async def get_actions():
@@ -31,7 +35,8 @@ async def get_actions():
     select ca.action_id,ca.name, count(ia.interface_id) as aplicados,ca.active
 from cassia_action ca
 left join interface_action ia on ca.action_id =ia.action_id
-group by ca.action_id,ca.name ;  
+where ca.is_general=0
+group by ca.action_id,ca.name
     """)
     results = pd.DataFrame(session.execute(query)).replace(np.nan, "")
     session.close()
