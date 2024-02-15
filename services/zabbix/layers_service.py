@@ -208,7 +208,7 @@ def get_lpr(municipality_id):
         if municipality_id != "0":
             statement = text(f"""
 SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude FROM cassia_arch_traffic_lpr c 
-where c.`date` between DATE_ADD(now(),INTERVAL -5 MINUTE) and NOW()  
+where c.`date` between DATE_ADD(now(),INTERVAL -10 MINUTE) and NOW()  
 and c.municipality  LIKE '{municipio['name'].values[0]}'
 group by c.latitude, c.longitude 
 """)
@@ -216,7 +216,7 @@ group by c.latitude, c.longitude
             statement = text("""
 SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude 
 FROM cassia_arch_traffic_lpr c where c.`date` 
-between DATE_ADD(now(),INTERVAL -5 MINUTE) and NOW()  
+between DATE_ADD(now(),INTERVAL -10 MINUTE) and NOW()  
 group by c.latitude, c.longitude
 """)
         lecturas = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
