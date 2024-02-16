@@ -160,7 +160,8 @@ group by c.latitude, c.longitude
             data['Lecturas'] = [0 for i in range(len(data))]
         statement = text(f"""
 SELECT max(c.severity) as max_severity, c.longitude ,c.latitude FROM cassia_arch_traffic_events c 
-where c.closed_at is NULL 
+WHERE c.closed_at is NULL 
+AND tech_id='{rfid_id}'
 group by c.latitude, c.longitude 
 """)
         alerts = pd.DataFrame(session.execute(
@@ -228,6 +229,7 @@ group by c.latitude, c.longitude
         statement = text(f"""
 SELECT max(c.severity) as max_severity, c.longitude ,c.latitude FROM cassia_arch_traffic_events_lpr c 
 where c.closed_at is NULL 
+AND tech_id='{lpr_id}'
 group by c.latitude, c.longitude 
 """)
         alerts = pd.DataFrame(session.execute(

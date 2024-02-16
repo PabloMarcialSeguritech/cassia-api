@@ -33,6 +33,110 @@ import ntpath
 settings = Settings()
 
 
+def process_alerts_local(data, municipalityId, session, tech_id, severities):
+    if municipalityId == '0':
+        alertas = session.query(CassiaArchTrafficEvent).filter(
+            CassiaArchTrafficEvent.closed_at == None,
+            CassiaArchTrafficEvent.tech_id == tech_id
+        ).all()
+        alertas = pd.DataFrame([(
+            r.created_at,
+            r.severity,
+            r.hostid,
+            r.hostname,
+            r.latitude,
+            r.longitude,
+            r.ip,
+            r.message,
+            r.status,
+            r.cassia_arch_traffic_events_id,
+            '',
+            '',
+            0,
+            '',
+            0
+        )
+            for r in alertas], columns=['Time', 'severity', 'hostid',
+                                        'Host', 'latitude', 'longitude',
+                                        'ip',
+                                        'Problem', 'Estatus',
+                                        'eventid',
+                                        'r_eventid',
+                                        'TimeRecovery',
+                                        'Ack',
+                                        'Ack_message',
+                                        "manual_close"])
+        if not alertas.empty:
+            alertas['Time'] = pd.to_datetime(alertas['Time'])
+            alertas["Time"] = alertas['Time'].dt.strftime(
+                '%d/%m/%Y %H:%M:%S')
+            if severities != "":
+                severities = severities.split(',')
+                severities = [int(severity) for severity in severities]
+            else:
+                severities = [1, 2, 3, 4, 5]
+            alertas = alertas[alertas['severity'].isin(
+                severities)]
+
+    else:
+        statement = text("call sp_catCity()")
+        municipios = session.execute(statement)
+        municipios = pd.DataFrame(municipios).replace(np.nan, "")
+        municipio = municipios.loc[municipios['groupid'].astype(str) ==
+                                   municipalityId]
+        if not municipio.empty:
+            municipio = municipio['name'].item()
+        else:
+            municipio = ''
+        alertas = session.query(CassiaArchTrafficEvent).filter(
+            CassiaArchTrafficEvent.closed_at == None,
+            CassiaArchTrafficEvent.municipality == municipio,
+            CassiaArchTrafficEvent.tech_id == tech_id
+        ).all()
+        alertas = pd.DataFrame([(
+            r.created_at,
+            r.severity,
+            r.hostid,
+            r.hostname,
+            r.latitude,
+            r.longitude,
+            r.ip,
+            r.message,
+            r.status,
+            r.cassia_arch_traffic_events_id,
+            '',
+            '',
+            0,
+            '',
+            0
+        )
+            for r in alertas], columns=['Time', 'severity', 'hostid',
+                                        'Host', 'latitude', 'longitude',
+                                        'ip',
+                                        'Problem', 'Estatus',
+                                        'eventid',
+                                        'r_eventid',
+                                        'TimeRecovery',
+                                        'Ack',
+                                        'Ack_message',
+                                        "manual_close"])
+        if not alertas.empty:
+            alertas['Time'] = pd.to_datetime(alertas['Time'])
+            alertas["Time"] = alertas['Time'].dt.strftime(
+                '%d/%m/%Y %H:%M:%S')
+            if severities != "":
+                severities = severities.split(',')
+                severities = [int(severity) for severity in severities]
+            else:
+                severities = [1, 2, 3, 4, 5]
+            alertas = alertas[alertas['severity'].isin(
+                severities)]
+
+    data = pd.concat([alertas, data],
+                     ignore_index=True).replace(np.nan, "")
+    return data
+
+
 def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities=""):
 
     if subtype == "0":
@@ -44,6 +148,11 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
     rfid_id = "9"
     if rfid_config:
         rfid_id = rfid_config.value
+    lpr_config = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "lpr_id").first()
+    lpr_id = "1"
+    if lpr_config:
+        lpr_id = lpr_config.value
     if subtype == "376276" or subtype == "375090":
         subtype = '376276,375090'
     if tech_host_type == "11":
@@ -69,107 +178,13 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
 
     problems = session.execute(statement)
     data = pd.DataFrame(problems).replace(np.nan, "")
+    if tech_host_type == lpr_id:
+        data = process_alerts_local(
+            data, municipalityId, session, lpr_id, severities)
     if tech_host_type == rfid_id:
-        if municipalityId == '0':
-            alertas_rfid = session.query(CassiaArchTrafficEvent).filter(
-                CassiaArchTrafficEvent.closed_at == None,
-            ).all()
-            alertas_rfid = pd.DataFrame([(
-                r.created_at,
-                r.severity,
-                r.hostid,
-                r.hostname,
-                r.latitude,
-                r.longitude,
-                r.ip,
-                r.message,
-                r.status,
-                r.cassia_arch_traffic_events_id,
-                '',
-                '',
-                0,
-                '',
-                0
-            )
-                for r in alertas_rfid], columns=['Time', 'severity', 'hostid',
-                                                 'Host', 'latitude', 'longitude',
-                                                 'ip',
-                                                 'Problem', 'Estatus',
-                                                 'eventid',
-                                                 'r_eventid',
-                                                 'TimeRecovery',
-                                                 'Ack',
-                                                 'Ack_message',
-                                                 "manual_close"])
-            if not alertas_rfid.empty:
-                alertas_rfid['Time'] = pd.to_datetime(alertas_rfid['Time'])
-                alertas_rfid["Time"] = alertas_rfid['Time'].dt.strftime(
-                    '%d/%m/%Y %H:%M:%S')
-                if severities != "":
-                    severities = severities.split(',')
-                    severities = [int(severity) for severity in severities]
-                else:
-                    severities = [1, 2, 3, 4, 5]
-                alertas_rfid = alertas_rfid[alertas_rfid['severity'].isin(
-                    severities)]
+        data = process_alerts_local(
+            data, municipalityId, session, rfid_id, severities)
 
-        else:
-            statement = text("call sp_catCity()")
-            municipios = session.execute(statement)
-            municipios = pd.DataFrame(municipios).replace(np.nan, "")
-
-            municipio = municipios.loc[municipios['groupid'].astype(str) ==
-                                       municipalityId]
-            if not municipio.empty:
-                municipio = municipio['name'].item()
-            else:
-                municipio = ''
-
-            alertas_rfid = session.query(CassiaArchTrafficEvent).filter(
-                CassiaArchTrafficEvent.closed_at == None,
-                CassiaArchTrafficEvent.municipality == municipio
-            ).all()
-            alertas_rfid = pd.DataFrame([(
-                r.created_at,
-                r.severity,
-                r.hostid,
-                r.hostname,
-                r.latitude,
-                r.longitude,
-                r.ip,
-                r.message,
-                r.status,
-                r.cassia_arch_traffic_events_id,
-                '',
-                '',
-                0,
-                '',
-                0
-            )
-                for r in alertas_rfid], columns=['Time', 'severity', 'hostid',
-                                                 'Host', 'latitude', 'longitude',
-                                                 'ip',
-                                                 'Problem', 'Estatus',
-                                                 'eventid',
-                                                 'r_eventid',
-                                                 'TimeRecovery',
-                                                 'Ack',
-                                                 'Ack_message',
-                                                 "manual_close"])
-            if not alertas_rfid.empty:
-                alertas_rfid['Time'] = pd.to_datetime(alertas_rfid['Time'])
-                alertas_rfid["Time"] = alertas_rfid['Time'].dt.strftime(
-                    '%d/%m/%Y %H:%M:%S')
-                if severities != "":
-                    severities = severities.split(',')
-                    severities = [int(severity) for severity in severities]
-                else:
-                    severities = [1, 2, 3, 4, 5]
-                alertas_rfid = alertas_rfid[alertas_rfid['severity'].isin(
-                    severities)]
-
-        data = pd.concat([alertas_rfid, data],
-                         ignore_index=True).replace(np.nan, "")
     if not data.empty:
         now = datetime.now(pytz.timezone('America/Mexico_City'))
         data['fecha'] = pd.to_datetime(data['Time'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
