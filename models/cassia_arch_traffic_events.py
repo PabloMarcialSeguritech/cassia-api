@@ -19,3 +19,4 @@ class CassiaArchTrafficEvent(DB_Zabbix.Base):
     municipality = Column(String(length=100), unique=False, nullable=True)
     hostname = Column(String(length=128), unique=False, nullable=True)
     ip = Column(String(length=50), unique=False, nullable=True)
+    tech_id = Column(String(length=5), unique=False, nullable=True, default=9)
