@@ -180,7 +180,11 @@ async def trigger_alerts():
             """ print(result_copy.to_string()) """
             """ print(result_copy.to_string()) """
             alertas = pd.concat([alertas, result_copy], ignore_index=True)
-
+    rfid_config = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "rfid_id").first()
+    rfid_id = "9"
+    if rfid_config:
+        rfid_id = rfid_config.value
     for ind in alertas.index:
         alerta = session.query(CassiaArchTrafficEvent).filter(
             CassiaArchTrafficEvent.hostid == alertas['hostid'][ind],
@@ -199,6 +203,7 @@ async def trigger_alerts():
                 municipality=alertas['municipality'][ind],
                 ip=alertas['ip'][ind],
                 hostname=alertas['name'][ind],
+                tech_id=rfid_id
 
             )
             session.add(alerta_created)
@@ -218,7 +223,11 @@ async def trigger_alerts():
 async def trigger_alerts_close():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-
+    rfid_config = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "rfid_id").first()
+    rfid_id = "9"
+    if rfid_config:
+        rfid_id = rfid_config.value
     statement = text(f"""
     select date from cassia_arch_traffic order by date desc limit 1 
 """)
@@ -266,6 +275,7 @@ async def trigger_alerts_close():
     abiertos = text(f"""SELECT cassia_arch_traffic_events_id,hostid FROM 
                     cassia_arch_traffic_events
                     where closed_at is NULL
+                    and tech_id='{rfid_id}'
                     """)
     abiertos = pd.DataFrame(session.execute(abiertos))
     """ print(abiertos.to_string()) """

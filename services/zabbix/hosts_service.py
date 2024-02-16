@@ -415,7 +415,8 @@ async def prepare_action(ip, id_action, user_session):
                                 )
                                 session.add(log_register)
                                 session.commit()
-                            return failure_response(message="Credenciales no encontradas")
+                            return failure_response(message="El proxy no esta configurado o las credenciales "
+                                                            "configuradas son incorrectas")
                         else:
                             dict_credentials = dict_credentials_list[0]
                             return run_action(dict_credentials['ip'], 'ping -c 4 ' + ip,
