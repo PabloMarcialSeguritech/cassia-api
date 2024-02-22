@@ -32,6 +32,25 @@ def get_downs_layer(municipality_id, dispId, subtype_id):
     session = db_zabbix.Session()
     aps = session.execute(statement)
     data = pd.DataFrame(aps).replace(np.nan, "")
+
+    downs_origen = text(
+        f"""call sp_diagnostic_problems('{municipality_id}','{dispId}')""")
+    downs_origen = pd.DataFrame(
+        session.execute(downs_origen)).replace(np.nan, "")
+    if not downs_origen.empty:
+        downs_origen['value'] = [1 for i in range(len(downs_origen))]
+        downs_origen['description'] = [
+            'ICMP ping' for i in range(len(downs_origen))]
+        downs_origen['origen'] = [1 for i in range(len(downs_origen))]
+        if not data.empty:
+            data = data[~data['hostid'].isin(downs_origen['hostid'].to_list())]
+    if not data.empty:
+        data['origen'] = [0 for i in range(len(data))]
+    if data.empty and not downs_origen.empty:
+        data = downs_origen
+    if not data.empty and not downs_origen.empty:
+        data = pd.concat([downs_origen, data],
+                         ignore_index=True).replace(np.nan, "")
     response = {"downs": data.to_dict(
         orient="records")
     }
