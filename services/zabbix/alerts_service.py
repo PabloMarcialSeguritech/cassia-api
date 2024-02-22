@@ -196,7 +196,16 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
         data = data.drop(columns=['diferencia'])
         data['diferencia'] = data.apply(
             lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
-
+    downs_origen = text(
+        f"""call sp_diagnostic_problems('{municipalityId}','{tech_host_type}')""")
+    downs_origen = pd.DataFrame(session.execute(downs_origen))
+    if not downs_origen.empty:
+        data['tipo'] = [0 for i in range(len(data))]
+        data.loc[data['hostid'].astype(int).isin(
+            downs_origen['hostid'].tolist()), 'tipo'] = 1
+        aca = data[data['tipo'] == 1]
+        print("aqui")
+        print(aca)
     session.close()
     return success_response(data=data.to_dict(orient="records"))
 
