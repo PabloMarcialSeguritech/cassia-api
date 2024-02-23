@@ -35,7 +35,8 @@ async def process_problems():
         problems = pd.DataFrame(session.execute(statement))
         """ print(problems.to_string()) """
         """ print(problems) """
-        statement2 = text(f"""SELECT * FROM cassia_diagnostic_problems""")
+        statement2 = text(
+            f"""SELECT * FROM cassia_diagnostic_problems where closed_at is null""")
         sync = pd.DataFrame(session.execute(statement2))
         if not sync.empty:
             """  aqui deberia de ir event_id en la izquierda"""
