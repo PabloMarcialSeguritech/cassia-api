@@ -7,12 +7,13 @@ from models.cassia_user_session import CassiaUserSession
 from fastapi.responses import HTMLResponse
 import asyncio
 import paramiko
-import os
+import re
 from utils.settings import Settings
 
-current_path = {}
 settings = Settings()
 hosts_router = APIRouter(prefix="/hosts")
+sessions = {}
+sistema_operativo = {}
 
 
 @hosts_router.get(
@@ -118,7 +119,6 @@ async def get():
 @hosts_router.websocket("/ws/{token}")
 async def websocket_endpoint(websocket: WebSocket, token):
     await websocket.accept()
-    print(token)
     while True:
         receive_task = asyncio.create_task(recv(websocket))
         send_task = asyncio.create_task(send(websocket, 1))
@@ -135,7 +135,6 @@ async def recv(websocket):
 async def send(websocket, index):
     await websocket.send_text(f"sleeping")
     await asyncio.sleep(5)
-    print(index)
     await send(websocket, index + 1)
 
 
@@ -159,66 +158,79 @@ async def run_action(ip: str = Path(description="IP address", example="192.168.1
     return await hosts_service.prepare_action(ip, id_action, current_user_session)
 
 
+# Regex para eliminar secuencias de escape ANSI y secuencias específicas de Windows
+ansi_escape_sequences = re.compile(
+    r'''
+    \x1B  # Escape character (ASCII 27)
+    (?:   # Non-capturing group for either
+      \]0;.*?[\x07] |  # OSC (Operating System Command) sequences (used to set the window title)
+      [@-Z\\-_] |  # Control characters
+      \[[0-?]*[ -/]*[@-~]  # CSI sequences (Control Sequence Introducer)
+    )
+    ''',
+    re.VERBOSE
+)
+
+
+async def send_command(shell, command):
+    shell.send(command + "\r")
+    await asyncio.sleep(0.8)  # Dar tiempo para la ejecución y respuesta
+
+
+async def get_response(shell):
+    # Dar tiempo para que la respuesta esté lista
+    await asyncio.sleep(1)
+    response = ""
+    while shell.recv_ready():
+        response += shell.recv(4096).decode('utf-8')
+        await asyncio.sleep(0.8)  # Recoger todos los datos disponibles
+    # Limpiar la respuesta de secuencias de escape ANSI y otros caracteres no deseados
+    return ansi_escape_sequences.sub('', response).strip()
+
+
 @hosts_router.websocket('/ws_terminal')
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    session_id = f"{websocket.client.host}_{websocket.client.port}"  # Identificador de sesión más seguro
-    current_path[session_id] = "C:\\"  # Establecer la ruta inicial
-    partes = None
-    direccion_ip = ""
-    dict_credentials_list = None
+    session_id = f"{websocket.client.host}_{websocket.client.port}"
+    ssh_host = ""
+    ssh_user = ""
+    ssh_pass = ""
+    global sistema_operativo
+    comando_linux = "uname -a"
+    comando_windows = "ver"
+
     while True:
-        data = await websocket.receive_text()
-        if data.startswith('cd'):
-            # Cambiar directorio
-            path = data.split(' ', 1)[1] if ' ' in data else ''
-            new_path = os.path.join(current_path[session_id], path)
-            new_path = os.path.normpath(new_path)  # Normalizar el path
-            if os.path.isdir(new_path):  # Verificar si el nuevo path es un directorio válido
-                current_path[session_id] = new_path
-                respuesta_ssh = f"Cambiado a {new_path}"
-            else:
-                respuesta_ssh = "Directorio no encontrado."
-        elif data == 'info_sistema':
-            respuesta_ssh = await ejecutar_comando_ssh(session_id, direccion_ip, 'systeminfo', dict_credentials_list)
-        elif data.startswith('hosttarget:'):
-            partes = data.split(":")
+        command = await websocket.receive_text()
+        if command.startswith('hosttarget:'):
+
+            partes = command.split(":")
             # La dirección IP estará en la segunda parte (índice 1)
             direccion_ip = partes[1]
             dict_credentials_list = hosts_service.get_credentials(direccion_ip)
-            respuesta_ssh = await ejecutar_comando_ssh(session_id, direccion_ip, 'systeminfo', dict_credentials_list)
-        else:
-            respuesta_ssh = await ejecutar_comando_ssh(session_id, direccion_ip, data, dict_credentials_list)
+            dict_credentials = dict_credentials_list[0]
+            ssh_user = hosts_service.decrypt(dict_credentials['usr'], settings.ssh_key_gen)
+            ssh_pass = hosts_service.decrypt(dict_credentials['psswrd'], settings.ssh_key_gen)
+            if session_id not in sessions:
+                ssh = paramiko.SSHClient()
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh.connect(direccion_ip, username=ssh_user, password=ssh_pass)
+                shell = ssh.invoke_shell()
+                sessions[session_id] = {"ssh": ssh, "shell": shell}
 
-        prompt = await get_system_prompt(session_id, direccion_ip, dict_credentials_list)
-        # formatted_response = f"user@host:{prompt}> message:{respuesta_ssh}"
-        formatted_response = f"<part>user@host:{prompt}<part>message:{respuesta_ssh}"
-        await websocket.send_text(formatted_response)
+            shell = sessions[session_id]['shell']
 
+            # Limpiar mensaje de bienvenida o cualquier otro output inicial
+            await get_response(shell)
 
-async def get_system_prompt(session_id, direccion_ip, dict_credentials_list):
-    # Ejecutar comandos SSH para obtener el nombre de usuario y hostname
-    # Estos comandos solo necesitan ser ejecutados una vez al inicio de la sesión
-    username = ''
-    # hostname = 'nombre_de_host'
-    #     username = await ejecutar_comando_ssh('echo %USERNAME%')
-    hostname = await ejecutar_comando_ssh(session_id, direccion_ip, 'hostname', dict_credentials_list)
-    # return f"{username}@{hostname}${current_path[session_id]}"
-    return f"{username.strip()}@{hostname.strip()}  {current_path[session_id]}"
+        await send_command(shell, command)
+        response = await get_response(shell)
 
+        # Aquí asumimos que 'response' ya tiene el formato limpio y sin el comando enviado
+        # Enviar respuesta al cliente
+        await websocket.send_text(f"<part>user@host:<part>message:{response}")
 
-async def ejecutar_comando_ssh(session_id, ip, comando, dict_credentials_list):
-    dict_credentials = dict_credentials_list[0]
-    ssh_host = ip
-    ssh_user = hosts_service.decrypt(dict_credentials['usr'], settings.ssh_key_gen)
-    ssh_pass = hosts_service.decrypt(dict_credentials['psswrd'], settings.ssh_key_gen)
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(hostname=ssh_host, username=ssh_user, password=ssh_pass)
-
-    # Ejecutar el comando en el directorio actual
-    comando_completo = f"cd /d {current_path[session_id]} && {comando}" if comando != 'cd' else "cd"
-    stdin, stdout, stderr = ssh.exec_command(comando_completo)
-    resultado = stdout.read().decode().strip() + stderr.read().decode().strip()
-    ssh.close()
-    return resultado
+    # Cuando se cierra el WebSocket, también cerrar la sesión SSH
+    ssh = sessions[session_id]['ssh']
+    if ssh:
+        ssh.close()
+        del sessions[session_id]
