@@ -34,115 +34,93 @@ async def process_problems():
             f"call sp_viewProblem('0','','','6')")
         problems = pd.DataFrame(session.execute(statement))
         """ print(problems.to_string()) """
-        """ print(problems) """
+        problematicos = pd.DataFrame(columns=['eventid'])
+        dependencias = pd.DataFrame(columns=['eventid'])
+
         statement2 = text(f"""SELECT * FROM cassia_diagnostic_problems""")
         sync = pd.DataFrame(session.execute(statement2))
         if not sync.empty:
             """  aqui deberia de ir event_id en la izquierda"""
-            no_sync = problems[~problems['hostid'].isin(sync['eventid'])]
+            no_sync = problems[problems['hostid'].isin(sync['eventid'])]
         else:
             no_sync = problems
         if not no_sync.empty:
             no_sync['synced'] = [0 for i in range(len(no_sync))]
         a_sincronizar = pd.DataFrame(
             columns=['eventid', 'depends_eventid', 'status', 'closed_at'])
-        problematicos = pd.DataFrame(columns=['eventid'])
-        problematicos_final = pd.DataFrame(columns=['eventid'])
-        dependencias = pd.DataFrame(columns=['eventid'])
         """ no_sync = no_sync[no_sync['hostid'] == 19834]
         print(no_sync) """
         repeticiones = 0
-        rep_ind = 0
-        sync_rep = 5
-        len_arr = len(problems)
-        """ print(no_sync) """
         for ind in no_sync.index:
             async with httpx.AsyncClient() as client:
-                """ print("entra") """
                 sinced = no_sync[no_sync['synced'] == 1]
                 """ print(f"Sincronizados: {len(sinced)}") """
                 if no_sync['synced'][ind] == 1:
                     """ print("saltara") """
                     continue
                 """ print("prueba") """
-                response = await client.get(f"{diagnosta_api_url}/analisis/{no_sync['hostid'][ind]}", timeout=120)
+                response = await client.get(f"{diagnosta_api_url}/analisis/{no_sync['hostid'][ind]}", timeout=90)
 
                 response_json = response.json()
-                """ print(type(response)) """
-                if len(response_json) > 0:
 
-                    if 'capaGeneral' in response_json:
-                        procesed = await process_layer(
-                            'capaGeneral', response_json, no_sync, a_sincronizar, response_json, problematicos, dependencias)
-                        a_sincronizar = procesed['a_sincronizar']
-                        problematicos = procesed['problematicos']
-                        dependencias = procesed['dependencias']
-                    """ if 'capa2' in response:
+                if len(response_json) > 0:
+                    for response in response_json:
+                        """ print(response)
+                        print(no_sync['hostid'][ind]) """
+                        response = dict(response)
+                        if 'capa1' in response:
+                            procesed = await process_layer(
+                                'capa1', response, no_sync, a_sincronizar, response_json, problematicos, dependencias)
+                            a_sincronizar = procesed['a_sincronizar']
+                            problematicos = procesed['problematicos']
+                            dependencias = procesed['dependencias']
+                        """ if 'capa2' in response:
                             a_sincronizar = await process_layer(
                                 'capa2', response, no_sync, a_sincronizar, response_json) """
 
             repeticiones += 1
-            rep_ind += 1
-            if rep_ind == sync_rep or repeticiones >= len_arr:
-                if repeticiones >= len_arr:
-                    """ print("Final")
-                    print(repeticiones)
-                    print("se sincronizo final") """
-                problematicos = problematicos.drop_duplicates()
-                problematicos = problematicos[~problematicos['eventid'].isin(
-                    problematicos_final['eventid'])]
-                problematicos_final = pd.concat(
-                    [problematicos_final, problematicos], ignore_index=True).replace(np.nan, "")
+            print(repeticiones)
 
-                a_guardar = pd.DataFrame()
-                if not problematicos.empty:
-                    if not no_sync.empty:
-                        a_guardar = problematicos[~problematicos['eventid'].isin(
-                            no_sync['eventid'].to_list())]
-                    else:
-                        a_guardar = problematicos
-
-                if not a_guardar.empty:
-                    a_guardar['depends_eventid'] = [
-                        None for i in range(len(a_guardar))]
-                    a_guardar['status'] = [
-                        'Sincronizado' for i in range(len(a_guardar))]
-                    a_guardar['closed_at'] = [
-                        None for i in range(len(a_guardar))]
-                    if not sync.empty:
-                        a_guardar = a_guardar[~a_guardar['eventid'].isin(
-                            sync['eventid'].to_list())]
-                    sql = a_guardar.to_sql('cassia_diagnostic_problems', con=db_zabbix.engine,
-                                           if_exists='append', index=False)
-                session.commit()
-                """ print(rep_ind) """
-                print("se sincronizo")
-                rep_ind = 0
-
-            """ print(repeticiones) """
-        a_cerrar = pd.DataFrame()
-        problematicos_final = problematicos_final.drop_duplicates()
-        now = datetime.now(pytz.timezone('America/Mexico_City'))
-        if not sync.empty:
-            if not problematicos_final.empty:
-                a_cerrar = sync[~sync['eventid'].isin(
-                    problematicos_final['eventid'].to_list())]
-            else:
-                a_cerrar = sync
-        if not a_cerrar.empty:
-            statement = text(f"""
-                UPDATE cassia_diagnostic_problems
-                set closed_at=:date,
-                status=:status
-                where eventid in :ids
-                """)
-            session.execute(statement, params={
-                'date': now, 'status': 'Cerrado', 'ids': a_cerrar['eventid'].to_list()})
-        session.commit()
-        print("se cerraron")
         """ print(a_sincronizar.to_string()) """
         """ len1 = len(problematicos) """
+        problematicos = problematicos.drop_duplicates()
+        a_guardar = pd.DataFrame()
+        if not problematicos.empty:
+            if not no_sync.empty:
+                a_guardar = problematicos[~problematicos['eventid'].isin(
+                    no_sync['eventid'].to_list())]
+            else:
+                a_guardar = problematicos
+        a_cerrar = pd.DataFrame()
+        if not sync.empty:
+            if not problematicos.empty:
+                a_cerrar = sync[~sync['eventid'].isin(
+                    problematicos['eventid'].to_list())]
+            else:
+                a_cerrar = sync
+        now = datetime.now(pytz.timezone('America/Mexico_City'))
+        if not a_guardar.empty:
+            a_guardar['depends_eventid'] = [
+                None for i in range(len(a_guardar))]
+            a_guardar['status'] = [
+                'Sincronizado' for i in range(len(a_guardar))]
+            a_guardar['closed_at'] = [None for i in range(len(a_guardar))]
+            if not sync.empty:
+                a_guardar = a_guardar[~a_guardar['eventid'].isin(
+                    sync['eventid'].to_list())]
+            sql = a_guardar.to_sql('cassia_diagnostic_problems', con=db_zabbix.engine,
+                                   if_exists='append', index=False)
+        if not a_cerrar.empty:
 
+            statement = text(f"""
+UPDATE cassia_diagnostic_problems
+set closed_at=:date,
+status=:status
+where eventid in :ids
+""")
+            session.execute(statement, params={
+                            'date': now, 'status': 'Cerrado', 'ids': a_cerrar['eventid'].to_list()})
+        session.commit()
         """ print(a_guardar.to_string())
         print(a_cerrar.to_string()) """
 
@@ -182,20 +160,10 @@ async def close_problems():
 
 
 async def process_layer(capa_name: str, response_capa, no_sync: pd.DataFrame, a_sincronizar: pd.DataFrame, response_json, problematicos: pd.DataFrame, dependencias: pd.DataFrame):
-    """ print(response_capa) """
-    capa = response_capa[capa_name]
-    if not "dispositivo_analizado" in capa and not "dispositivo_problematico" in capa:
-        return {'a_sincronizar': a_sincronizar,
-                'problematicos': problematicos,
-                'dependencias': dependencias}
 
+    capa = response_capa[capa_name]
     analizado = capa['dispositivo_analizado']
     problematico = capa['dispositivo_problematico']
-    if not problematico:
-        print("null")
-        return {'a_sincronizar': a_sincronizar,
-                'problematicos': problematicos,
-                'dependencias': dependencias}
     if len(analizado) and not len(problematico):
         analizado = analizado[0]
         incorporar = no_sync[no_sync['hostid'].astype(int) == analizado[0]]
@@ -212,12 +180,12 @@ async def process_layer(capa_name: str, response_capa, no_sync: pd.DataFrame, a_
                     a_sincronizar)] = a_incorporar
     if len(analizado) and len(problematico):
 
-        """ if capa_name == 'capa1':
+        if capa_name == 'capa1':
             analizado = analizado[0]
             problematico = problematico[0]
         if capa_name == 'capa2':
             analizado = analizado[0]
-            problematico = problematico """
+            problematico = problematico
 
         if analizado[0] == problematico[0]:
 
@@ -241,45 +209,25 @@ async def process_layer(capa_name: str, response_capa, no_sync: pd.DataFrame, a_
                 no_sync.loc[no_sync['hostid'].astype(int) ==
                             a_incorporar[0], 'synced'] = 1
         else:
-            if "desconectados_dependientes" in capa:
-                response_dependientes = capa["desconectados_dependientes"]
-                """ response_dependientes = dict(
-                    response_json[1]) """
+            if len(response_json) > 1:
+                response_dependientes = dict(
+                    response_json[1])
 
-                dependientes = response_dependientes
-                filas_asociadas = no_sync[no_sync['hostid'].astype(int)
-                                          == problematico[0]]
-                """ print(problematico[0]) """
-                """ print(filas_asociadas)
+                if 'desconectados_dependientes' in response_dependientes:
+                    dependientes = response_dependientes['desconectados_dependientes']
+                    filas_asociadas = no_sync[no_sync['hostid'].astype(int)
+                                              == problematico[0]]
+                    """ print(problematico[0]) """
+                    """ print(filas_asociadas)
                                             print(type(no_sync['hostid'][0]))
                                             print(type(problematico[0])) """
-                evento_problematico = 0
-                if filas_asociadas.empty:
-                    print(f"Sin evento en host padre 2:{problematico[0]}")
-                for fila in filas_asociadas.index:
-                    a_incorporar = [filas_asociadas['hostid'][fila],
-                                    None, 'Sincronizado', None]
-                    problematicos.loc[len(problematicos)] = a_incorporar[0]
-                    row_is_present = (a_sincronizar[['eventid', 'depends_eventid']] == [
-                        a_incorporar[0], a_incorporar[1]]).all(axis=1).any()
-                    if not row_is_present:
-                        a_sincronizar.loc[len(
-                            a_sincronizar)] = a_incorporar
-                    no_sync.loc[no_sync['hostid'] ==
-                                a_incorporar[0], 'synced'] = 1
-                    evento_problematico = filas_asociadas['hostid'][fila]
-                    print("si entra aca")
-                for dependiente in dependientes:
-                    filas_asociadas_dependientes = no_sync[no_sync['hostid']
-                                                           == dependiente[0]]
-                    if filas_asociadas_dependientes.empty:
-                        print(
-                            f"Sin evento en host hijo 3:{dependiente[0]}")
-                    for fila_dependiente in filas_asociadas_dependientes.index:
-                        a_incorporar = [
-                            filas_asociadas_dependientes['hostid'][fila_dependiente], evento_problematico, 'Sincronizado', None]
-                        dependencias.loc[len(
-                            dependencias)] = a_incorporar[0]
+                    evento_problematico = 0
+                    if filas_asociadas.empty:
+                        print(f"Sin evento en host padre 2:{problematico[0]}")
+                    for fila in filas_asociadas.index:
+                        a_incorporar = [filas_asociadas['hostid'][fila],
+                                        None, 'Sincronizado', None]
+                        problematicos.loc[len(problematicos)] = a_incorporar[0]
                         row_is_present = (a_sincronizar[['eventid', 'depends_eventid']] == [
                             a_incorporar[0], a_incorporar[1]]).all(axis=1).any()
                         if not row_is_present:
@@ -287,10 +235,31 @@ async def process_layer(capa_name: str, response_capa, no_sync: pd.DataFrame, a_
                                 a_sincronizar)] = a_incorporar
                         no_sync.loc[no_sync['hostid'] ==
                                     a_incorporar[0], 'synced'] = 1
-                        """ print(
-                                            type(no_sync['eventid']))
-                                        print(
-                                            type(a_incorporar[0])) """
+                        evento_problematico = filas_asociadas['hostid'][fila]
+                        print("si entra aca")
+                    for dependiente in dependientes:
+                        filas_asociadas_dependientes = no_sync[no_sync['hostid']
+                                                               == dependiente[0]]
+                        if filas_asociadas_dependientes.empty:
+                            print(
+                                f"Sin evento en host hijo 3:{dependiente[0]}")
+                        for fila_dependiente in filas_asociadas_dependientes.index:
+                            a_incorporar = [
+                                filas_asociadas_dependientes['hostid'][fila_dependiente], evento_problematico, 'Sincronizado', None]
+                            dependencias.loc[len(
+                                dependencias)] = a_incorporar[0]
+                            row_is_present = (a_sincronizar[['eventid', 'depends_eventid']] == [
+                                a_incorporar[0], a_incorporar[1]]).all(axis=1).any()
+                            if not row_is_present:
+                                a_sincronizar.loc[len(
+                                    a_sincronizar)] = a_incorporar
+                            no_sync.loc[no_sync['hostid'] ==
+                                        a_incorporar[0], 'synced'] = 1
+
+                            """ print(
+                                                type(no_sync['eventid']))
+                                            print(
+                                                type(a_incorporar[0])) """
     return {'a_sincronizar': a_sincronizar,
             'problematicos': problematicos,
             'dependencias': dependencias}
