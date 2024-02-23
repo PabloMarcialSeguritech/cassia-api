@@ -158,34 +158,18 @@ async def run_action(ip: str = Path(description="IP address", example="192.168.1
     return await hosts_service.prepare_action(ip, id_action, current_user_session)
 
 
-# Regex para eliminar secuencias de escape ANSI y secuencias específicas de Windows
-ansi_escape_sequences = re.compile(
-    r'''
-    \x1B  # Escape character (ASCII 27)
-    (?:   # Non-capturing group for either
-      \]0;.*?[\x07] |  # OSC (Operating System Command) sequences (used to set the window title)
-      [@-Z\\-_] |  # Control characters
-      \[[0-?]*[ -/]*[@-~]  # CSI sequences (Control Sequence Introducer)
-    )
-    ''',
-    re.VERBOSE
-)
-
-
 async def send_command(shell, command):
-    shell.send(command + "\r")
-    await asyncio.sleep(0.8)  # Dar tiempo para la ejecución y respuesta
+    shell.send(command + "\r\n")  # Asegúrate de enviar el retorno de carro y nueva línea
+    await asyncio.sleep(0.8)  # Espera para la ejecución
 
 
 async def get_response(shell):
-    # Dar tiempo para que la respuesta esté lista
-    await asyncio.sleep(1)
-    response = ""
+    await asyncio.sleep(0.5)  # Espera para la salida
+    output = ""
     while shell.recv_ready():
-        response += shell.recv(4096).decode('utf-8')
-        await asyncio.sleep(0.8)  # Recoger todos los datos disponibles
-    # Limpiar la respuesta de secuencias de escape ANSI y otros caracteres no deseados
-    return ansi_escape_sequences.sub('', response).strip()
+        output += shell.recv(4096).decode('utf-8')
+        await asyncio.sleep(0.1)
+    return output
 
 
 @hosts_router.websocket('/ws_terminal')
@@ -224,10 +208,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
         await send_command(shell, command)
         response = await get_response(shell)
-
-        # Aquí asumimos que 'response' ya tiene el formato limpio y sin el comando enviado
-        # Enviar respuesta al cliente
-        await websocket.send_text(f"<part>user@host:<part>message:{response}")
+        await websocket.send_text(response)
 
     # Cuando se cierra el WebSocket, también cerrar la sesión SSH
     ssh = sessions[session_id]['ssh']
