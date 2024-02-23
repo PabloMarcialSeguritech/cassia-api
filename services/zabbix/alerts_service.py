@@ -206,6 +206,8 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
         aca = data[data['tipo'] == 1]
         print("aqui")
         print(aca)
+    else:
+        data['tipo'] = [0 for i in range(len(data))]
     session.close()
     return success_response(data=data.to_dict(orient="records"))
 
