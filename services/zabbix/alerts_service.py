@@ -199,8 +199,8 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
         data_problems = pd.DataFrame(session.execute(
             data_problems, {'hostids': downs_origen['hostid'].tolist()}))
         if not data_problems.empty:
-            data_problems['TimeRecovery'] = [
-                '' for i in range(len(data_problems))]
+            """ data_problems['TimeRecovery'] = [
+                '' for i in range(len(data_problems))] """
             data_problems['r_eventid'] = [
                 '' for i in range(len(data_problems))]
             data_problems['Ack'] = [0 for i in range(len(data_problems))]
@@ -219,6 +219,7 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
                 '%d/%m/%Y %H:%M:%S')
             data_problems.rename(columns={
                 'created_at': 'Time',
+                'closed_at': 'TimeRecovery',
                 'hostname': 'Host',
                 'message': 'Problem',
                 'status': 'Estatus',
@@ -230,8 +231,15 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
                 severities = [int(severity) for severity in severities]
             else:
                 severities = [1, 2, 3, 4, 5, 6]
-                data_problems = data_problems[data_problems['severity'].isin(
-                    data_problems)]
+            if 6 in severities:
+                downs = data_problems[data_problems['Problem']
+                                      == 'Unavailable by ICMP ping']
+            data_problems = data_problems[data_problems['severity'].isin(
+                severities)]
+            if 6 in severities:
+                data_problems = pd.concat([data_problems, downs],
+                                          ignore_index=True).replace(np.nan, "")
+
             data = pd.concat([data_problems, data],
                              ignore_index=True).replace(np.nan, "")
             """ print(data.to_string()) """

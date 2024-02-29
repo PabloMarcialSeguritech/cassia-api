@@ -276,6 +276,7 @@ async def trigger_alerts_close():
                     cassia_arch_traffic_events
                     where closed_at is NULL
                     and tech_id='{rfid_id}'
+                    and message!='Unavailable by ICMP ping'
                     """)
     abiertos = pd.DataFrame(session.execute(abiertos))
     """ print(abiertos.to_string()) """

@@ -315,6 +315,7 @@ where hi.device_id=1""")
                         cassia_arch_traffic_events
                         where closed_at is NULL
                         and tech_id='{lpr_id}'
+                        and message!='Unavailable by ICMP ping'
                         """)
         abiertos = pd.DataFrame(session.execute(abiertos))
         """ print(abiertos)

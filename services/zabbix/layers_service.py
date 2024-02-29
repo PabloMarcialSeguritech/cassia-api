@@ -172,9 +172,21 @@ between DATE_ADD(now(),INTERVAL -5 MINUTE) and NOW()
 group by c.latitude, c.longitude
 """)
         lecturas = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+        activos = text("""
+SELECT DISTINCT c.longitude ,c.latitude 
+FROM cassia_arch_traffic c 
+group by c.latitude, c.longitude
+""")
+        activos = pd.DataFrame(session.execute(activos)).replace(np.nan, "")
         if not lecturas.empty:
-            data = pd.merge(data, lecturas, how='left', left_on=['latitude', 'longitude'],
+            data = pd.merge(data, lecturas, how='right', left_on=['latitude', 'longitude'],
                             right_on=['latitude', 'longitude']).replace(np.nan, 0)
+            data['activo'] = 0
+            if not activos.empty:
+                data.loc[data.set_index(['latitude', 'longitude']).index.isin(
+                    activos.set_index(['latitude', 'longitude']).index), 'activo'] = 1
+            print(data.to_string())
+
         else:
             data['Lecturas'] = [0 for i in range(len(data))]
         statement = text(f"""
@@ -240,9 +252,20 @@ between DATE_ADD(now(),INTERVAL -10 MINUTE) and NOW()
 group by c.latitude, c.longitude
 """)
         lecturas = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+        activos = text("""
+SELECT DISTINCT c.longitude ,c.latitude 
+FROM cassia_arch_traffic_lpr c 
+group by c.latitude, c.longitude
+""")
+        activos = pd.DataFrame(session.execute(activos)).replace(np.nan, "")
         if not lecturas.empty:
             data = pd.merge(data, lecturas, how='left', left_on=['latitude', 'longitude'],
                             right_on=['latitude', 'longitude']).replace(np.nan, 0)
+            data['activo'] = 0
+            if not activos.empty:
+                data.loc[data.set_index(['latitude', 'longitude']).index.isin(
+                    activos.set_index(['latitude', 'longitude']).index), 'activo'] = 1
+
         else:
             data['Lecturas'] = [0 for i in range(len(data))]
         statement = text(f"""
