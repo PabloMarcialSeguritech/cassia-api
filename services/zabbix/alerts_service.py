@@ -184,7 +184,65 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
     if tech_host_type == rfid_id:
         data = process_alerts_local(
             data, municipalityId, session, rfid_id, severities)
+    downs_origen = text(
+        f"""call sp_diagnostic_problems('{municipalityId}','{tech_host_type}')""")
+    downs_origen = pd.DataFrame(session.execute(downs_origen))
+    if not downs_origen.empty:
+        data['tipo'] = [0 for i in range(len(data))]
+        data.loc[data['hostid'].astype(int).isin(
+            downs_origen['hostid'].tolist()), 'tipo'] = 1
+        data['local'] = [0 for i in range(len(data))]
+        data.loc[data['hostid'].astype(int).isin(
+            downs_origen['hostid'].tolist()), 'local'] = 0
+        data_problems = text(
+            "select * from cassia_arch_traffic_events where closed_at is NULL and hostid in :hostids")
+        data_problems = pd.DataFrame(session.execute(
+            data_problems, {'hostids': downs_origen['hostid'].tolist()}))
+        if not data_problems.empty:
+            data_problems['TimeRecovery'] = [
+                '' for i in range(len(data_problems))]
+            data_problems['r_eventid'] = [
+                '' for i in range(len(data_problems))]
+            data_problems['Ack'] = [0 for i in range(len(data_problems))]
+            data_problems['Ack_message'] = [
+                '' for i in range(len(data_problems))]
+            data_problems['manual_close'] = [
+                0 for i in range(len(data_problems))]
+            data_problems['local'] = [
+                1 for i in range(len(data_problems))]
+            data_problems['tipo'] = [
+                1 for i in range(len(data_problems))]
+            data_problems.drop(columns={'updated_at', 'tech_id'}, inplace=True)
+            data_problems['created_at'] = pd.to_datetime(
+                data_problems['created_at'])
+            data_problems["created_at"] = data_problems['created_at'].dt.strftime(
+                '%d/%m/%Y %H:%M:%S')
+            data_problems.rename(columns={
+                'created_at': 'Time',
+                'hostname': 'Host',
+                'message': 'Problem',
+                'status': 'Estatus',
+                'cassia_arch_traffic_events_id': 'eventid',
+            }, inplace=True)
 
+            if severities != "":
+                severities = severities.split(',')
+                severities = [int(severity) for severity in severities]
+            else:
+                severities = [1, 2, 3, 4, 5, 6]
+                data_problems = data_problems[data_problems['severity'].isin(
+                    data_problems)]
+            data = pd.concat([data_problems, data],
+                             ignore_index=True).replace(np.nan, "")
+            """ print(data.to_string()) """
+
+        origen = data[data['tipo'] == 1]
+
+        print("aqui")
+        print(origen.to_string())
+    else:
+        data['tipo'] = [0 for i in range(len(data))]
+        data['local'] = [0 for i in range(len(data))]
     if not data.empty:
         now = datetime.now(pytz.timezone('America/Mexico_City'))
         data['fecha'] = pd.to_datetime(data['Time'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
@@ -196,18 +254,7 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
         data = data.drop(columns=['diferencia'])
         data['diferencia'] = data.apply(
             lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
-    downs_origen = text(
-        f"""call sp_diagnostic_problems('{municipalityId}','{tech_host_type}')""")
-    downs_origen = pd.DataFrame(session.execute(downs_origen))
-    if not downs_origen.empty:
-        data['tipo'] = [0 for i in range(len(data))]
-        data.loc[data['hostid'].astype(int).isin(
-            downs_origen['hostid'].tolist()), 'tipo'] = 1
-        aca = data[data['tipo'] == 1]
-        print("aqui")
-        print(aca)
-    else:
-        data['tipo'] = [0 for i in range(len(data))]
+
     session.close()
     return success_response(data=data.to_dict(orient="records"))
 
