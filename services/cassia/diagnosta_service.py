@@ -31,6 +31,30 @@ async def analize_host(hostid_or_ip: str):
                 capa = response['capaGeneral']
                 if 'desconectados_dependientes' in capa:
                     desconectados = capa['desconectados_dependientes']
+                    problematico = pd.DataFrame(columns=['hostid',
+                                                         'host',
+                                                         'afiliacion',
+                                                         'name',
+                                                         'device_id',
+                                                         'ip',
+                                                         'b_interes',
+                                                         'b_ubicacion',
+                                                         'capa',
+                                                         'conectado'])
+                    if 'dispositivo_problematico' in capa:
+                        problematico_data = capa['dispositivo_problematico']
+                        print(problematico_data)
+                        problematico = pd.DataFrame(columns=['hostid',
+                                                             'host',
+                                                             'afiliacion',
+                                                             'name',
+                                                             'device_id',
+                                                             'ip',
+                                                             'b_interes',
+                                                             'b_ubicacion',
+                                                             'capa',
+                                                             'conectado'], data=[problematico_data])
+                        problematico['origen'] = 1
                     if len(desconectados):
                         desconectados_pd = pd.DataFrame(columns=['hostid',
                                                                  'host',
@@ -42,6 +66,10 @@ async def analize_host(hostid_or_ip: str):
                                                                  'b_ubicacion',
                                                                  'capa',
                                                                  'conectado'], data=desconectados)
+                        desconectados_pd['origen'] = 0
+                        if not problematico.empty:
+                            desconectados_pd = pd.concat(
+                                [problematico, desconectados_pd], ignore_index=True).replace(np.nan, '')
                         with DB_Zabbix().Session() as session:
                             tech_names = text("call sp_catDevice(0)")
                             tech_names = pd.DataFrame(

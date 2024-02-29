@@ -245,40 +245,65 @@ SELECT from_unixtime(p.clock,'%d/%m/%Y %H:%i:%s' ) as Time,
 	ORDER BY p.clock  desc 
     limit 20
 """)
-    alerts = session.execute(statement)
-    alerts = pd.DataFrame(alerts).replace(np.nan, "")
-    alertas_rfid = session.query(CassiaArchTrafficEvent).filter(
-        CassiaArchTrafficEvent.closed_at == None,
-        CassiaArchTrafficEvent.hostid == host_id
-    ).all()
-    alertas_rfid = pd.DataFrame([(
-        r.created_at,
-        r.severity,
-        r.hostid,
-        r.hostname,
-        r.latitude,
-        r.longitude,
-        r.ip,
-        r.message,
-        r.status,
-        r.cassia_arch_traffic_events_id,
-        '',
-        '',
-        0,
-        ''
-    )
-        for r in alertas_rfid], columns=['Time', 'severity', 'hostid',
-                                         'Host', 'latitude', 'longitude',
-                                         'ip',
-                                         'Problem', 'Estatus',
-                                         'eventid',
-                                         'r_eventid',
-                                         'TimeRecovery',
-                                         'Ack',
-                                         'Ack_message'])
-    data = pd.concat([alertas_rfid, alerts],
-                     ignore_index=True).replace(np.nan, "")
+    data = session.execute(statement)
+    data = pd.DataFrame(data).replace(np.nan, "")
+    data['local'] = 0
+    data['tipo'] = 0
+    data_problems = text(
+        f"select * from cassia_arch_traffic_events where hostid={host_id} order by created_at desc limit 20")
+    data_problems = pd.DataFrame(
+        session.execute(data_problems)).replace(np.nan, '')
+    if not data_problems.empty:
+        """ data_problems['TimeRecovery'] = [
+            '' for i in range(len(data_problems))] """
+        data_problems['r_eventid'] = [
+            '' for i in range(len(data_problems))]
+        data_problems['Ack'] = [0 for i in range(len(data_problems))]
+        data_problems['Ack_message'] = [
+            '' for i in range(len(data_problems))]
+        data_problems['manual_close'] = [
+            0 for i in range(len(data_problems))]
+        data_problems['local'] = [
+            1 for i in range(len(data_problems))]
+        data_diagnosta = text(
+            f"select eventid from cassia_diagnostic_problems where hostid={host_id}")
+        data_diagnosta = pd.DataFrame(
+            session.execute(data_diagnosta)).replace(np.nan, '')
+        data_problems['tipo'] = [
+            0 for i in range(len(data_problems))]
+        data_problems.drop(columns={'updated_at', 'tech_id'}, inplace=True)
+        data_problems['created_at'] = pd.to_datetime(
+            data_problems['created_at'])
+        data_problems["created_at"] = data_problems['created_at'].dt.strftime(
+            '%d/%m/%Y %H:%M:%S')
+        data_problems.rename(columns={
+            'created_at': 'Time',
+            'closed_at': 'TimeRecovery',
+            'hostname': 'Host',
+            'message': 'Problem',
+            'status': 'Estatus',
+            'cassia_arch_traffic_events_id': 'eventid',
+        }, inplace=True)
 
+        data = pd.concat([data_problems, data],
+                         ignore_index=True).replace(np.nan, "")
+        if not data_diagnosta.empty:
+            data.loc[data['hostid'].isin(
+                data_diagnosta['eventid'].to_list()), 'tipo'] = 1
+    if not data.empty:
+        now = datetime.now(pytz.timezone('America/Mexico_City'))
+        data['fecha'] = pd.to_datetime(data['Time'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
+            pytz.timezone('America/Mexico_City'))
+        data['diferencia'] = now-data['fecha']
+        data['dias'] = data['diferencia'].dt.days
+        data['horas'] = data['diferencia'].dt.components.hours
+        data['minutos'] = data['diferencia'].dt.components.minutes
+        data = data.drop(columns=['diferencia'])
+        data['diferencia'] = data.apply(
+            lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
+        data = data.sort_values(by='fecha', ascending=False)
+
+    print(data.to_string())
     session.close()
     return success_response(data=data.to_dict(orient="records"))
 
@@ -471,7 +496,7 @@ def run_action(ip, command, dict_credentials_list, verification_id, action_id, u
                    'clock': datetime.now(pytz.timezone('America/Mexico_City')),
                    'session_id': user_session.session_id.hex,
                    'interface_id': dict_credentials['interfaceid'] if (
-                           'interfaceid' in dict_credentials) else 1,
+                       'interfaceid' in dict_credentials) else 1,
                    'result': 0,
                    'comments': None}
 

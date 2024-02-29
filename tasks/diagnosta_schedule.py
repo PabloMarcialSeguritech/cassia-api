@@ -36,7 +36,8 @@ async def process_problems():
         statement_local = text(
             f"""SELECT * FROM cassia_arch_traffic_events cate 
 WHERE cate.closed_at is NULL and 
-severity =6""")
+severity =5
+and message='Unavailable by ICMP ping'""")
         problems_local = pd.DataFrame(session.execute(statement_local))
         sync_zabbix = text(
             f"""SELECT * FROM cassia_diagnostic_problems where closed_at is null and local=0""")
@@ -106,6 +107,8 @@ severity =6""")
                 a_sincronizar = a_sincronizar.drop_duplicates()
                 sincronizacion_parcial = a_sincronizar.iloc[sync_indice:(len(
                     a_sincronizar)+1)]
+                now_a = datetime.now(pytz.timezone('America/Mexico_City'))
+                sincronizacion_parcial['created_at'] = now_a
 
                 if not sincronizacion_parcial.empty:
                     sql = sincronizacion_parcial.to_sql('cassia_diagnostic_problems', con=db_zabbix.engine,
@@ -229,9 +232,11 @@ where h.hostid={analizado[0]}
 """)
                         host_padre = pd.DataFrame(session.execute(host_padre))
                         if not host_padre.empty:
+                            now_a = datetime.now(
+                                pytz.timezone('America/Mexico_City'))
                             problem_local = CassiaArchTrafficEvent(
                                 hostid=host_padre['hostid'][0],
-                                severity=6,
+                                severity=5,
                                 message='Unavailable by ICMP ping',
                                 status='PROBLEM',
                                 latitude=host_padre['latitude'][0],
@@ -239,7 +244,9 @@ where h.hostid={analizado[0]}
                                 municipality=host_padre['municipality'][0],
                                 hostname=host_padre['hostname'][0],
                                 ip=host_padre['ip'][0],
-                                tech_id=host_padre['tech_id'][0])
+                                tech_id=host_padre['tech_id'][0],
+                                created_at=now_a,
+                                updated_at=now_a)
                             session.add(problem_local)
                             session.commit()
                             problemas_creados.loc[len(problemas_creados)+1] = [
@@ -319,9 +326,11 @@ where h.hostid={problematico[0]}
                             host_padre = pd.DataFrame(
                                 session.execute(host_padre))
                             if not host_padre.empty:
+                                now_a = datetime.now(
+                                    pytz.timezone('America/Mexico_City'))
                                 problem_local = CassiaArchTrafficEvent(
                                     hostid=host_padre['hostid'][0],
-                                    severity=6,
+                                    severity=5,
                                     message='Unavailable by ICMP ping',
                                     status='PROBLEM',
                                     latitude=host_padre['latitude'][0],
@@ -329,7 +338,9 @@ where h.hostid={problematico[0]}
                                     municipality=host_padre['municipality'][0],
                                     hostname=host_padre['hostname'][0],
                                     ip=host_padre['ip'][0],
-                                    tech_id=host_padre['tech_id'][0])
+                                    tech_id=host_padre['tech_id'][0],
+                                    created_at=now_a,
+                                    updated_at=now_a,)
                                 session.add(problem_local)
                                 session.commit()
                                 problemas_creados.loc[len(problemas_creados)+1] = [
