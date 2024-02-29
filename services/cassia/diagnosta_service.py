@@ -43,18 +43,19 @@ async def analize_host(hostid_or_ip: str):
                                                          'conectado'])
                     if 'dispositivo_problematico' in capa:
                         problematico_data = capa['dispositivo_problematico']
-                        print(problematico_data)
-                        problematico = pd.DataFrame(columns=['hostid',
-                                                             'host',
-                                                             'afiliacion',
-                                                             'name',
-                                                             'device_id',
-                                                             'ip',
-                                                             'b_interes',
-                                                             'b_ubicacion',
-                                                             'capa',
-                                                             'conectado'], data=[problematico_data])
-                        problematico['origen'] = 1
+
+                        if problematico_data:
+                            problematico = pd.DataFrame(columns=['hostid',
+                                                                 'host',
+                                                                 'afiliacion',
+                                                                 'name',
+                                                                 'device_id',
+                                                                 'ip',
+                                                                 'b_interes',
+                                                                 'b_ubicacion',
+                                                                 'capa',
+                                                                 'conectado'], data=[problematico_data])
+                            problematico['origen'] = 1
                     if len(desconectados):
                         desconectados_pd = pd.DataFrame(columns=['hostid',
                                                                  'host',
