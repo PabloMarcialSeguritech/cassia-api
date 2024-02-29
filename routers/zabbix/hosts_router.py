@@ -9,6 +9,7 @@ import asyncio
 import paramiko
 import re
 from utils.settings import Settings
+from datetime import datetime
 
 settings = Settings()
 hosts_router = APIRouter(prefix="/hosts")
@@ -159,16 +160,19 @@ async def run_action(ip: str = Path(description="IP address", example="192.168.1
 
 
 async def send_command(shell, command):
+    print("en send_command")
     shell.send(command + "\r\n")  # Asegúrate de enviar el retorno de carro y nueva línea
     await asyncio.sleep(0.8)  # Espera para la ejecución
 
 
 async def get_response(shell):
+    print("en get_response")
     await asyncio.sleep(0.5)  # Espera para la salida
     output = ""
     while shell.recv_ready():
         output += shell.recv(4096).decode('utf-8')
         await asyncio.sleep(0.1)
+    print("output::", output)
     return output
 
 
@@ -180,13 +184,16 @@ async def websocket_endpoint(websocket: WebSocket):
     ssh_user = ""
     ssh_pass = ""
     global sistema_operativo
-    comando_linux = "uname -a"
-    comando_windows = "ver"
-
+    comando_ram_total_usada_linux = "free -h | awk '/Mem:/{print \"Memoria Total (GB): \" $2 \", Memoria Usada (GB): \" $3 \", Memoria Libre (GB): \" $4}'"
+    comando_espacio_disco_linux = "df -h --total | awk '/total/{print \"Espacio total (GB): \" $2 \", Espacio utilizado (GB): \" $3 \", Espacio libre (GB): \" $4}'"
+    fecha_hora_actual = None
+    fecha_hora_actual_str =""
+    resultado_ram  = ""
+    resultado_disco = ""
     while True:
         command = await websocket.receive_text()
         if command.startswith('hosttarget:'):
-
+            print("en if command con hosttarget")
             partes = command.split(":")
             # La dirección IP estará en la segunda parte (índice 1)
             direccion_ip = partes[1]
@@ -195,6 +202,7 @@ async def websocket_endpoint(websocket: WebSocket):
             ssh_user = hosts_service.decrypt(dict_credentials['usr'], settings.ssh_key_gen)
             ssh_pass = hosts_service.decrypt(dict_credentials['psswrd'], settings.ssh_key_gen)
             if session_id not in sessions:
+                print("en if de session_id")
                 ssh = paramiko.SSHClient()
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(direccion_ip, username=ssh_user, password=ssh_pass)
@@ -205,13 +213,80 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # Limpiar mensaje de bienvenida o cualquier otro output inicial
             await get_response(shell)
+            sistema_operativo[session_id] = await detectar_sistema_operativo(shell)
+            if sistema_operativo[session_id] == 'Windows':
+                comando_ram_total_usada_windows = """ powershell "Get-CimInstance -ClassName Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum | ForEach-Object { '{0:N2} GB' -f ($_.Sum / 1GB) }" """
+                comando_ram_utilizacion_windows = """ powershell "$totalMem = (Get-CimInstance -ClassName Win32_ComputerSystem).TotalPhysicalMemory; $freeMem = (Get-CimInstance -ClassName Win32_OperatingSystem).FreePhysicalMemory * 1024; $usedMem = $totalMem - $freeMem; $percentUsed = ($usedMem / $totalMem) * 100; '{0:N2} %' -f $percentUsed" """
+                comando_espacioDisco_windows = """ powershell "Get-PSDrive -PSProvider 'FileSystem' | Select-Object Name, @{Name='Used (GB)';Expression={ '{0:N2}' -f (($.Used / 1GB)) }}, @{Name='Free (GB)';Expression={ '{0:N2}' -f (($.Free / 1GB)) }}, @{Name='Total (GB)';Expression={ '{0:N2}' -f (($.Used / 1GB) + ($.Free / 1GB)) }}" """
+                comando_info_windows = """ powershell "(Get-WmiObject -Class Win32_OperatingSystem).Caption; (Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.IPAddress -ne $null }).IPAddress[0]" """
 
-        await send_command(shell, command)
-        response = await get_response(shell)
-        await websocket.send_text(response)
+                # Obtencion de RAM total GB
+                stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(comando_ram_total_usada_windows)
+                resultado_ramGB_windows = stdout.read().decode() + stderr.read().decode()
+                # Obtencion de Ram utilization %
+                stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(comando_ram_utilizacion_windows)
+                resultado_ramPorcentaje_windows = stdout.read().decode() + stderr.read().decode()
+                # Obtencion de Espacio en disco
+                stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(comando_espacioDisco_windows)
+                resultado_espacioDisco_windows = stdout.read().decode() + stderr.read().decode()
+                # obtencion de info windows
+                stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(comando_info_windows)
+                resultado_info_windows = stdout.read().decode() + stderr.read().decode()
 
-    # Cuando se cierra el WebSocket, también cerrar la sesión SSH
-    ssh = sessions[session_id]['ssh']
-    if ssh:
-        ssh.close()
-        del sessions[session_id]
+                # await websocket.send_text(f"RAM GB: {resultado_ramGB} & RAM %: {resultado_ramPorcentaje}")
+                # Título en negrita y subrayado
+                tituloInfo = "\033[4mInfo - SO\033[0m"
+                tituloRAM = "\033[4mRAM - Status\033[0m"
+                tituloDISK = "\033[4mEspacio en Disco - Status\033[0m"
+
+                resultado_Info_formateado_windows = f"\033[34m{resultado_info_windows}\033[0m"
+                # Formatear RAM GB en azul y en negrita
+                resultado_ramGB_formateado_windows = f"\033[34m{resultado_ramGB_windows}\033[0m"
+                # Formatear el porcentaje de RAM utilizado en azul
+                resultado_ramPorcentaje_formateado_windows = f"\033[34m{resultado_ramPorcentaje_windows.strip()}\033[0m"
+                # Formatear el porcentaje de Espacio Disco utilizado en azul
+                resultado_espacioDisco_formateado_windows = f"{resultado_espacioDisco_windows}"
+
+                # Combinar todo en un mensaje con saltos de línea e indentación adecuados
+                mensaje_formateado = (
+                    f"\033[G\n*********** {tituloInfo} ************\n"
+                    f"\033[G\n {resultado_Info_formateado_windows}"
+                    f"\033[G\n*********** {tituloRAM} ***********\n"
+                    f"\033[G\n- RAM Total: {resultado_ramGB_formateado_windows}"
+                    f"\033[G- RAM % Used: {resultado_ramPorcentaje_formateado_windows}"
+                    f"\033[G\n\n********* {tituloDISK} **********\n"
+                    f"\033[G\n {resultado_espacioDisco_formateado_windows}"
+                    f"\033[G\nEnter para continuar...\n"
+
+                )
+
+                # Enviar el mensaje formateado
+                await websocket.send_text(mensaje_formateado)
+
+        else:
+            await send_command(shell, command)
+            response = await get_response(shell)
+            await websocket.send_text(response)
+
+
+async def detectar_sistema_operativo(shell):
+
+    comando_linux = "uname -a"
+    comando_windows = "ver"
+
+    print("shell:", shell)
+    await send_command(shell, comando_linux)
+    resultado_linux =  await get_response(shell)
+    print("resultado_linux::", resultado_linux)
+    if "Linux" in resultado_linux or "Darwin" in resultado_linux:
+        return "Linux"  # o "Unix-like" si prefieres un término más genérico
+    else:
+        await send_command(shell, comando_windows)
+        resultado_windows =  await get_response(shell)
+        if "Microsoft Windows" in resultado_windows:
+            return "Windows"
+    return "Desconocido"
+
+async def send_message(websocket, message):
+    print("message:::", message)
+    await websocket.send_text(message)
