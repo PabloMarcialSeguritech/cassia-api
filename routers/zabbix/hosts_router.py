@@ -15,6 +15,8 @@ settings = Settings()
 hosts_router = APIRouter(prefix="/hosts")
 sessions = {}
 sistema_operativo = {}
+# Un diccionario para mantener las referencias de las tareas por sesión
+tasks = {}
 
 
 @hosts_router.get(
@@ -186,8 +188,24 @@ async def websocket_endpoint(websocket: WebSocket):
     global sistema_operativo
     while True:
         command = await websocket.receive_text()
-        if command.startswith('hosttarget:'):
-            print("en if command con hosttarget")
+        if command == "\x03":
+            # Cancelar la tarea en ejecución cuando se recibe Ctrl+C
+            if session_id in tasks:
+                tasks[session_id].cancel()
+                del tasks[session_id]
+            await send_command(sessions[session_id]['shell'], command)
+            response = await get_response(sessions[session_id]['shell'])
+            await websocket.send_text(response)  # Envía directamente sin procesar
+        elif command.startswith('ping'):
+            # Lanzar la tarea para comandos con salida continua
+            task = asyncio.create_task(send_continuous_data(websocket, command, shell, session_id))
+            tasks[session_id] = task
+        elif (command.startswith('htop') or command.startswith('top')) and session_id in sistema_operativo and \
+                sistema_operativo[session_id] == "Linux":
+            # Lanzar la tarea para comandos con salida continua
+            task = asyncio.create_task(send_continuous_data(websocket, command, shell, session_id))
+            tasks[session_id] = task
+        elif command.startswith('hosttarget:'):
             partes = command.split(":")
             # La dirección IP estará en la segunda parte (índice 1)
             direccion_ip = partes[1]
@@ -196,7 +214,7 @@ async def websocket_endpoint(websocket: WebSocket):
             ssh_user = hosts_service.decrypt(dict_credentials['usr'], settings.ssh_key_gen)
             ssh_pass = hosts_service.decrypt(dict_credentials['psswrd'], settings.ssh_key_gen)
             if session_id not in sessions:
-                print("en if de session_id")
+
                 ssh = paramiko.SSHClient()
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.connect(direccion_ip, username=ssh_user, password=ssh_pass)
@@ -336,3 +354,13 @@ async def detectar_sistema_operativo(shell):
 
 async def send_message(websocket, message):
     await websocket.send_text(message)
+
+async def send_continuous_data(websocket: WebSocket, command: str, shell, session_id):
+    shell.send(command + "\n")
+    while True:
+        await asyncio.sleep(0.5)
+        if shell.recv_ready():
+            data = shell.recv(1024).decode('utf-8')
+            await websocket.send_text(data)
+        if session_id not in tasks:  # Verificar si la tarea fue cancelada
+            break
