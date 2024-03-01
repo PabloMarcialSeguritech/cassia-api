@@ -296,6 +296,7 @@ async def trigger_alerts_close():
         status='Cerrada automaticamente'
         where cassia_arch_traffic_events_id
         in ({ids})
+        and message!='Unavailable by ICMP ping'
         """)
 
         session.execute(statement)
