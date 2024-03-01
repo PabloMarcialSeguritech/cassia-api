@@ -246,8 +246,8 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
 
         origen = data[data['tipo'] == 1]
 
-        print("aqui")
-        print(origen.to_string())
+        """ print("aqui")
+        print(origen.to_string()) """
     else:
         data['tipo'] = [0 for i in range(len(data))]
         data['local'] = [0 for i in range(len(data))]
@@ -262,7 +262,8 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
         data = data.drop(columns=['diferencia'])
         data['diferencia'] = data.apply(
             lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
-
+        data.drop_duplicates(
+            subset=['hostid', 'Problem'], inplace=True)
     session.close()
     return success_response(data=data.to_dict(orient="records"))
 
