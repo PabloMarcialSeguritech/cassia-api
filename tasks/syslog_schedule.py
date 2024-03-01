@@ -337,6 +337,7 @@ where hi.device_id=1""")
             status='Cerrada automaticamente'
             where cassia_arch_traffic_events_id
             in ({ids})
+            and message!='Unavailable by ICMP ping'
             """)
             session.execute(statement)
             session.commit()

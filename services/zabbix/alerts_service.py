@@ -155,8 +155,8 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
         lpr_id = lpr_config.value
     if subtype == "376276" or subtype == "375090":
         subtype = '376276,375090'
-    if tech_host_type == "11":
-        tech_host_type = "11,2"
+    """ if tech_host_type == "11":
+        tech_host_type = "11,2" """
     if subtype != "" and tech_host_type == "":
         tech_host_type = "0"
     switch_config = session.query(CassiaConfig).filter(
