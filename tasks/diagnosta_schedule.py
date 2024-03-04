@@ -112,7 +112,6 @@ and alert_type='diagnosta'""")
                 sincronizacion_parcial['created_at'] = now_a
 
                 if not sincronizacion_parcial.empty:
-                    sincronizacion_parcial['alert_type'] = 'diagnosta'
                     sql = sincronizacion_parcial.to_sql('cassia_diagnostic_problems', con=db_zabbix.engine,
                                                         if_exists='append', index=False)
                 session.commit()
@@ -249,7 +248,8 @@ where h.hostid={analizado[0]}
                                 ip=host_padre['ip'][0],
                                 tech_id=host_padre['tech_id'][0],
                                 created_at=now_a,
-                                updated_at=now_a)
+                                updated_at=now_a,
+                                alert_type='diagnosta')
                             session.add(problem_local)
                             session.commit()
                             problemas_creados.loc[len(problemas_creados)+1] = [
@@ -343,7 +343,8 @@ where h.hostid={problematico[0]}
                                     ip=host_padre['ip'][0],
                                     tech_id=host_padre['tech_id'][0],
                                     created_at=now_a,
-                                    updated_at=now_a,)
+                                    updated_at=now_a,
+                                    alert_type='diagnosta')
                                 session.add(problem_local)
                                 session.commit()
                                 problemas_creados.loc[len(problemas_creados)+1] = [
