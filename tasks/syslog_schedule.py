@@ -144,7 +144,7 @@ order by count(h.hostid) desc""")
 async def clean_data_lpr():
     with DB_Zabbix().Session() as session:
         date = datetime.now(pytz.timezone(
-            'America/Mexico_City')) - timedelta(minutes=62)
+            'America/Mexico_City')) - timedelta(minutes=70)
         statement = text(f"""
     DELETE FROM cassia_arch_traffic_lpr
     WHERE cassia_arch_traffic_lpr_id in(
@@ -211,14 +211,15 @@ where hi.device_id=1""")
 
                 result_alert['alerta'] = [
                     f"Este host no ha tenido lecturas en los ultimos {rango} minutos" for i in range(len(result_alert))]
-                result_alert['severidad'] = [1 if rango == 20 else 2 if rango ==
+                result_alert['severidad'] = [1 if rango == 25 else 2 if rango ==
                                              30 else 3 if rango == 45 else 4 for i in range(len(result_alert))]
 
                 alertas = pd.concat([alertas, result_alert], ignore_index=True)
         for ind in alertas.index:
             alerta = session.query(CassiaArchTrafficEvent).filter(
                 CassiaArchTrafficEvent.hostid == alertas['hostid'][ind],
-                CassiaArchTrafficEvent.closed_at == None
+                CassiaArchTrafficEvent.closed_at == None,
+                CassiaArchTrafficEvent.alert_type == 'lpr'
             ).first()
             if not alerta:
                 alerta_created = CassiaArchTrafficEvent(
@@ -233,7 +234,8 @@ where hi.device_id=1""")
                     municipality=alertas['municipality'][ind],
                     ip=alertas['ip'][ind],
                     hostname=alertas['name'][ind],
-                    tech_id=lpr_id
+                    tech_id=lpr_id,
+                    alert_type='lpr'
                 )
                 session.add(alerta_created)
             else:
@@ -315,6 +317,7 @@ where hi.device_id=1""")
                         cassia_arch_traffic_events
                         where closed_at is NULL
                         and tech_id='{lpr_id}'
+                        and alert_type='lpr'
                         and message!='Unavailable by ICMP ping'
                         """)
         abiertos = pd.DataFrame(session.execute(abiertos))
@@ -338,6 +341,7 @@ where hi.device_id=1""")
             where cassia_arch_traffic_events_id
             in ({ids})
             and message!='Unavailable by ICMP ping'
+            and alert_type='lpr'
             """)
             session.execute(statement)
             session.commit()
