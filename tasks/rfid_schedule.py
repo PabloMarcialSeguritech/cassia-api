@@ -101,7 +101,7 @@ async def clean_data():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     date = datetime.now(pytz.timezone(
-        'America/Mexico_City')) - timedelta(minutes=62)
+        'America/Mexico_City')) - timedelta(minutes=65)
 
     statement = text(f"""
     DELETE FROM cassia_arch_traffic
@@ -188,7 +188,8 @@ async def trigger_alerts():
     for ind in alertas.index:
         alerta = session.query(CassiaArchTrafficEvent).filter(
             CassiaArchTrafficEvent.hostid == alertas['hostid'][ind],
-            CassiaArchTrafficEvent.closed_at == None
+            CassiaArchTrafficEvent.closed_at == None,
+            CassiaArchTrafficEvent.alert_type == 'rfid'
         ).first()
         if not alerta:
             alerta_created = CassiaArchTrafficEvent(
@@ -203,8 +204,8 @@ async def trigger_alerts():
                 municipality=alertas['municipality'][ind],
                 ip=alertas['ip'][ind],
                 hostname=alertas['name'][ind],
-                tech_id=rfid_id
-
+                tech_id=rfid_id,
+                alert_type='rfid'
             )
             session.add(alerta_created)
         else:
@@ -276,6 +277,7 @@ async def trigger_alerts_close():
                     cassia_arch_traffic_events
                     where closed_at is NULL
                     and tech_id='{rfid_id}'
+                    and alert_type='rfid'
                     and message!='Unavailable by ICMP ping'
                     """)
     abiertos = pd.DataFrame(session.execute(abiertos))
@@ -297,6 +299,7 @@ async def trigger_alerts_close():
         where cassia_arch_traffic_events_id
         in ({ids})
         and message!='Unavailable by ICMP ping'
+        and alert_type='rfid'
         """)
 
         session.execute(statement)

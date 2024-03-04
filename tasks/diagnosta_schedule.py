@@ -37,7 +37,8 @@ async def process_problems():
             f"""SELECT * FROM cassia_arch_traffic_events cate 
 WHERE cate.closed_at is NULL and 
 severity =5
-and message='Unavailable by ICMP ping'""")
+and message='Unavailable by ICMP ping'
+and alert_type='diagnosta'""")
         problems_local = pd.DataFrame(session.execute(statement_local))
         sync_zabbix = text(
             f"""SELECT * FROM cassia_diagnostic_problems where closed_at is null and local=0""")
@@ -111,6 +112,7 @@ and message='Unavailable by ICMP ping'""")
                 sincronizacion_parcial['created_at'] = now_a
 
                 if not sincronizacion_parcial.empty:
+                    sincronizacion_parcial['alert_type'] = 'diagnosta'
                     sql = sincronizacion_parcial.to_sql('cassia_diagnostic_problems', con=db_zabbix.engine,
                                                         if_exists='append', index=False)
                 session.commit()
@@ -153,6 +155,7 @@ and message='Unavailable by ICMP ping'""")
                         set closed_at=:date,
                         status=:status
                         where cassia_arch_traffic_events_id in :ids
+                        and alert_type='diagnosta'
                         """)
                     session.execute(statement2, params={
                         'date': now, 'status': 'RESOLVED', 'ids': a_cerrar_local['eventid'].to_list()})
