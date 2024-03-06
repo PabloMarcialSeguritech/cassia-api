@@ -150,15 +150,16 @@ def get_roles(user_id):
             permissions = pd.DataFrame(permissions).replace(np.nan, "")
             """ print(permissions.head()) """
             if not permissions.empty:
-                if len(permissions["permission_id"]) > 1:
-                    permission_ids = tuple(
-                        permissions['permission_id'].values.tolist())
+                if len(permissions) > 0:
+                    permission_ids = permissions['permission_id'].values.tolist(
+                    )
                 else:
-                    permission_ids = f"({permissions['permission_id'][0]})"
+                    permission_ids = [0]
                 """ print(permission_ids) """
                 statement = text(
-                    f"select permission_id,module_name, name from cassia_permissions where permission_id in{permission_ids}")
-                permissions = session.execute(statement)
+                    f"select permission_id,module_name, name from cassia_permissions where permission_id in :ids")
+                permissions = session.execute(
+                    statement, {'ids': permission_ids})
                 permissions = pd.DataFrame(permissions).replace(np.nan, "")
                 session.close()
                 return {"roles": roles.to_dict(orient="records"), "permissions": permissions.to_dict(orient="records")}
