@@ -120,7 +120,7 @@ async def create_role(role: cassia_role_schema.RoleRegister):
     )
     session.add(db_role)
     session.commit()
-    session.refresh(db_role)
+    """ session.refresh(db_role) """
     for permission in permissions:
         role_has_permission = RoleHasPermission(
             permission_id=permission,
@@ -130,13 +130,14 @@ async def create_role(role: cassia_role_schema.RoleRegister):
         )
         session.add(role_has_permission)
         session.commit()
-        session.refresh(role_has_permission)
+        """ session.refresh(role_has_permission) """
+    data = {
+        'rol_id': db_role.rol_id,
+        'name': db_role.name,
+        'description': db_role.description
+    }
     session.close()
-    return success_response(message=f"Role created", data=cassia_role_schema.Role(
-        rol_id=db_role.rol_id,
-        name=db_role.name,
-        description=db_role.description,
-    ))
+    return success_response(message=f"Role created", data=data)
 
 
 async def update_role(role_id: int, role: cassia_role_schema.RoleRegister):
@@ -198,13 +199,14 @@ async def update_role(role_id: int, role: cassia_role_schema.RoleRegister):
             )
             session.add(role_has_permission)
             session.commit()
-            session.refresh(role_has_permission)
+            """ session.refresh(role_has_permission) """
+    data = {
+        'rol_id': actual_role.rol_id,
+        'name': actual_role.name,
+        'description': actual_role.description
+    }
     session.close()
-    return success_response(message=f"Role updated successfully", data=cassia_role_schema.Role(
-        rol_id=actual_role.rol_id,
-        name=actual_role.name,
-        description=actual_role.description
-    ))
+    return success_response(message=f"Role updated successfully", data=data)
 
 
 async def delete_role(role_id: int):
