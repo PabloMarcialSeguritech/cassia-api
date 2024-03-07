@@ -223,7 +223,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     ssh = paramiko.SSHClient()
                     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     try:
-                        ssh.connect(direccion_ip, username=ssh_user, password=ssh_pass)
+                        ssh.connect(direccion_ip, username=ssh_user, password=ssh_pass, timeout=30)
                     except Exception as e:
                         error_message = "No fue posible hacer la conexión al servidor"
                         print(f"Error al conectar a la ip {direccion_ip} por SSH: {str(e)}")
