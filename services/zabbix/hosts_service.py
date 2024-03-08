@@ -288,7 +288,7 @@ SELECT from_unixtime(p.clock,'%d/%m/%Y %H:%i:%s' ) as Time,
         data = pd.concat([data_problems, data],
                          ignore_index=True).replace(np.nan, "")
         if not data_diagnosta.empty:
-            data.loc[data['hostid'].isin(
+            data.loc[data['eventid'].isin(
                 data_diagnosta['eventid'].to_list()), 'tipo'] = 1
     if not data.empty:
         now = datetime.now(pytz.timezone('America/Mexico_City'))
