@@ -20,3 +20,4 @@ class CassiaArchTrafficEvent2(DB_Zabbix.Base):
     hostname = Column(String(length=128), unique=False, nullable=True)
     ip = Column(String(length=50), unique=False, nullable=True)
     tech_id = Column(String(length=5), unique=False, nullable=True, default=9)
+    alert_type = Column(String(length=40), unique=False, nullable=True)
