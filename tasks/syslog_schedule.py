@@ -206,12 +206,14 @@ where hi.device_id=1""")
                 if not result.empty:
                     hosts = result['hostid'].to_list()
                 result_alert = lprs[~lprs['hostid'].isin(hosts)]
+                result_alert = result_alert[~result_alert['hostid'].isin(
+                    alerts_defined)]
                 alerts_defined = alerts_defined + \
                     result_alert['hostid'].values.tolist()
 
                 result_alert['alerta'] = [
                     f"Este host no ha tenido lecturas en los ultimos {rango} minutos" for i in range(len(result_alert))]
-                result_alert['severidad'] = [1 if rango == 25 else 2 if rango ==
+                result_alert['severidad'] = [1 if rango == 20 else 2 if rango ==
                                              30 else 3 if rango == 45 else 4 for i in range(len(result_alert))]
 
                 alertas = pd.concat([alertas, result_alert], ignore_index=True)
@@ -303,6 +305,8 @@ where hi.device_id=1""")
                 if not result.empty:
                     hosts = result['hostid'].to_list()
                 result_alert = lprs[~lprs['hostid'].isin(hosts)]
+                result_alert = result_alert[~result_alert['hostid'].isin(
+                    alerts_defined)]
                 alerts_defined = alerts_defined + \
                     result_alert['hostid'].values.tolist()
 
