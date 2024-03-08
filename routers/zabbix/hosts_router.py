@@ -10,6 +10,7 @@ import paramiko
 import re
 from utils.settings import Settings
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
 settings = Settings()
 hosts_router = APIRouter(prefix="/hosts")
@@ -223,7 +224,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     ssh = paramiko.SSHClient()
                     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     try:
-                        ssh.connect(direccion_ip, username=ssh_user, password=ssh_pass, timeout=30)
+                        ssh = await connect_ssh(direccion_ip, ssh_user, ssh_pass)
                     except Exception as e:
                         error_message = "No fue posible hacer la conexión al servidor"
                         print(f"Error al conectar a la ip {direccion_ip} por SSH: {str(e)}")
@@ -376,3 +377,20 @@ async def send_continuous_data(websocket: WebSocket, command: str, shell, sessio
             await websocket.send_text(data)
         if session_id not in tasks:  # Verificar si la tarea fue cancelada
             break
+
+async def connect_ssh(direccion_ip, ssh_user, ssh_pass):
+    loop = asyncio.get_running_loop()
+    with ThreadPoolExecutor() as pool:
+        ssh = await loop.run_in_executor(pool, connect_ssh_blocking, direccion_ip, ssh_user, ssh_pass)
+    return ssh
+
+def connect_ssh_blocking(direccion_ip, ssh_user, ssh_pass):
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        ssh.connect(direccion_ip, username=ssh_user, password=ssh_pass, timeout=30)
+        return ssh
+    except paramiko.ssh_exception.SSHException as e:
+        # Manejar el error de conexión SSH aquí
+        print(f"Error al conectar a la dirección IP {direccion_ip}: {str(e)}")
+        return None  # Otra opción podría ser lanzar una excepción personalizada para manejar este caso
