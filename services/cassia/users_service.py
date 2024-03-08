@@ -164,8 +164,7 @@ async def create_user(user: user_schema.UserRegister):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     get_user = session.query(User).filter(
-        User.mail == user.mail,
-        User.deleted_at == None
+        User.mail == user.mail
     ).first()
     # get_user = UserModel.filter((UserModel.email == user.email) | (
     #    UserModel.username == user.username)).first()
