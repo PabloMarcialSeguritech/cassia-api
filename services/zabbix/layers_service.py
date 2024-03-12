@@ -58,6 +58,25 @@ def get_downs_layer(municipality_id, dispId, subtype_id):
     return success_response(data=response)
 
 
+def get_downs_origin_layer(municipality_id, dispId, subtype_id):
+    with DB_Zabbix().Session() as session:
+        downs_origen = text(
+            f"""call sp_diagnostic_problems('{municipality_id}','{dispId}')""")
+        downs_origen = pd.DataFrame(
+            session.execute(downs_origen)).replace(np.nan, "")
+
+        if not downs_origen.empty:
+            downs_origen['value'] = [1 for i in range(len(downs_origen))]
+            downs_origen['description'] = [
+                'ICMP ping' for i in range(len(downs_origen))]
+            downs_origen['origen'] = [1 for i in range(len(downs_origen))]
+
+        response = {"downs": downs_origen.to_dict(
+            orient="records")
+        }
+        return success_response(data=response)
+
+
 def get_carreteros(municipality_id):
     db_zabbix = DB_Zabbix()
     session_zabbix = db_zabbix.Session()

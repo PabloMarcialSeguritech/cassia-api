@@ -64,3 +64,14 @@ def get_hosts_filter(municipalityId: str = "0"):
 )
 async def get_switches_connectivity(municipality_id="0"):
     return await layers_service.get_switches_connectivity(municipality_id)
+
+
+@layers_router.get(
+    '/downs/origen/{municipalityId}',
+    tags=["Zabbix - Layers"],
+    status_code=status.HTTP_200_OK,
+    summary="Get host with status down by municipality ID, technology or device type, and subtype",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+def get_hosts_filter(municipalityId: str = "0", dispId: str = "", subtype_id: str = ""):
+    return layers_service.get_downs_origin_layer(municipalityId, dispId, subtype_id)
