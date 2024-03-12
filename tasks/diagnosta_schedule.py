@@ -79,7 +79,7 @@ and alert_type='diagnosta'""")
         if not no_sync_local.empty:
             no_sync_local['synced'] = [0 for i in range(len(no_sync_local))]
         a_sincronizar = pd.DataFrame(
-            columns=['eventid', 'depends_eventid', 'status', 'closed_at', 'local', 'hostid'])
+            columns=['eventid', 'depends_eventid', 'status', 'closed_at', 'local', 'hostid', 'dependents'])
         problemas_creados = pd.DataFrame(columns=['eventid', 'hostid'])
         problemas_sincronizados_activos = pd.DataFrame(
             columns=['eventid'])
@@ -308,23 +308,41 @@ where h.hostid={analizado[0]}
                             session.commit()
                             problemas_creados.loc[len(problemas_creados)+1] = [
                                 problem_local.cassia_arch_traffic_events_id, problem_local.hostid]
+                            dependientes_caidos = 0
+                            if "desconectados_dependientes" in capa:
+                                """ MARCA LOS DEPENDIENTES COMO YA SINCRONIZADOS PARA NO ESTAR VERIFICANDO TODOS """
+                                dependientes = capa["desconectados_dependientes"]
+                                dependientes_caidos = [dependiente[9]
+                                                       for dependiente in dependientes]
+                                print(dependientes_caidos)
+                                dependientes_caidos = dependientes_caidos.count(
+                                    False)
 
                             if a_sincronizar.empty:
                                 a_sincronizar.loc[len(
                                     a_sincronizar)+1] = [problem_local.cassia_arch_traffic_events_id,
                                                          None,
                                                          'Sincronizado',
-                                                         None, 1, problem_local.hostid]
+                                                         None, 1, problem_local.hostid, dependientes_caidos]
                             else:
                                 a_sincronizar.loc[a_sincronizar.index.max()+1] = [problem_local.cassia_arch_traffic_events_id,
                                                                                   None,
                                                                                   'Sincronizado',
-                                                                                  None, 1, problem_local.hostid]
+                                                                                  None, 1, problem_local.hostid, dependientes_caidos]
 
             for fila in filas_asociadas.index:
                 """ SI EXISTEN FILAS ASOCIADAS ENTRA"""
+                dependientes_caidos = 0
+                if "desconectados_dependientes" in capa:
+                    """ MARCA LOS DEPENDIENTES COMO YA SINCRONIZADOS PARA NO ESTAR VERIFICANDO TODOS """
+                    dependientes = capa["desconectados_dependientes"]
+                    dependientes_caidos = [dependiente[9]
+                                           for dependiente in dependientes]
+                    print(dependientes_caidos)
+                    dependientes_caidos = dependientes_caidos.count(
+                        False)
                 a_incorporar = [filas_asociadas['eventid'][fila],
-                                None, 'Sincronizado', None, 0, filas_asociadas['hostid'][fila]]
+                                None, 'Sincronizado', None, 0, filas_asociadas['hostid'][fila], dependientes_caidos]
                 row_is_present = (a_sincronizar[['eventid', 'depends_eventid']] == [
                     a_incorporar[0], a_incorporar[1]]).all(axis=1).any()
                 """ sincronizado = (no_sync_zabbix[['hostid']] == analizado[0]).all(
@@ -415,22 +433,40 @@ where h.hostid={problematico[0]}
                                     problem_local.cassia_arch_traffic_events_id, problem_local.hostid]
                                 print(
                                     f"se creo el evento {problem_local.cassia_arch_traffic_events_id}")
+                                dependientes_caidos = 0
+                                if "desconectados_dependientes" in capa:
+                                    """ MARCA LOS DEPENDIENTES COMO YA SINCRONIZADOS PARA NO ESTAR VERIFICANDO TODOS """
+                                    dependientes = capa["desconectados_dependientes"]
+                                    dependientes_caidos = [dependiente[9]
+                                                           for dependiente in dependientes]
+                                    print(dependientes_caidos)
+                                    dependientes_caidos = dependientes_caidos.count(
+                                        False)
                                 if a_sincronizar.empty:
                                     a_sincronizar.loc[len(
                                         a_sincronizar)+1] = [problem_local.cassia_arch_traffic_events_id,
                                                              None,
                                                              'Sincronizado',
-                                                             None, 1, problem_local.hostid]
+                                                             None, 1, problem_local.hostid, dependientes_caidos]
                                 else:
                                     a_sincronizar.loc[a_sincronizar.index.max()+1] = [problem_local.cassia_arch_traffic_events_id,
                                                                                       None,
                                                                                       'Sincronizado',
-                                                                                      None, 1, problem_local.hostid]
+                                                                                      None, 1, problem_local.hostid, dependientes_caidos]
                                 """ print(a_sincronizar) """
 
                 for fila in filas_asociadas.index:
+                    dependientes_caidos = 0
+                    if "desconectados_dependientes" in capa:
+                        """ MARCA LOS DEPENDIENTES COMO YA SINCRONIZADOS PARA NO ESTAR VERIFICANDO TODOS """
+                        dependientes = capa["desconectados_dependientes"]
+                        dependientes_caidos = [dependiente[9]
+                                               for dependiente in dependientes]
+                        print(dependientes_caidos)
+                        dependientes_caidos = dependientes_caidos.count(
+                            False)
                     a_incorporar = [filas_asociadas['eventid'][fila],
-                                    None, 'Sincronizado', None, 0, filas_asociadas['hostid'][fila]]
+                                    None, 'Sincronizado', None, 0, filas_asociadas['hostid'][fila], dependientes_caidos]
 
                     row_is_present = (a_sincronizar[['eventid', 'depends_eventid']] == [
                         a_incorporar[0], a_incorporar[1]]).all(axis=1).any()
