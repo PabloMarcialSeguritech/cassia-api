@@ -249,8 +249,12 @@ SELECT from_unixtime(p.clock,'%d/%m/%Y %H:%i:%s' ) as Time,
     data = pd.DataFrame(data).replace(np.nan, "")
     data['local'] = 0
     data['tipo'] = 0
+    data['dependents'] = 0
     data_problems = text(
-        f"select * from cassia_arch_traffic_events where hostid={host_id} order by created_at desc limit 20")
+        f"""
+        select cate.*,cdp.dependents  from cassia_arch_traffic_events cate
+left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
+where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at desc limit 20""")
     data_problems = pd.DataFrame(
         session.execute(data_problems)).replace(np.nan, '')
     if not data_problems.empty:
