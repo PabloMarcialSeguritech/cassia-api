@@ -212,7 +212,7 @@ where hi.device_id=1""")
                     result_alert['hostid'].values.tolist()
 
                 result_alert['alerta'] = [
-                    f"Este host no ha tenido lecturas en los ultimos {rango} minutos" for i in range(len(result_alert))]
+                    f"Este host no ha tenido lecturas por más de " for i in range(len(result_alert))]
                 result_alert['severidad'] = [1 if rango == 20 else 2 if rango ==
                                              30 else 3 if rango == 45 else 4 for i in range(len(result_alert))]
 
@@ -311,7 +311,7 @@ where hi.device_id=1""")
                     result_alert['hostid'].values.tolist()
 
                 result_alert['alerta'] = [
-                    f"Este host no ha tenido lecturas en los ultimos {rango} minutos" for i in range(len(result_alert))]
+                    f"Este host no ha tenido lecturas por más de " for i in range(len(result_alert))]
                 result_alert['severidad'] = [1 if rango == 20 else 2 if rango ==
                                              30 else 3 if rango == 45 else 4 for i in range(len(result_alert))]
 

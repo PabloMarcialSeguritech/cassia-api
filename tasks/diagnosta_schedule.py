@@ -467,7 +467,6 @@ where h.hostid={problematico[0]}
                             False)
                     a_incorporar = [filas_asociadas['eventid'][fila],
                                     None, 'Sincronizado', None, 0, filas_asociadas['hostid'][fila], dependientes_caidos]
-
                     row_is_present = (a_sincronizar[['eventid', 'depends_eventid']] == [
                         a_incorporar[0], a_incorporar[1]]).all(axis=1).any()
                     if not row_is_present:
@@ -485,5 +484,4 @@ where h.hostid={problematico[0]}
                 if len(dependientes_ids):
                     no_sync_zabbix.loc[no_sync_zabbix['hostid'].isin(
                         dependientes_ids), 'synced'] = 1
-
     return a_sincronizar
