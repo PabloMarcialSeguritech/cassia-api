@@ -252,7 +252,7 @@ async def create_user(user: user_schema.UserRegister):
         "password": password,
         "url": url
     }
-
+    print(url)
     session.close()
     await send_email(email_to=db_user.mail, body=body)
     # db_user.save()

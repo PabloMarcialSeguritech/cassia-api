@@ -15,11 +15,22 @@ layers_router = APIRouter(prefix="/layers")
     "/aps/{municipality_id}",
     tags=["Zabbix - Layers"],
     status_code=status.HTTP_200_OK,
-    summary="Get aps layer by municipality ID",
+    summary="Get towers layer by municipality ID",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def get_aps(municipality_id=0):
-    return layers_service.get_aps_layer(municipality_id)
+    return await layers_service.get_aps_layer()
+
+
+@layers_router.get(
+    "/towers",
+    tags=["Zabbix - Layers"],
+    status_code=status.HTTP_200_OK,
+    summary="Get towers layer by municipality ID",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_towers():
+    return await layers_service.get_aps_layer()
 
 
 @layers_router.get(
