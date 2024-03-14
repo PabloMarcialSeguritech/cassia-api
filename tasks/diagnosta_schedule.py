@@ -2,6 +2,8 @@ import pandas as pd
 from models.cassia_lpr_events import CassiaLprEvent as CassiaEventModel
 from models.cassia_config import CassiaConfig
 from models.cassia_arch_traffic_events import CassiaArchTrafficEvent
+from models.cassia_arch_traffic_events_2 import CassiaArchTrafficEvent2
+
 from rocketry import Grouper
 from utils.settings import Settings
 from utils.db import DB_Zabbix, DB_Syslog
@@ -77,48 +79,91 @@ and alert_type='diagnosta'""")
         if not no_sync_local.empty:
             no_sync_local['synced'] = [0 for i in range(len(no_sync_local))]
         a_sincronizar = pd.DataFrame(
-            columns=['eventid', 'depends_eventid', 'status', 'closed_at', 'local', 'hostid'])
+            columns=['eventid', 'depends_eventid', 'status', 'closed_at', 'local', 'hostid', 'dependents'])
         problemas_creados = pd.DataFrame(columns=['eventid', 'hostid'])
         problemas_sincronizados_activos = pd.DataFrame(
             columns=['eventid'])
         repeticiones = 0
         rep_ind = 0
-        sync_rep = 5
-        len_arr = len(problems_zabbix)
+        sync_rep = 2
+        len_arr = len(no_sync_zabbix)
         sync_indice = 0
+        ranges = 30
+        range_low = 0
+        range_up = 0
+
         for ind in no_sync_zabbix.index:
             async with httpx.AsyncClient() as client:
-                sinced = no_sync_zabbix[no_sync_zabbix['synced'] == 1]
+                range_low = ind*ranges
+                if ranges*(ind+1) < len(no_sync_zabbix):
+                    range_up = ranges*(ind+1)
+                else:
+                    range_up = len(no_sync_zabbix)+1
+                if range_low >= len(no_sync_zabbix):
+                    break
+                """ print(range_low)
+                print(range_up) """
+                """ print(no_sync_zabbix.to_string()) """
+                """ todos_ids = no_sync_zabbix['hostid'].astype(
+                    'str').to_list() """
+                ids = pd.DataFrame(columns=['hostid'], data=no_sync_zabbix['hostid'].astype(
+                    'str')[range_low:range_up])
+                """ print(ids)
+                print(type(ids)) """
+                for index in ids.index:
+                    """ print(no_sync_zabbix.to_string()) """
+                    row_is_present = (no_sync_zabbix[['hostid', 'synced']] == [
+                        ids['hostid'][index], 1]).all(axis=1).any()
+                    if row_is_present:
+                        ids.drop(index)
                 if no_sync_zabbix['synced'][ind] == 1:
                     continue
-                response = await client.get(f"{diagnosta_api_url}/analisis/{no_sync_zabbix['hostid'][ind]}", timeout=120)
-
+                if ids.empty:
+                    continue
+                ids_str = ",".join(ids['hostid'].to_list())
+                """ print(ids) """
+                """ print(ids) """
+                """ return """
+                """ print(ids_str) """
+                response = await client.get(f"{diagnosta_api_url}/analisisM/{ids_str}", timeout=120)
+                status = response.status_code
+                if status == 500 or status == '500':
+                    continue
+                """ print(status) """
                 response_json = response.json()
                 if len(response_json) > 0:
-                    if 'capaGeneral' in response_json:
-                        procesed = await process_layer(
-                            'capaGeneral', response_json, no_sync_zabbix, no_sync_local, a_sincronizar, session, problemas_creados, problems_local, problemas_sincronizados_activos)
-                        print(ind)
-                        a_sincronizar = procesed
-
+                    for index in ids.index:
+                        hostid = ids['hostid'][index]
+                        if hostid in response_json:
+                            res_host = response_json[hostid]
+                            if 'capaGeneral' in res_host:
+                                procesed = await process_layer(
+                                    'capaGeneral', res_host, no_sync_zabbix, no_sync_local, a_sincronizar, session, problemas_creados, problems_local, problemas_sincronizados_activos)
+                                """ print(ind) """
+                                a_sincronizar = procesed
             repeticiones += 1
             rep_ind += 1
-            if rep_ind == sync_rep or repeticiones >= len_arr:
 
-                a_sincronizar = a_sincronizar.drop_duplicates()
-                sincronizacion_parcial = a_sincronizar.iloc[sync_indice:(len(
-                    a_sincronizar)+1)]
-                now_a = datetime.now(pytz.timezone('America/Mexico_City'))
-                sincronizacion_parcial['created_at'] = now_a
-
-                if not sincronizacion_parcial.empty:
-                    sql = sincronizacion_parcial.to_sql('cassia_diagnostic_problems', con=db_zabbix.engine,
-                                                        if_exists='append', index=False)
-                session.commit()
-                rep_ind = 0
-                sync_indice = len(a_sincronizar)
-
-        a_cerrar = pd.DataFrame()
+            """ if rep_ind == sync_rep or range_up >= len_arr: """
+        print(f"entra {repeticiones}")
+        print(f"indice {sync_indice}")
+        a_sincronizar = a_sincronizar.drop_duplicates(
+            subset='eventid')
+        a_sincronizar.reset_index(drop=True, inplace=True)
+        """ print(a_sincronizar)
+        sincronizacion_parcial = a_sincronizar.iloc[:] """
+        """ print(sincronizacion_parcial) """
+        now_a = datetime.now(pytz.timezone('America/Mexico_City'))
+        a_sincronizar['created_at'] = now_a
+        if not a_sincronizar.empty:
+            sql = a_sincronizar.to_sql('cassia_diagnostic_problems', con=db_zabbix.engine,
+                                       if_exists='append', index=False)
+        session.commit()
+        """ rep_ind = 0
+        if a_sincronizar.empty:
+            sync_indice = len(a_sincronizar)
+        else:
+            sync_indice = len(a_sincronizar) """
 
         now = datetime.now(pytz.timezone('America/Mexico_City'))
         if not a_sincronizar.empty:
@@ -193,7 +238,7 @@ async def process_layer(capa_name: str, response_capa, no_sync_zabbix: pd.DataFr
     analizado = capa['dispositivo_analizado']
     problematico = capa['dispositivo_problematico']
     if not problematico:
-        print("null")
+        """ print("null") """
         return a_sincronizar
     if len(analizado) and not len(problematico):
         no_sync_zabbix.loc[no_sync_zabbix['hostid'].astype(int) ==
@@ -206,7 +251,7 @@ async def process_layer(capa_name: str, response_capa, no_sync_zabbix: pd.DataFr
             filas_asociadas = no_sync_zabbix[no_sync_zabbix['hostid'].astype(int)
                                              == problematico[0]]
             if filas_asociadas.empty:
-                """ ENTRA SI HAY FILAS DE PROBLEMAS ASOCIADAS AL PROBLEMATICO """
+                """ ENTRA SI NO HAY FILAS DE PROBLEMAS ASOCIADAS AL PROBLEMATICO """
 
                 incorporar_local = no_sync_local[no_sync_local['hostid'].astype(
                     int) == analizado[0]]
@@ -215,13 +260,22 @@ async def process_layer(capa_name: str, response_capa, no_sync_zabbix: pd.DataFr
                     int) == analizado[0]]
 
                 if not existe_local.empty:
-                    problemas_sincronizados_activos[len(problemas_sincronizados_activos)] = [
-                        existe_local['cassia_arch_traffic_events_id'][existe_local.index.max()]]
+                    if problemas_sincronizados_activos.empty:
+                        problemas_sincronizados_activos.loc[len(
+                            problemas_sincronizados_activos)+1] = [
+                            existe_local['cassia_arch_traffic_events_id'][existe_local.index.max()]]
+                    else:
+                        problemas_sincronizados_activos.loc[problemas_sincronizados_activos.index.max(
+                        )+1] = [existe_local['cassia_arch_traffic_events_id'][existe_local.index.max()]]
+                    """ problemas_sincronizados_activos[len(problemas_sincronizados_activos)] = [
+                        existe_local['cassia_arch_traffic_events_id'][existe_local.index.max()]] """
                 if incorporar_local.empty and existe_local.empty:
                     """ SI NO EXISTE EN LOS NO SINCRONIZADOS LOCALES NI EN LOS PROBLEMAS LOCALES ENTRA """
                     row_is_present = (
                         problemas_creados[['hostid']] == analizado[0]).all(axis=1).any()
-                    if not row_is_present.empty:
+                    sincronizado = (a_sincronizar[['hostid']] == analizado[0]).all(
+                        axis=1).any()
+                    if not row_is_present and not sincronizado:
                         """ SI NO FUE CREADO YA EL PROBLEMA ENTRA """
                         host_padre = text(f"""
 SELECT h.hostid ,h.host as hostname,hi.location_lat as latitude,hi.location_lon as longitude,
@@ -254,25 +308,46 @@ where h.hostid={analizado[0]}
                             session.commit()
                             problemas_creados.loc[len(problemas_creados)+1] = [
                                 problem_local.cassia_arch_traffic_events_id, problem_local.hostid]
+                            dependientes_caidos = 0
+                            if "desconectados_dependientes" in capa:
+                                """ MARCA LOS DEPENDIENTES COMO YA SINCRONIZADOS PARA NO ESTAR VERIFICANDO TODOS """
+                                dependientes = capa["desconectados_dependientes"]
+                                dependientes_caidos = [dependiente[9]
+                                                       for dependiente in dependientes]
+                                print(dependientes_caidos)
+                                dependientes_caidos = dependientes_caidos.count(
+                                    False)
 
                             if a_sincronizar.empty:
                                 a_sincronizar.loc[len(
                                     a_sincronizar)+1] = [problem_local.cassia_arch_traffic_events_id,
                                                          None,
                                                          'Sincronizado',
-                                                         None, 1, problem_local.hostid]
+                                                         None, 1, problem_local.hostid, dependientes_caidos]
                             else:
                                 a_sincronizar.loc[a_sincronizar.index.max()+1] = [problem_local.cassia_arch_traffic_events_id,
                                                                                   None,
                                                                                   'Sincronizado',
-                                                                                  None, 1, problem_local.hostid]
+                                                                                  None, 1, problem_local.hostid, dependientes_caidos]
 
             for fila in filas_asociadas.index:
                 """ SI EXISTEN FILAS ASOCIADAS ENTRA"""
+                dependientes_caidos = 0
+                if "desconectados_dependientes" in capa:
+                    """ MARCA LOS DEPENDIENTES COMO YA SINCRONIZADOS PARA NO ESTAR VERIFICANDO TODOS """
+                    dependientes = capa["desconectados_dependientes"]
+                    dependientes_caidos = [dependiente[9]
+                                           for dependiente in dependientes]
+                    print(dependientes_caidos)
+                    dependientes_caidos = dependientes_caidos.count(
+                        False)
                 a_incorporar = [filas_asociadas['eventid'][fila],
-                                None, 'Sincronizado', None, 0, filas_asociadas['hostid'][fila]]
+                                None, 'Sincronizado', None, 0, filas_asociadas['hostid'][fila], dependientes_caidos]
                 row_is_present = (a_sincronizar[['eventid', 'depends_eventid']] == [
                     a_incorporar[0], a_incorporar[1]]).all(axis=1).any()
+                """ sincronizado = (no_sync_zabbix[['hostid']] == analizado[0]).all(
+                    axis=1).any() """
+
                 """ SI NO EXISTE EL PROBLEMA YA EN LOS QUE SE VAN A SINCRONIZAR LOS METE"""
                 if not row_is_present:
                     if a_sincronizar.empty:
@@ -309,14 +384,21 @@ where h.hostid={analizado[0]}
                     existe_local = problems_local[problems_local['hostid'].astype(
                         int) == problematico[0]]
                     if not existe_local.empty:
-
-                        problemas_sincronizados_activos[len(problemas_sincronizados_activos)] = [
-                            existe_local['cassia_arch_traffic_events_id'][existe_local.index.max()]]
-
+                        if problemas_sincronizados_activos.empty:
+                            problemas_sincronizados_activos.loc[len(
+                                problemas_sincronizados_activos)+1] = [
+                                existe_local['cassia_arch_traffic_events_id'][existe_local.index.max()]]
+                        else:
+                            problemas_sincronizados_activos.loc[problemas_sincronizados_activos.index.max(
+                            )+1] = [existe_local['cassia_arch_traffic_events_id'][existe_local.index.max()]]
+                        """ problemas_sincronizados_activos[len(problemas_sincronizados_activos)] = [
+                            existe_local['cassia_arch_traffic_events_id'][existe_local.index.max()]] """
                     if incorporar_local.empty and existe_local.empty:
                         row_is_present = (
                             problemas_creados[['hostid']] == problematico[0]).all(axis=1).any()
-                        if not row_is_present:
+                        sincronizado = (a_sincronizar[['hostid']] == analizado[0]).all(
+                            axis=1).any()
+                        if not row_is_present and not sincronizado:
                             host_padre = text(f"""
 SELECT h.hostid ,h.host as hostname,hi.location_lat as latitude,hi.location_lon as longitude,
 i.ip, cm.name as municipality,hi.device_id as tech_id  FROM hosts h 
@@ -351,22 +433,40 @@ where h.hostid={problematico[0]}
                                     problem_local.cassia_arch_traffic_events_id, problem_local.hostid]
                                 print(
                                     f"se creo el evento {problem_local.cassia_arch_traffic_events_id}")
+                                dependientes_caidos = 0
+                                if "desconectados_dependientes" in capa:
+                                    """ MARCA LOS DEPENDIENTES COMO YA SINCRONIZADOS PARA NO ESTAR VERIFICANDO TODOS """
+                                    dependientes = capa["desconectados_dependientes"]
+                                    dependientes_caidos = [dependiente[9]
+                                                           for dependiente in dependientes]
+                                    print(dependientes_caidos)
+                                    dependientes_caidos = dependientes_caidos.count(
+                                        False)
                                 if a_sincronizar.empty:
                                     a_sincronizar.loc[len(
                                         a_sincronizar)+1] = [problem_local.cassia_arch_traffic_events_id,
                                                              None,
                                                              'Sincronizado',
-                                                             None, 1, problem_local.hostid]
+                                                             None, 1, problem_local.hostid, dependientes_caidos]
                                 else:
                                     a_sincronizar.loc[a_sincronizar.index.max()+1] = [problem_local.cassia_arch_traffic_events_id,
                                                                                       None,
                                                                                       'Sincronizado',
-                                                                                      None, 1, problem_local.hostid]
-                                print(a_sincronizar)
+                                                                                      None, 1, problem_local.hostid, dependientes_caidos]
+                                """ print(a_sincronizar) """
 
                 for fila in filas_asociadas.index:
+                    dependientes_caidos = 0
+                    if "desconectados_dependientes" in capa:
+                        """ MARCA LOS DEPENDIENTES COMO YA SINCRONIZADOS PARA NO ESTAR VERIFICANDO TODOS """
+                        dependientes = capa["desconectados_dependientes"]
+                        dependientes_caidos = [dependiente[9]
+                                               for dependiente in dependientes]
+                        print(dependientes_caidos)
+                        dependientes_caidos = dependientes_caidos.count(
+                            False)
                     a_incorporar = [filas_asociadas['eventid'][fila],
-                                    None, 'Sincronizado', None, 0, filas_asociadas['hostid'][fila]]
+                                    None, 'Sincronizado', None, 0, filas_asociadas['hostid'][fila], dependientes_caidos]
 
                     row_is_present = (a_sincronizar[['eventid', 'depends_eventid']] == [
                         a_incorporar[0], a_incorporar[1]]).all(axis=1).any()
