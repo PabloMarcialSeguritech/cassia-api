@@ -14,6 +14,7 @@ from models.cassia_user_session import CassiaUserSession
 from fastapi import File, UploadFile, Form
 from fastapi.responses import FileResponse
 from typing import Optional
+
 alerts_router = APIRouter()
 
 
@@ -47,7 +48,9 @@ def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: 
     summary="Register a acknowledge in event, Ex: 34975081",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_problems_filter(eventid: str = "34975081", message: str = Form(max_length=2048), close: bool = Form(...), current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+async def get_problems_filter(eventid: str = "34975081", message: str = Form(max_length=2048), close: bool = Form(...),
+                              current_user_session: CassiaUserSession = Depends(
+                                  auth_service2.get_current_user_session)):
     return await alerts_service.register_ack(eventid, message, current_user_session, close)
 
 
@@ -59,7 +62,6 @@ async def get_problems_filter(eventid: str = "34975081", message: str = Form(max
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def get_problems_filter(eventid: str = "34975081"):
-
     return await alerts_service.get_acks(eventid)
 
 
@@ -81,7 +83,8 @@ async def get_tickets_filter(eventid: str = "34975081"):
     summary="Link ticket to one event",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def link_ticket(ticket_data: cassia_ticket_schema.CassiaTicketBase, current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+async def link_ticket(ticket_data: cassia_ticket_schema.CassiaTicketBase,
+                      current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
     return await alerts_service.link_ticket(ticket_data, current_user_session)
 
 
@@ -127,7 +130,7 @@ def get_agencies():
     summary="Create an Exception Agency",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def create_agency(exception_agency:  exception_agency_schemas.CassiaExceptionAgencyBase = Body(...)):
+def create_agency(exception_agency: exception_agency_schemas.CassiaExceptionAgencyBase = Body(...)):
     return alerts_service.create_exception_agency(exception_agency=exception_agency)
 
 
@@ -138,8 +141,10 @@ def create_agency(exception_agency:  exception_agency_schemas.CassiaExceptionAge
     summary="Update an Exception Agency with the id given",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def create_agency(exception_agency_id, exception_agency:  exception_agency_schemas.CassiaExceptionAgencyBase = Body(...)):
-    return alerts_service.update_exception_agency(exception_agency_id=exception_agency_id, exception_agency=exception_agency)
+def create_agency(exception_agency_id,
+                  exception_agency: exception_agency_schemas.CassiaExceptionAgencyBase = Body(...)):
+    return alerts_service.update_exception_agency(exception_agency_id=exception_agency_id,
+                                                  exception_agency=exception_agency)
 
 
 @alerts_router.delete(
@@ -174,8 +179,10 @@ async def get_agencies():
     summary="Create an Exception",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def create_exception(exception: exception_schema.CassiaExceptionsBase = Body(...), current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
-    return await alerts_service.create_exception(exception=exception, current_user_session=current_user_session.session_id.hex)
+async def create_exception(exception: exception_schema.CassiaExceptionsBase = Body(...),
+                           current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+    return await alerts_service.create_exception(exception=exception,
+                                                 current_user_session=current_user_session.session_id.hex)
 
 
 @alerts_router.post(
@@ -185,8 +192,10 @@ async def create_exception(exception: exception_schema.CassiaExceptionsBase = Bo
     summary="Close an Exception",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def close_exception(exception_id, exception_data: exception_schema.CassiaExceptionsClose = Body(...), current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
-    return await alerts_service.close_exception(exception_id=exception_id, exception_data=exception_data, current_user_session=current_user_session.session_id.hex)
+async def close_exception(exception_id, exception_data: exception_schema.CassiaExceptionsClose = Body(...),
+                          current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+    return await alerts_service.close_exception(exception_id=exception_id, exception_data=exception_data,
+                                                current_user_session=current_user_session.session_id.hex)
 
 
 @alerts_router.post(
@@ -196,8 +205,10 @@ async def close_exception(exception_id, exception_data: exception_schema.CassiaE
     summary="Change status of one Problem Record",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def create_agency(problemid: int, estatus: problem_record_schema.ProblemRecordBase = Body(...), current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
-    return alerts_service.change_status(estatus=estatus.estatus, problemid=problemid, current_user_id=current_user_session.user_id)
+def create_agency(problemid: int, estatus: problem_record_schema.ProblemRecordBase = Body(...),
+                  current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+    return alerts_service.change_status(estatus=estatus.estatus, problemid=problemid,
+                                        current_user_id=current_user_session.user_id)
 
 
 """ @alerts_router.put(
@@ -230,8 +241,11 @@ def create_agency(exception_agency_id):
     summary="Register a message or log in problem record",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def create_message(problemid: int, message: Optional[str] = Form(None), current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session), file: UploadFile | None = None):
-    return await alerts_service.create_message(problemid=problemid, current_user_id=current_user_session.user_id, message=message, file=file)
+async def create_message(problemid: int, message: Optional[str] = Form(None),
+                         current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session),
+                         file: UploadFile | None = None):
+    return await alerts_service.create_message(problemid=problemid, current_user_id=current_user_session.user_id,
+                                               message=message, file=file)
 
 
 @alerts_router.get(
@@ -254,3 +268,16 @@ async def get_messages(problemid: int):
 )
 async def download_file(message_id: str):
     return await alerts_service.download_file(message_id=message_id)
+
+
+@alerts_router.post(
+    '/problems/acknowledge/cassia/{eventid}',
+    tags=["Zabbix - Problems(Alerts) - Acknowledge CASSIA"],
+    status_code=status.HTTP_200_OK,
+    summary="Register a CASSIA acknowledge in event, Ex: 34975081",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_problems_filter_cassia(eventid: str = "34975081", message: str = Form(max_length=2048), close: bool = Form(...),
+                              current_user_session: CassiaUserSession = Depends(
+                                  auth_service2.get_current_user_session)):
+    return await alerts_service.register_ack_cassia(eventid, message, current_user_session, close)

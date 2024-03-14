@@ -21,6 +21,7 @@ from fastapi import status, File, UploadFile
 from fastapi.responses import FileResponse
 from models.cassia_config import CassiaConfig
 from models.cassia_arch_traffic_events import CassiaArchTrafficEvent
+from models.cassia_event_acknowledges import CassiaEventAcknowledge
 import os
 import ntpath
 import shutil
@@ -937,3 +938,28 @@ async def delete_ticket(ticket_id):
     session.close()
 
     return success_response(message="El ticket fue eliminado correctamente")
+
+
+async def register_ack_cassia(eventid, message, current_session, close):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text(
+        f"select cassia_arch_traffic_events_id  from cassia_arch_traffic_events p where cassia_arch_traffic_events_id ='{eventid}'")
+    problem = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+    if problem.empty:
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The eventid CASSIA not exists",
+        )
+    cassia_event_acknowledge = CassiaEventAcknowledge(
+        userid=current_session.user_id,
+        eventid=eventid,
+        message=message,
+        action=5 if close else 4
+    )
+    session.add(cassia_event_acknowledge)
+    session.commit()
+    session.refresh(cassia_event_acknowledge)
+
+    return success_response(message="Acknowledge CASSIA registrado correctamente")
