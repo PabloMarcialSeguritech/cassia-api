@@ -24,7 +24,7 @@ class AlertsRouterTest(unittest.TestCase):
         eventid = 674
         texto_esperado = "correctamente"
         response_reboot = client.post(
-            f"/api/v1/zabbix/problems/acknowledge/cassia/{eventid}",
+            f"/api/v1/zabbix/problems/acknowledge_/{eventid}",
             headers=headers,
             data={
                 "message": "Mensaje de prueba",

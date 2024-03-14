@@ -757,64 +757,67 @@ def path_leaf(path):
     return tail or ntpath.basename(head)
 
 
-async def register_ack(eventid, message, current_session, close):
-    db_zabbix = DB_Zabbix()
-    session = db_zabbix.Session()
-    statement = text(
-        f"select eventid  from events p where eventid ='{eventid}'")
-    problem = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
-    if problem.empty:
-        session.close()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="The eventid not exists",
-        )
-
-    try:
-        api_zabbix = ZabbixAPI(settings.zabbix_server_url)
-        api_zabbix.login(user=settings.zabbix_user,
-                         password=settings.zabbix_password)
-
-    except:
-        session.close()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error al concectar con Zabbix",
-        )
-
-    try:
-        params = {
-            "eventids": eventid,
-            "action": 5 if close else 4,
-            "message": message
-        }
-
-        response = api_zabbix.do_request(method='event.acknowledge',
-                                         params=params)
-        ackid = text(
-            f"select acknowledgeid from acknowledges order by acknowledgeid desc limit 1")
-        ackid = pd.DataFrame(session.execute(ackid)).replace(np.nan, "")
-        if ackid.empty:
+async def register_ack(eventid, message, current_session, close, is_zabbix_event):
+    if is_zabbix_event:
+        db_zabbix = DB_Zabbix()
+        session = db_zabbix.Session()
+        statement = text(
+            f"select eventid  from events p where eventid ='{eventid}'")
+        problem = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+        if problem.empty:
             session.close()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Error en la consulta en la tabla de acknowledges",
+                detail="The eventid not exists",
             )
-        ackid = int(ackid['acknowledgeid'].values[0])+1
-        cassia_acknowledge = CassiaAcknowledge(
-            acknowledge_id=ackid,
-            user_id=current_session.user_id
-        )
-        session.add(cassia_acknowledge)
-        session.commit()
-        session.refresh(cassia_acknowledge)
-    except:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error al crear el acknownledge",
-        )
 
-    return success_response(message="Acknowledge registrado correctamente")
+        try:
+            api_zabbix = ZabbixAPI(settings.zabbix_server_url)
+            api_zabbix.login(user=settings.zabbix_user,
+                             password=settings.zabbix_password)
+
+        except:
+            session.close()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error al concectar con Zabbix",
+            )
+
+        try:
+            params = {
+                "eventids": eventid,
+                "action": 5 if close else 4,
+                "message": message
+            }
+
+            response = api_zabbix.do_request(method='event.acknowledge',
+                                             params=params)
+            ackid = text(
+                f"select acknowledgeid from acknowledges order by acknowledgeid desc limit 1")
+            ackid = pd.DataFrame(session.execute(ackid)).replace(np.nan, "")
+            if ackid.empty:
+                session.close()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Error en la consulta en la tabla de acknowledges",
+                )
+            ackid = int(ackid['acknowledgeid'].values[0])+1
+            cassia_acknowledge = CassiaAcknowledge(
+                acknowledge_id=ackid,
+                user_id=current_session.user_id
+            )
+            session.add(cassia_acknowledge)
+            session.commit()
+            session.refresh(cassia_acknowledge)
+        except:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error al crear el acknownledge",
+            )
+
+        return success_response(message="Acknowledge registrado correctamente")
+    else:
+        return await register_ack_cassia(eventid, message, current_session, close)
 
 
 async def get_acks(eventid):
