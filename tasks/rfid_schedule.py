@@ -56,6 +56,7 @@ COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
 where lr.Fecha between dateadd(second,-30,getdate()) and getdate()
 group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
 order by a.Longitud,a.Latitud
+
 """)
 
     try:
