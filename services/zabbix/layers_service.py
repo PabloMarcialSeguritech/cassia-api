@@ -12,17 +12,13 @@ import numpy as np
 settings = Settings()
 
 
-def get_aps_layer(municipality_id):
-    db_zabbix = DB_Zabbix()
-    session = db_zabbix.Session()
-    statement = text(f"call sp_hostView('{municipality_id}','2','')")
-    aps = session.execute(statement)
-    data = pd.DataFrame(aps).replace(np.nan, "")
-    session.close()
-    response = {"aps": data.to_dict(
-        orient="records")
-    }
-    return success_response(data=response)
+async def get_aps_layer():
+    with DB_Zabbix().Session() as session:
+        statement = text(f"call sp_catTower();")
+        aps = session.execute(statement)
+        data = pd.DataFrame(aps).replace(np.nan, "")
+        return success_response(data=data.to_dict(
+            orient="records"))
 
 
 def get_downs_layer(municipality_id, dispId, subtype_id):
