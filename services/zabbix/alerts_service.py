@@ -34,7 +34,7 @@ import ntpath
 settings = Settings()
 
 
-def process_alerts_local(data, municipalityId, session, tech_id, severities):
+def process_alerts_local(data, municipalityId, session, tech_id, severities, tipo):
     if municipalityId == '0':
         alertas = session.query(CassiaArchTrafficEvent).filter(
             CassiaArchTrafficEvent.closed_at == None,
@@ -55,6 +55,9 @@ def process_alerts_local(data, municipalityId, session, tech_id, severities):
             '',
             0,
             '',
+            0,
+            tipo,
+            1,
             0
         )
             for r in alertas], columns=['Time', 'severity', 'hostid',
@@ -66,7 +69,7 @@ def process_alerts_local(data, municipalityId, session, tech_id, severities):
                                         'TimeRecovery',
                                         'Ack',
                                         'Ack_message',
-                                        "manual_close"])
+                                        "manual_close", 'alert_type', 'local', 'dependents'])
         if not alertas.empty:
             alertas['Time'] = pd.to_datetime(alertas['Time'])
             alertas["Time"] = alertas['Time'].dt.strftime(
@@ -109,6 +112,9 @@ def process_alerts_local(data, municipalityId, session, tech_id, severities):
             '',
             0,
             '',
+            0,
+            tipo,
+            1,
             0
         )
             for r in alertas], columns=['Time', 'severity', 'hostid',
@@ -120,7 +126,7 @@ def process_alerts_local(data, municipalityId, session, tech_id, severities):
                                         'TimeRecovery',
                                         'Ack',
                                         'Ack_message',
-                                        "manual_close"])
+                                        "manual_close", 'alert_type', 'local', 'dependents'])
         if not alertas.empty:
             alertas['Time'] = pd.to_datetime(alertas['Time'])
             alertas["Time"] = alertas['Time'].dt.strftime(
@@ -179,23 +185,28 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
 
     problems = session.execute(statement)
     data = pd.DataFrame(problems).replace(np.nan, "")
+    if not data.empty:
+        data['tipo'] = [0 for i in range(len(data))]
+        data['local'] = [0 for i in range(len(data))]
+        data['dependents'] = [0 for i in range(len(data))]
+        data['alert_type'] = ["" for i in range(len(data))]
     if tech_host_type == lpr_id:
         data = process_alerts_local(
-            data, municipalityId, session, lpr_id, severities)
+            data, municipalityId, session, lpr_id, severities, 'lpr')
     if tech_host_type == rfid_id:
         data = process_alerts_local(
-            data, municipalityId, session, rfid_id, severities)
+            data, municipalityId, session, rfid_id, severities, 'rfid')
     downs_origen = text(
         f"""call sp_diagnostic_problems('{municipalityId}','{tech_host_type}')""")
     downs_origen = pd.DataFrame(session.execute(downs_origen))
     if not downs_origen.empty:
-        data['tipo'] = [0 for i in range(len(data))]
+        """ data['tipo'] = [0 for i in range(len(data))]
         data.loc[data['hostid'].astype(int).isin(
             downs_origen['hostid'].tolist()), 'tipo'] = 1
         data['local'] = [0 for i in range(len(data))]
         data.loc[data['hostid'].astype(int).isin(
             downs_origen['hostid'].tolist()), 'local'] = 0
-        data['dependents'] = [0 for i in range(len(data))]
+        data['dependents'] = [0 for i in range(len(data))] """
         data_problems = text(
             """select cate.*,cdp.dependents  from cassia_arch_traffic_events cate
 left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
@@ -253,10 +264,7 @@ where cate.closed_at is NULL and cate.hostid in :hostids""")
 
         """ print("aqui")
         print(origen.to_string()) """
-    else:
-        data['tipo'] = [0 for i in range(len(data))]
-        data['local'] = [0 for i in range(len(data))]
-        data['dependents'] = [0 for i in range(len(data))]
+
     if not data.empty:
         now = datetime.now(pytz.timezone('America/Mexico_City'))
         data['fecha'] = pd.to_datetime(data['Time'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
@@ -265,11 +273,21 @@ where cate.closed_at is NULL and cate.hostid in :hostids""")
         data['dias'] = data['diferencia'].dt.days
         data['horas'] = data['diferencia'].dt.components.hours
         data['minutos'] = data['diferencia'].dt.components.minutes
+        print(data['diferencia'])
+        data.loc[data['alert_type'].isin(
+            ['rfid', 'lpr']), 'Problem'] = data.loc[data['alert_type'].isin(['rfid', 'lpr']), ['dias', 'horas', 'minutos']].apply(lambda x:
+                                                                                                                                  f"Este host no ha tenido lecturas por más de {x['dias']} dias {x['horas']} hrs {x['minutos']} min" if x['dias'] > 0
+                                                                                                                                  else f"Este host no ha tenido lecturas por más de {x['horas']} hrs {x['minutos']} min" if x['horas'] > 0
+                                                                                                                                  else f"Este host no ha tenido lecturas por más de {x['minutos']} min", axis=1)
         data = data.drop(columns=['diferencia'])
         data['diferencia'] = data.apply(
             lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
         data.drop_duplicates(
             subset=['hostid', 'Problem'], inplace=True)
+        """ print(data.to_string()) """
+
+        """ data['Problem'] = data.apply(lambda x: x['diferencia'] if x['alert_type'] in [
+                                     'rfid', 'lpr'] else x['Problem']) """
     session.close()
     return success_response(data=data.to_dict(orient="records"))
 
@@ -313,23 +331,28 @@ def get_problems_filter_report(municipalityId, tech_host_type=0, subtype="", sev
 
         problems = session.execute(statement)
         data = pd.DataFrame(problems).replace(np.nan, "")
+        if not data.empty:
+            data['tipo'] = [0 for i in range(len(data))]
+            data['local'] = [0 for i in range(len(data))]
+            data['dependents'] = [0 for i in range(len(data))]
+            data['alert_type'] = ["" for i in range(len(data))]
         if tech_host_type == lpr_id:
             data = process_alerts_local(
-                data, municipalityId, session, lpr_id, severities)
+                data, municipalityId, session, lpr_id, severities, 'lpr')
         if tech_host_type == rfid_id:
             data = process_alerts_local(
-                data, municipalityId, session, rfid_id, severities)
+                data, municipalityId, session, rfid_id, severities, 'rfid')
         downs_origen = text(
             f"""call sp_diagnostic_problems('{municipalityId}','{tech_host_type}')""")
         downs_origen = pd.DataFrame(session.execute(downs_origen))
         if not downs_origen.empty:
-            data['tipo'] = [0 for i in range(len(data))]
+            """ data['tipo'] = [0 for i in range(len(data))]
             data.loc[data['hostid'].astype(int).isin(
                 downs_origen['hostid'].tolist()), 'tipo'] = 1
             data['local'] = [0 for i in range(len(data))]
             data.loc[data['hostid'].astype(int).isin(
                 downs_origen['hostid'].tolist()), 'local'] = 0
-            data['dependents'] = [0 for i in range(len(data))]
+            data['dependents'] = [0 for i in range(len(data))] """
             data_problems = text(
                 """select cate.*,cdp.dependents  from cassia_arch_traffic_events cate
 left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
@@ -388,10 +411,7 @@ where cate.closed_at is NULL and cate.hostid in :hostids""")
 
             """ print("aqui")
         print(origen.to_string()) """
-        else:
-            data['tipo'] = [0 for i in range(len(data))]
-            data['local'] = [0 for i in range(len(data))]
-            data['dependents'] = [0 for i in range(len(data))]
+
         if not data.empty:
             now = datetime.now(pytz.timezone('America/Mexico_City'))
             print("a")
@@ -402,6 +422,11 @@ where cate.closed_at is NULL and cate.hostid in :hostids""")
             data['dias'] = data['diferencia'].dt.days
             data['horas'] = data['diferencia'].dt.components.hours
             data['minutos'] = data['diferencia'].dt.components.minutes
+            data.loc[data['alert_type'].isin(
+                ['rfid', 'lpr']), 'Problem'] = data.loc[data['alert_type'].isin(['rfid', 'lpr']), ['dias', 'horas', 'minutos']].apply(lambda x:
+                                                                                                                                      f"Este host no ha tenido lecturas por más de {x['dias']} dias {x['horas']} hrs {x['minutos']} min" if x['dias'] > 0
+                                                                                                                                      else f"Este host no ha tenido lecturas por más de {x['horas']} hrs {x['minutos']} min" if x['horas'] > 0
+                                                                                                                                      else f"Este host no ha tenido lecturas por más de {x['minutos']} min", axis=1)
 
             data['diferencia'] = data.apply(
                 lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)

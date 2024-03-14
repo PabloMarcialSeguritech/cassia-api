@@ -250,6 +250,7 @@ SELECT from_unixtime(p.clock,'%d/%m/%Y %H:%i:%s' ) as Time,
     data['local'] = 0
     data['tipo'] = 0
     data['dependents'] = 0
+    data['alert_type'] = ""
     data_problems = text(
         f"""
         select cate.*,cdp.dependents  from cassia_arch_traffic_events cate
@@ -302,6 +303,11 @@ where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at
         data['dias'] = data['diferencia'].dt.days
         data['horas'] = data['diferencia'].dt.components.hours
         data['minutos'] = data['diferencia'].dt.components.minutes
+        data.loc[data['alert_type'].isin(
+            ['rfid', 'lpr']), 'Problem'] = data.loc[data['alert_type'].isin(['rfid', 'lpr']), ['dias', 'horas', 'minutos']].apply(lambda x:
+                                                                                                                                  f"Este host no ha tenido lecturas por más de {x['dias']} dias {x['horas']} hrs {x['minutos']} min" if x['dias'] > 0
+                                                                                                                                  else f"Este host no ha tenido lecturas por más de {x['horas']} hrs {x['minutos']} min" if x['horas'] > 0
+                                                                                                                                  else f"Este host no ha tenido lecturas por más de {x['minutos']} min", axis=1)
         data = data.drop(columns=['diferencia'])
         data['diferencia'] = data.apply(
             lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)

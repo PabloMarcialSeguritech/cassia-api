@@ -168,7 +168,7 @@ async def trigger_alerts():
                 result_copy['hostid'].values.tolist()
 
             result_copy['alerta'] = [
-                f"Este host no ha tenido lecturas en los ultimos {rango} minutos" for i in range(len(result_copy))]
+                f"Este host no ha tenido lecturas por más de " for i in range(len(result_copy))]
             result_copy['severidad'] = [1 if rango == 20 else 2 if rango ==
                                         30 else 3 if rango == 45 else 4 for i in range(len(result_copy))]
 
@@ -266,7 +266,7 @@ async def trigger_alerts_close():
 
             alerts_defined = alerts_defined+result['hostid'].values.tolist()
             result['alerta'] = [
-                f"Este host no ha tenido lecturas en los ultimos {rango} minutos" for i in range(len(result))]
+                f"Este host no ha tenido lecturas por más de " for i in range(len(result))]
             result['severidad'] = [1 if rango == 20 else 2 if rango ==
                                    30 else 3 if rango == 45 else 4 for i in range(len(result))]
 
