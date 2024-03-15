@@ -81,3 +81,14 @@ class HostServiceTest(unittest.TestCase):
         response = hosts_service.prepare_action('172.19.16.25', 2)
         json_obj = response.body
         print("obj_resp:", json_obj)
+
+    @unittest.skip("Omit query arcos")
+    def test_get_host_arcos(self):
+        print("> Entrando test_get_host_arcos <")
+
+        async def async_test():
+            response = await hosts_service.get_host_arcos(20157)
+            print("obj_resp:", response.body)
+
+        self.loop.run_until_complete(async_test())
+
