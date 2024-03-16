@@ -35,6 +35,7 @@ class AlertsServiceTest(unittest.TestCase):
     def tearDownClass(cls):
         cls.loop.close()
 
+    @unittest.skip("Omit query arcos")
     def test_register_ack_cassia(self):
         print("> Entrando test_register_ack_cassia <")
         token = user_authentication_headers('', '')
@@ -50,9 +51,11 @@ class AlertsServiceTest(unittest.TestCase):
 
         self.loop.run_until_complete(async_test())
 
+
     def test_register_ack_cassia_abierto(self):
         print("> Entrando test_register_ack_cassia <")
-        token = user_authentication_headers('', '')
+        token = user_authentication_headers('juan.marcial@seguritech.com', '12345678')
+        print("token::", token)
 
         async def async_test():
             current_session = await auth_service2.get_current_user_session(token)
@@ -61,6 +64,25 @@ class AlertsServiceTest(unittest.TestCase):
             closed = 1
             response = await alerts_service.register_ack_cassia(cassia_arch_traffic_events_id,
                                                                 message, current_session, closed)
+            response_dict = json.loads(response.body)
+            print("response_dict:", response_dict)
+            self.assertIn("correctamente", response_dict['message'])
+
+        self.loop.run_until_complete(async_test())
+
+    @unittest.skip("Omit query arcos")
+    def test_register_ack(self):
+        print("> test_register_ack <")
+        token =  user_authentication_headers("juan.marcial@seguritech.com", "12345678")
+        print("token::", token)
+
+        async def async_test():
+            current_session = await auth_service2.get_current_user_session(token)
+            cassia_arch_traffic_events_id = 10668350
+            message = 'mensaje de prueba'
+            closed = 1
+            response = await alerts_service.register_ack(cassia_arch_traffic_events_id,
+                                                                message, current_session, closed, 1)
             response_dict = json.loads(response.body)
             print("response_dict:", response_dict)
             self.assertIn("correctamente", response_dict['message'])

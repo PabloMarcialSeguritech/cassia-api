@@ -783,7 +783,7 @@ def path_leaf(path):
 
 
 async def register_ack(eventid, message, current_session, close, is_zabbix_event):
-    if is_zabbix_event:
+    if int(is_zabbix_event):
         db_zabbix = DB_Zabbix()
         session = db_zabbix.Session()
         statement = text(
