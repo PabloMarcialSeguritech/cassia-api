@@ -46,16 +46,15 @@ cl.lecturas as Lecturas,
 a.Longitud,a.Latitud,
 r.Ip 
 FROM RFID r
-INNER JOIN ArcoRFID ar  ON (R.IdRFID = ar.IdRFID )
-INNER JOIN Arco a ON (ar.IdArco =a.IdArco )
-INNER JOIN ArcoMunicipio am ON (a.IdArco =am.IdArco)
-INNER JOIN Municipio m ON (am.IdMunicipio =M.IdMunicipio)
+INNER JOIN Arco a ON (a.IdArco =a.IdArco )
+INNER JOIN Municipio m ON (a.IdMunicipio =M.IdMunicipio)
 LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
 LEFT JOIN (select lr.IdRFID,lr.IdAntena,
 COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
 where lr.Fecha between dateadd(second,-30,getdate()) and getdate()
 group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
 order by a.Longitud,a.Latitud
+
 """)
 
     try:
@@ -101,7 +100,7 @@ async def clean_data():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     date = datetime.now(pytz.timezone(
-        'America/Mexico_City')) - timedelta(minutes=62)
+        'America/Mexico_City')) - timedelta(minutes=65)
 
     statement = text(f"""
     DELETE FROM cassia_arch_traffic
@@ -169,7 +168,7 @@ async def trigger_alerts():
                 result_copy['hostid'].values.tolist()
 
             result_copy['alerta'] = [
-                f"Este host no ha tenido lecturas en los ultimos {rango} minutos" for i in range(len(result_copy))]
+                f"Este host no ha tenido lecturas por más de " for i in range(len(result_copy))]
             result_copy['severidad'] = [1 if rango == 20 else 2 if rango ==
                                         30 else 3 if rango == 45 else 4 for i in range(len(result_copy))]
 
@@ -180,11 +179,16 @@ async def trigger_alerts():
             """ print(result_copy.to_string()) """
             """ print(result_copy.to_string()) """
             alertas = pd.concat([alertas, result_copy], ignore_index=True)
-
+    rfid_config = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "rfid_id").first()
+    rfid_id = "9"
+    if rfid_config:
+        rfid_id = rfid_config.value
     for ind in alertas.index:
         alerta = session.query(CassiaArchTrafficEvent).filter(
             CassiaArchTrafficEvent.hostid == alertas['hostid'][ind],
-            CassiaArchTrafficEvent.closed_at == None
+            CassiaArchTrafficEvent.closed_at == None,
+            CassiaArchTrafficEvent.alert_type == 'rfid'
         ).first()
         if not alerta:
             alerta_created = CassiaArchTrafficEvent(
@@ -199,7 +203,8 @@ async def trigger_alerts():
                 municipality=alertas['municipality'][ind],
                 ip=alertas['ip'][ind],
                 hostname=alertas['name'][ind],
-
+                tech_id=rfid_id,
+                alert_type='rfid'
             )
             session.add(alerta_created)
         else:
@@ -218,7 +223,11 @@ async def trigger_alerts():
 async def trigger_alerts_close():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-
+    rfid_config = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "rfid_id").first()
+    rfid_id = "9"
+    if rfid_config:
+        rfid_id = rfid_config.value
     statement = text(f"""
     select date from cassia_arch_traffic order by date desc limit 1 
 """)
@@ -257,7 +266,7 @@ async def trigger_alerts_close():
 
             alerts_defined = alerts_defined+result['hostid'].values.tolist()
             result['alerta'] = [
-                f"Este host no ha tenido lecturas en los ultimos {rango} minutos" for i in range(len(result))]
+                f"Este host no ha tenido lecturas por más de " for i in range(len(result))]
             result['severidad'] = [1 if rango == 20 else 2 if rango ==
                                    30 else 3 if rango == 45 else 4 for i in range(len(result))]
 
@@ -266,6 +275,9 @@ async def trigger_alerts_close():
     abiertos = text(f"""SELECT cassia_arch_traffic_events_id,hostid FROM 
                     cassia_arch_traffic_events
                     where closed_at is NULL
+                    and tech_id='{rfid_id}'
+                    and alert_type='rfid'
+                    and message!='Unavailable by ICMP ping'
                     """)
     abiertos = pd.DataFrame(session.execute(abiertos))
     """ print(abiertos.to_string()) """
@@ -285,6 +297,8 @@ async def trigger_alerts_close():
         status='Cerrada automaticamente'
         where cassia_arch_traffic_events_id
         in ({ids})
+        and message!='Unavailable by ICMP ping'
+        and alert_type='rfid'
         """)
 
         session.execute(statement)

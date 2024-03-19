@@ -12,17 +12,13 @@ import numpy as np
 settings = Settings()
 
 
-def get_aps_layer(municipality_id):
-    db_zabbix = DB_Zabbix()
-    session = db_zabbix.Session()
-    statement = text(f"call sp_hostView('{municipality_id}','2','')")
-    aps = session.execute(statement)
-    data = pd.DataFrame(aps).replace(np.nan, "")
-    session.close()
-    response = {"aps": data.to_dict(
-        orient="records")
-    }
-    return success_response(data=response)
+async def get_aps_layer():
+    with DB_Zabbix().Session() as session:
+        statement = text(f"call sp_catTower();")
+        aps = session.execute(statement)
+        data = pd.DataFrame(aps).replace(np.nan, "")
+        return success_response(data=data.to_dict(
+            orient="records"))
 
 
 def get_downs_layer(municipality_id, dispId, subtype_id):
@@ -32,11 +28,49 @@ def get_downs_layer(municipality_id, dispId, subtype_id):
     session = db_zabbix.Session()
     aps = session.execute(statement)
     data = pd.DataFrame(aps).replace(np.nan, "")
+
+    downs_origen = text(
+        f"""call sp_diagnostic_problems('{municipality_id}','{dispId}')""")
+    downs_origen = pd.DataFrame(
+        session.execute(downs_origen)).replace(np.nan, "")
+    if not downs_origen.empty:
+        downs_origen['value'] = [1 for i in range(len(downs_origen))]
+        downs_origen['description'] = [
+            'ICMP ping' for i in range(len(downs_origen))]
+        downs_origen['origen'] = [1 for i in range(len(downs_origen))]
+        if not data.empty:
+            data = data[~data['hostid'].isin(downs_origen['hostid'].to_list())]
+    if not data.empty:
+        data['origen'] = [0 for i in range(len(data))]
+    if data.empty and not downs_origen.empty:
+        data = downs_origen
+    if not data.empty and not downs_origen.empty:
+        data = pd.concat([downs_origen, data],
+                         ignore_index=True).replace(np.nan, "")
     response = {"downs": data.to_dict(
         orient="records")
     }
     session.close()
     return success_response(data=response)
+
+
+def get_downs_origin_layer(municipality_id, dispId, subtype_id):
+    with DB_Zabbix().Session() as session:
+        downs_origen = text(
+            f"""call sp_diagnostic_problems('{municipality_id}','{dispId}')""")
+        downs_origen = pd.DataFrame(
+            session.execute(downs_origen)).replace(np.nan, "")
+
+        if not downs_origen.empty:
+            downs_origen['value'] = [1 for i in range(len(downs_origen))]
+            downs_origen['description'] = [
+                'ICMP ping' for i in range(len(downs_origen))]
+            downs_origen['origen'] = [1 for i in range(len(downs_origen))]
+
+        response = {"downs": downs_origen.to_dict(
+            orient="records")
+        }
+        return success_response(data=response)
 
 
 def get_carreteros(municipality_id):
@@ -153,14 +187,27 @@ between DATE_ADD(now(),INTERVAL -5 MINUTE) and NOW()
 group by c.latitude, c.longitude
 """)
         lecturas = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+        activos = text("""
+SELECT DISTINCT c.longitude ,c.latitude 
+FROM cassia_arch_traffic c 
+group by c.latitude, c.longitude
+""")
+        activos = pd.DataFrame(session.execute(activos)).replace(np.nan, "")
         if not lecturas.empty:
-            data = pd.merge(data, lecturas, how='left', left_on=['latitude', 'longitude'],
+            data = pd.merge(data, lecturas, how='right', left_on=['latitude', 'longitude'],
                             right_on=['latitude', 'longitude']).replace(np.nan, 0)
+            data['activo'] = 0
+            if not activos.empty:
+                data.loc[data.set_index(['latitude', 'longitude']).index.isin(
+                    activos.set_index(['latitude', 'longitude']).index), 'activo'] = 1
+            print(data.to_string())
+
         else:
             data['Lecturas'] = [0 for i in range(len(data))]
         statement = text(f"""
 SELECT max(c.severity) as max_severity, c.longitude ,c.latitude FROM cassia_arch_traffic_events c 
-where c.closed_at is NULL 
+WHERE c.closed_at is NULL 
+AND tech_id='{rfid_id}'
 group by c.latitude, c.longitude 
 """)
         alerts = pd.DataFrame(session.execute(
@@ -220,14 +267,26 @@ between DATE_ADD(now(),INTERVAL -10 MINUTE) and NOW()
 group by c.latitude, c.longitude
 """)
         lecturas = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+        activos = text("""
+SELECT DISTINCT c.longitude ,c.latitude 
+FROM cassia_arch_traffic_lpr c 
+group by c.latitude, c.longitude
+""")
+        activos = pd.DataFrame(session.execute(activos)).replace(np.nan, "")
         if not lecturas.empty:
             data = pd.merge(data, lecturas, how='left', left_on=['latitude', 'longitude'],
                             right_on=['latitude', 'longitude']).replace(np.nan, 0)
+            data['activo'] = 0
+            if not activos.empty:
+                data.loc[data.set_index(['latitude', 'longitude']).index.isin(
+                    activos.set_index(['latitude', 'longitude']).index), 'activo'] = 1
+
         else:
             data['Lecturas'] = [0 for i in range(len(data))]
         statement = text(f"""
-SELECT max(c.severity) as max_severity, c.longitude ,c.latitude FROM cassia_arch_traffic_events_lpr c 
+SELECT max(c.severity) as max_severity, c.longitude ,c.latitude FROM cassia_arch_traffic_events c 
 where c.closed_at is NULL 
+AND tech_id='{lpr_id}'
 group by c.latitude, c.longitude 
 """)
         alerts = pd.DataFrame(session.execute(

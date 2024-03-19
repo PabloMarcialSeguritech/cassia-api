@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastapi import Depends, status
 from services import auth_service
 from services import auth_service2
@@ -16,8 +16,8 @@ host_correlation_router = APIRouter(prefix="/host_correlation")
     summary="Get CASSIA host correlations",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_role():
-    return host_correlation_service.get_correlations()
+async def get_correlations(page: int = Query(1, ge=1), page_size: int = Query(10, le=4000)):
+    return host_correlation_service.get_correlations(page, page_size)
 
 
 @host_correlation_router.get(
@@ -48,7 +48,8 @@ async def download_file():
     tags=["Cassia - Host - Correlations"],
     status_code=status.HTTP_200_OK,
     summary="Create correlations with a csv file",
-    dependencies=[Depends(auth_service2.get_current_user_session)]
+    dependencies=[Depends(auth_service2.get_current_user_session)],
+    response_class=FileResponse
 )
 async def create_message(file: UploadFile, current_user: User = Depends(auth_service2.get_current_user_session)):
-    return await host_correlation_service.process_file(current_user_id=current_user.user_id, file=file)
+    return await host_correlation_service.process_file(current_user_session=current_user, file=file)

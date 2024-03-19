@@ -1,10 +1,10 @@
 from utils.db import DB_Zabbix
-from sqlalchemy import Column, String, Integer, DateTime
+from sqlalchemy import Column, String, Integer, DateTime, Boolean
 from datetime import datetime
 
 
-class CassiaArchTrafficEvent(DB_Zabbix.Base):
-    __tablename__ = "cassia_arch_traffic_events"
+class CassiaArchTrafficEvent2(DB_Zabbix.Base):
+    __tablename__ = "cassia_arch_traffic_events_2"
     cassia_arch_traffic_events_id = Column(
         Integer, primary_key=True, autoincrement=True)
     hostid = Column(Integer, nullable=False)

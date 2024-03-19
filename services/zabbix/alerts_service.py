@@ -21,6 +21,7 @@ from fastapi import status, File, UploadFile
 from fastapi.responses import FileResponse
 from models.cassia_config import CassiaConfig
 from models.cassia_arch_traffic_events import CassiaArchTrafficEvent
+from models.cassia_event_acknowledges import CassiaEventAcknowledge
 import os
 import ntpath
 import shutil
@@ -31,6 +32,116 @@ import tempfile
 import os
 import ntpath
 settings = Settings()
+
+
+def process_alerts_local(data, municipalityId, session, tech_id, severities, tipo):
+    if municipalityId == '0':
+        alertas = session.query(CassiaArchTrafficEvent).filter(
+            CassiaArchTrafficEvent.closed_at == None,
+            CassiaArchTrafficEvent.tech_id == tech_id
+        ).all()
+        alertas = pd.DataFrame([(
+            r.created_at,
+            r.severity,
+            r.hostid,
+            r.hostname,
+            r.latitude,
+            r.longitude,
+            r.ip,
+            r.message,
+            r.status,
+            r.cassia_arch_traffic_events_id,
+            '',
+            '',
+            0,
+            '',
+            0,
+            tipo,
+            1,
+            0
+        )
+            for r in alertas], columns=['Time', 'severity', 'hostid',
+                                        'Host', 'latitude', 'longitude',
+                                        'ip',
+                                        'Problem', 'Estatus',
+                                        'eventid',
+                                        'r_eventid',
+                                        'TimeRecovery',
+                                        'Ack',
+                                        'Ack_message',
+                                        "manual_close", 'alert_type', 'local', 'dependents'])
+        if not alertas.empty:
+            alertas['Time'] = pd.to_datetime(alertas['Time'])
+            alertas["Time"] = alertas['Time'].dt.strftime(
+                '%d/%m/%Y %H:%M:%S')
+            if severities != "":
+                severities = severities.split(',')
+                severities = [int(severity) for severity in severities]
+            else:
+                severities = [1, 2, 3, 4, 5]
+            alertas = alertas[alertas['severity'].isin(
+                severities)]
+
+    else:
+        statement = text("call sp_catCity()")
+        municipios = session.execute(statement)
+        municipios = pd.DataFrame(municipios).replace(np.nan, "")
+        municipio = municipios.loc[municipios['groupid'].astype(str) ==
+                                   municipalityId]
+        if not municipio.empty:
+            municipio = municipio['name'].item()
+        else:
+            municipio = ''
+        alertas = session.query(CassiaArchTrafficEvent).filter(
+            CassiaArchTrafficEvent.closed_at == None,
+            CassiaArchTrafficEvent.municipality == municipio,
+            CassiaArchTrafficEvent.tech_id == tech_id
+        ).all()
+        alertas = pd.DataFrame([(
+            r.created_at,
+            r.severity,
+            r.hostid,
+            r.hostname,
+            r.latitude,
+            r.longitude,
+            r.ip,
+            r.message,
+            r.status,
+            r.cassia_arch_traffic_events_id,
+            '',
+            '',
+            0,
+            '',
+            0,
+            tipo,
+            1,
+            0
+        )
+            for r in alertas], columns=['Time', 'severity', 'hostid',
+                                        'Host', 'latitude', 'longitude',
+                                        'ip',
+                                        'Problem', 'Estatus',
+                                        'eventid',
+                                        'r_eventid',
+                                        'TimeRecovery',
+                                        'Ack',
+                                        'Ack_message',
+                                        "manual_close", 'alert_type', 'local', 'dependents'])
+        if not alertas.empty:
+            alertas['Time'] = pd.to_datetime(alertas['Time'])
+            alertas["Time"] = alertas['Time'].dt.strftime(
+                '%d/%m/%Y %H:%M:%S')
+            if severities != "":
+                severities = severities.split(',')
+                severities = [int(severity) for severity in severities]
+            else:
+                severities = [1, 2, 3, 4, 5]
+            alertas = alertas[alertas['severity'].isin(
+                severities)]
+
+    data = pd.concat([alertas, data],
+                     ignore_index=True).replace(np.nan, "")
+    return data
 
 
 def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities=""):
@@ -44,10 +155,15 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
     rfid_id = "9"
     if rfid_config:
         rfid_id = rfid_config.value
+    lpr_config = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "lpr_id").first()
+    lpr_id = "1"
+    if lpr_config:
+        lpr_id = lpr_config.value
     if subtype == "376276" or subtype == "375090":
         subtype = '376276,375090'
-    if tech_host_type == "11":
-        tech_host_type = "11,2"
+    """ if tech_host_type == "11":
+        tech_host_type = "11,2" """
     if subtype != "" and tech_host_type == "":
         tech_host_type = "0"
     switch_config = session.query(CassiaConfig).filter(
@@ -69,107 +185,86 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
 
     problems = session.execute(statement)
     data = pd.DataFrame(problems).replace(np.nan, "")
+    if not data.empty:
+        data['tipo'] = [0 for i in range(len(data))]
+        data['local'] = [0 for i in range(len(data))]
+        data['dependents'] = [0 for i in range(len(data))]
+        data['alert_type'] = ["" for i in range(len(data))]
+    if tech_host_type == lpr_id:
+        data = process_alerts_local(
+            data, municipalityId, session, lpr_id, severities, 'lpr')
     if tech_host_type == rfid_id:
-        if municipalityId == '0':
-            alertas_rfid = session.query(CassiaArchTrafficEvent).filter(
-                CassiaArchTrafficEvent.closed_at == None,
-            ).all()
-            alertas_rfid = pd.DataFrame([(
-                r.created_at,
-                r.severity,
-                r.hostid,
-                r.hostname,
-                r.latitude,
-                r.longitude,
-                r.ip,
-                r.message,
-                r.status,
-                r.cassia_arch_traffic_events_id,
-                '',
-                '',
-                0,
-                '',
-                0
-            )
-                for r in alertas_rfid], columns=['Time', 'severity', 'hostid',
-                                                 'Host', 'latitude', 'longitude',
-                                                 'ip',
-                                                 'Problem', 'Estatus',
-                                                 'eventid',
-                                                 'r_eventid',
-                                                 'TimeRecovery',
-                                                 'Ack',
-                                                 'Ack_message',
-                                                 "manual_close"])
-            if not alertas_rfid.empty:
-                alertas_rfid['Time'] = pd.to_datetime(alertas_rfid['Time'])
-                alertas_rfid["Time"] = alertas_rfid['Time'].dt.strftime(
-                    '%d/%m/%Y %H:%M:%S')
-                if severities != "":
-                    severities = severities.split(',')
-                    severities = [int(severity) for severity in severities]
-                else:
-                    severities = [1, 2, 3, 4, 5]
-                alertas_rfid = alertas_rfid[alertas_rfid['severity'].isin(
-                    severities)]
+        data = process_alerts_local(
+            data, municipalityId, session, rfid_id, severities, 'rfid')
+    downs_origen = text(
+        f"""call sp_diagnostic_problems('{municipalityId}','{tech_host_type}')""")
+    downs_origen = pd.DataFrame(session.execute(downs_origen))
+    if not downs_origen.empty:
+        """ data['tipo'] = [0 for i in range(len(data))]
+        data.loc[data['hostid'].astype(int).isin(
+            downs_origen['hostid'].tolist()), 'tipo'] = 1
+        data['local'] = [0 for i in range(len(data))]
+        data.loc[data['hostid'].astype(int).isin(
+            downs_origen['hostid'].tolist()), 'local'] = 0
+        data['dependents'] = [0 for i in range(len(data))] """
+        data_problems = text(
+            """select cate.*,cdp.dependents  from cassia_arch_traffic_events cate
+left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
+where cate.closed_at is NULL and cate.hostid in :hostids""")
+        print(data_problems)
+        data_problems = pd.DataFrame(session.execute(
+            data_problems, {'hostids': downs_origen['hostid'].tolist()})).replace(np.nan, 0)
+        if not data_problems.empty:
+            """ data_problems['TimeRecovery'] = [
+                '' for i in range(len(data_problems))] """
+            data_problems['r_eventid'] = [
+                '' for i in range(len(data_problems))]
+            data_problems['Ack'] = [0 for i in range(len(data_problems))]
+            data_problems['Ack_message'] = [
+                '' for i in range(len(data_problems))]
+            data_problems['manual_close'] = [
+                0 for i in range(len(data_problems))]
+            data_problems['local'] = [
+                1 for i in range(len(data_problems))]
+            data_problems['tipo'] = [
+                1 for i in range(len(data_problems))]
+            data_problems.drop(columns={'updated_at', 'tech_id'}, inplace=True)
+            data_problems['created_at'] = pd.to_datetime(
+                data_problems['created_at'])
+            data_problems["created_at"] = data_problems['created_at'].dt.strftime(
+                '%d/%m/%Y %H:%M:%S')
+            data_problems.rename(columns={
+                'created_at': 'Time',
+                'closed_at': 'TimeRecovery',
+                'hostname': 'Host',
+                'message': 'Problem',
+                'status': 'Estatus',
+                'cassia_arch_traffic_events_id': 'eventid',
+            }, inplace=True)
 
-        else:
-            statement = text("call sp_catCity()")
-            municipios = session.execute(statement)
-            municipios = pd.DataFrame(municipios).replace(np.nan, "")
-
-            municipio = municipios.loc[municipios['groupid'].astype(str) ==
-                                       municipalityId]
-            if not municipio.empty:
-                municipio = municipio['name'].item()
+            if severities != "":
+                severities = severities.split(',')
+                severities = [int(severity) for severity in severities]
             else:
-                municipio = ''
+                severities = [1, 2, 3, 4, 5, 6]
+            if 6 in severities:
+                downs = data_problems[data_problems['Problem']
+                                      == 'Unavailable by ICMP ping']
+            data_problems = data_problems[data_problems['severity'].isin(
+                severities)]
+            if 6 in severities:
+                data_problems = pd.concat([data_problems, downs],
+                                          ignore_index=True).replace(np.nan, "")
 
-            alertas_rfid = session.query(CassiaArchTrafficEvent).filter(
-                CassiaArchTrafficEvent.closed_at == None,
-                CassiaArchTrafficEvent.municipality == municipio
-            ).all()
-            alertas_rfid = pd.DataFrame([(
-                r.created_at,
-                r.severity,
-                r.hostid,
-                r.hostname,
-                r.latitude,
-                r.longitude,
-                r.ip,
-                r.message,
-                r.status,
-                r.cassia_arch_traffic_events_id,
-                '',
-                '',
-                0,
-                '',
-                0
-            )
-                for r in alertas_rfid], columns=['Time', 'severity', 'hostid',
-                                                 'Host', 'latitude', 'longitude',
-                                                 'ip',
-                                                 'Problem', 'Estatus',
-                                                 'eventid',
-                                                 'r_eventid',
-                                                 'TimeRecovery',
-                                                 'Ack',
-                                                 'Ack_message',
-                                                 "manual_close"])
-            if not alertas_rfid.empty:
-                alertas_rfid['Time'] = pd.to_datetime(alertas_rfid['Time'])
-                alertas_rfid["Time"] = alertas_rfid['Time'].dt.strftime(
-                    '%d/%m/%Y %H:%M:%S')
-                if severities != "":
-                    severities = severities.split(',')
-                    severities = [int(severity) for severity in severities]
-                else:
-                    severities = [1, 2, 3, 4, 5]
-                alertas_rfid = alertas_rfid[alertas_rfid['severity'].isin(
-                    severities)]
+            data = pd.concat([data_problems, data],
+                             ignore_index=True).replace(np.nan, "")
+            """ print(data.to_string()) """
 
-        data = pd.concat([alertas_rfid, data],
-                         ignore_index=True).replace(np.nan, "")
+        origen = data[data['tipo'] == 1]
+
+        """ print("aqui")
+        print(origen.to_string()) """
+
     if not data.empty:
         now = datetime.now(pytz.timezone('America/Mexico_City'))
         data['fecha'] = pd.to_datetime(data['Time'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
@@ -178,10 +273,21 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
         data['dias'] = data['diferencia'].dt.days
         data['horas'] = data['diferencia'].dt.components.hours
         data['minutos'] = data['diferencia'].dt.components.minutes
+        print(data['diferencia'])
+        data.loc[data['alert_type'].isin(
+            ['rfid', 'lpr']), 'Problem'] = data.loc[data['alert_type'].isin(['rfid', 'lpr']), ['dias', 'horas', 'minutos']].apply(lambda x:
+                                                                                                                                  f"Este host no ha tenido lecturas por más de {x['dias']} dias {x['horas']} hrs {x['minutos']} min" if x['dias'] > 0
+                                                                                                                                  else f"Este host no ha tenido lecturas por más de {x['horas']} hrs {x['minutos']} min" if x['horas'] > 0
+                                                                                                                                  else f"Este host no ha tenido lecturas por más de {x['minutos']} min", axis=1)
         data = data.drop(columns=['diferencia'])
         data['diferencia'] = data.apply(
             lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
+        data.drop_duplicates(
+            subset=['hostid', 'Problem'], inplace=True)
+        """ print(data.to_string()) """
 
+        """ data['Problem'] = data.apply(lambda x: x['diferencia'] if x['alert_type'] in [
+                                     'rfid', 'lpr'] else x['Problem']) """
     session.close()
     return success_response(data=data.to_dict(orient="records"))
 
@@ -195,10 +301,15 @@ def get_problems_filter_report(municipalityId, tech_host_type=0, subtype="", sev
         rfid_id = "9"
         if rfid_config:
             rfid_id = rfid_config.value
+        lpr_config = session.query(CassiaConfig).filter(
+            CassiaConfig.name == "lpr_id").first()
+        lpr_id = "1"
+        if lpr_config:
+            lpr_id = lpr_config.value
         if subtype == "376276" or subtype == "375090":
             subtype = '376276,375090'
-        if tech_host_type == "11":
-            tech_host_type = "11,2"
+        """ if tech_host_type == "11":
+            tech_host_type = "11,2" """
         if subtype != "" and tech_host_type == "":
             tech_host_type = "0"
         switch_config = session.query(CassiaConfig).filter(
@@ -220,108 +331,87 @@ def get_problems_filter_report(municipalityId, tech_host_type=0, subtype="", sev
 
         problems = session.execute(statement)
         data = pd.DataFrame(problems).replace(np.nan, "")
+        if not data.empty:
+            data['tipo'] = [0 for i in range(len(data))]
+            data['local'] = [0 for i in range(len(data))]
+            data['dependents'] = [0 for i in range(len(data))]
+            data['alert_type'] = ["" for i in range(len(data))]
+        if tech_host_type == lpr_id:
+            data = process_alerts_local(
+                data, municipalityId, session, lpr_id, severities, 'lpr')
         if tech_host_type == rfid_id:
-            if municipalityId == '0':
-                alertas_rfid = session.query(CassiaArchTrafficEvent).filter(
-                    CassiaArchTrafficEvent.closed_at == None,
-                ).all()
-                alertas_rfid = pd.DataFrame([(
-                    r.created_at,
-                    r.severity,
-                    r.hostid,
-                    r.hostname,
-                    r.latitude,
-                    r.longitude,
-                    r.ip,
-                    r.message,
-                    r.status,
-                    r.cassia_arch_traffic_events_id,
-                    '',
-                    '',
-                    0,
-                    '',
-                    0
-                )
-                    for r in alertas_rfid], columns=['Time', 'severity', 'hostid',
-                                                     'Host', 'latitude', 'longitude',
-                                                     'ip',
-                                                     'Problem', 'Estatus',
-                                                     'eventid',
-                                                     'r_eventid',
-                                                     'TimeRecovery',
-                                                     'Ack',
-                                                     'Ack_message',
-                                                     "manual_close"])
-                if not alertas_rfid.empty:
-                    alertas_rfid['Time'] = pd.to_datetime(alertas_rfid['Time'])
-                    alertas_rfid["Time"] = alertas_rfid['Time'].dt.strftime(
-                        '%d/%m/%Y %H:%M:%S')
-                    if severities != "":
-                        severities = severities.split(',')
-                        severities = [int(severity) for severity in severities]
-                    else:
-                        severities = [1, 2, 3, 4, 5]
-                    alertas_rfid = alertas_rfid[alertas_rfid['severity'].isin(
-                        severities)]
+            data = process_alerts_local(
+                data, municipalityId, session, rfid_id, severities, 'rfid')
+        downs_origen = text(
+            f"""call sp_diagnostic_problems('{municipalityId}','{tech_host_type}')""")
+        downs_origen = pd.DataFrame(session.execute(downs_origen))
+        if not downs_origen.empty:
+            """ data['tipo'] = [0 for i in range(len(data))]
+            data.loc[data['hostid'].astype(int).isin(
+                downs_origen['hostid'].tolist()), 'tipo'] = 1
+            data['local'] = [0 for i in range(len(data))]
+            data.loc[data['hostid'].astype(int).isin(
+                downs_origen['hostid'].tolist()), 'local'] = 0
+            data['dependents'] = [0 for i in range(len(data))] """
+            data_problems = text(
+                """select cate.*,cdp.dependents  from cassia_arch_traffic_events cate
+left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
+where cate.closed_at is NULL and cate.hostid in :hostids""")
+            print(data_problems)
+            data_problems = pd.DataFrame(session.execute(
+                data_problems, {'hostids': downs_origen['hostid'].tolist()})).replace(np.nan, 0)
+            if not data_problems.empty:
+                """ data_problems['TimeRecovery'] = [
+                '' for i in range(len(data_problems))] """
+                data_problems['r_eventid'] = [
+                    '' for i in range(len(data_problems))]
+                data_problems['Ack'] = [0 for i in range(len(data_problems))]
+                data_problems['Ack_message'] = [
+                    '' for i in range(len(data_problems))]
+                data_problems['manual_close'] = [
+                    0 for i in range(len(data_problems))]
+                data_problems['local'] = [
+                    1 for i in range(len(data_problems))]
+                data_problems['tipo'] = [
+                    1 for i in range(len(data_problems))]
+                data_problems.drop(
+                    columns={'updated_at', 'tech_id'}, inplace=True)
+                data_problems['created_at'] = pd.to_datetime(
+                    data_problems['created_at'])
+                data_problems["created_at"] = data_problems['created_at'].dt.strftime(
+                    '%d/%m/%Y %H:%M:%S')
+                data_problems.rename(columns={
+                    'created_at': 'Time',
+                    'closed_at': 'TimeRecovery',
+                    'hostname': 'Host',
+                    'message': 'Problem',
+                    'status': 'Estatus',
+                    'cassia_arch_traffic_events_id': 'eventid',
+                }, inplace=True)
 
-            else:
-                statement = text("call sp_catCity()")
-                municipios = session.execute(statement)
-                municipios = pd.DataFrame(municipios).replace(np.nan, "")
-
-                municipio = municipios.loc[municipios['groupid'].astype(str) ==
-                                           municipalityId]
-                if not municipio.empty:
-                    municipio = municipio['name'].item()
+                if severities != "":
+                    severities = severities.split(',')
+                    severities = [int(severity) for severity in severities]
                 else:
-                    municipio = ''
+                    severities = [1, 2, 3, 4, 5, 6]
+                if 6 in severities:
+                    downs = data_problems[data_problems['Problem']
+                                          == 'Unavailable by ICMP ping']
+                data_problems = data_problems[data_problems['severity'].isin(
+                    severities)]
+                if 6 in severities:
+                    data_problems = pd.concat([data_problems, downs],
+                                              ignore_index=True).replace(np.nan, "")
 
-                alertas_rfid = session.query(CassiaArchTrafficEvent).filter(
-                    CassiaArchTrafficEvent.closed_at == None,
-                    CassiaArchTrafficEvent.municipality == municipio
-                ).all()
-                alertas_rfid = pd.DataFrame([(
-                    r.created_at,
-                    r.severity,
-                    r.hostid,
-                    r.hostname,
-                    r.latitude,
-                    r.longitude,
-                    r.ip,
-                    r.message,
-                    r.status,
-                    r.cassia_arch_traffic_events_id,
-                    '',
-                    '',
-                    0,
-                    '',
-                    0
-                )
-                    for r in alertas_rfid], columns=['Time', 'severity', 'hostid',
-                                                     'Host', 'latitude', 'longitude',
-                                                     'ip',
-                                                     'Problem', 'Estatus',
-                                                     'eventid',
-                                                     'r_eventid',
-                                                     'TimeRecovery',
-                                                     'Ack',
-                                                     'Ack_message',
-                                                     "manual_close"])
-                if not alertas_rfid.empty:
-                    alertas_rfid['Time'] = pd.to_datetime(alertas_rfid['Time'])
-                    alertas_rfid["Time"] = alertas_rfid['Time'].dt.strftime(
-                        '%d/%m/%Y %H:%M:%S')
+                data = pd.concat([data_problems, data],
+                                 ignore_index=True).replace(np.nan, "")
+            """ print(data.to_string()) """
 
-                    if severities != "":
-                        severities = severities.split(',')
-                        severities = [int(severity) for severity in severities]
-                    else:
-                        severities = [1, 2, 3, 4, 5]
-                    alertas_rfid = alertas_rfid[alertas_rfid['severity'].isin(
-                        severities)]
+            origen = data[data['tipo'] == 1]
 
-            data = pd.concat([alertas_rfid, data],
-                             ignore_index=True).replace(np.nan, "")
+            """ print("aqui")
+        print(origen.to_string()) """
+
         if not data.empty:
             now = datetime.now(pytz.timezone('America/Mexico_City'))
             print("a")
@@ -332,6 +422,11 @@ def get_problems_filter_report(municipalityId, tech_host_type=0, subtype="", sev
             data['dias'] = data['diferencia'].dt.days
             data['horas'] = data['diferencia'].dt.components.hours
             data['minutos'] = data['diferencia'].dt.components.minutes
+            data.loc[data['alert_type'].isin(
+                ['rfid', 'lpr']), 'Problem'] = data.loc[data['alert_type'].isin(['rfid', 'lpr']), ['dias', 'horas', 'minutos']].apply(lambda x:
+                                                                                                                                      f"Este host no ha tenido lecturas por más de {x['dias']} dias {x['horas']} hrs {x['minutos']} min" if x['dias'] > 0
+                                                                                                                                      else f"Este host no ha tenido lecturas por más de {x['horas']} hrs {x['minutos']} min" if x['horas'] > 0
+                                                                                                                                      else f"Este host no ha tenido lecturas por más de {x['minutos']} min", axis=1)
 
             data['diferencia'] = data.apply(
                 lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
@@ -687,65 +782,67 @@ def path_leaf(path):
     return tail or ntpath.basename(head)
 
 
-async def register_ack(eventid, message, current_session, close):
-
-    db_zabbix = DB_Zabbix()
-    session = db_zabbix.Session()
-    statement = text(
-        f"select eventid  from events p where eventid ='{eventid}'")
-    problem = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
-    if problem.empty:
-        session.close()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="The eventid not exists",
-        )
-
-    try:
-        api_zabbix = ZabbixAPI(settings.zabbix_server_url)
-        api_zabbix.login(user=settings.zabbix_user,
-                         password=settings.zabbix_password)
-
-    except:
-        session.close()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error al concectar con Zabbix",
-        )
-
-    try:
-        params = {
-            "eventids": eventid,
-            "action": 5 if close else 4,
-            "message": message
-        }
-
-        response = api_zabbix.do_request(method='event.acknowledge',
-                                         params=params)
-        ackid = text(
-            f"select acknowledgeid from acknowledges order by acknowledgeid desc limit 1")
-        ackid = pd.DataFrame(session.execute(ackid)).replace(np.nan, "")
-        if ackid.empty:
+async def register_ack(eventid, message, current_session, close, is_zabbix_event):
+    if int(is_zabbix_event):
+        db_zabbix = DB_Zabbix()
+        session = db_zabbix.Session()
+        statement = text(
+            f"select eventid  from events p where eventid ='{eventid}'")
+        problem = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+        if problem.empty:
             session.close()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Error en la consulta en la tabla de acknowledges",
+                detail="The eventid not exists",
             )
-        ackid = int(ackid['acknowledgeid'].values[0])+1
-        cassia_acknowledge = CassiaAcknowledge(
-            acknowledge_id=ackid,
-            user_id=current_session.user_id
-        )
-        session.add(cassia_acknowledge)
-        session.commit()
-        session.refresh(cassia_acknowledge)
-    except:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error al crear el acknownledge",
-        )
 
-    return success_response(message="Acknowledge registrado correctamente")
+        try:
+            api_zabbix = ZabbixAPI(settings.zabbix_server_url)
+            api_zabbix.login(user=settings.zabbix_user,
+                             password=settings.zabbix_password)
+
+        except:
+            session.close()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error al concectar con Zabbix",
+            )
+
+        try:
+            params = {
+                "eventids": eventid,
+                "action": 5 if close else 4,
+                "message": message
+            }
+
+            response = api_zabbix.do_request(method='event.acknowledge',
+                                             params=params)
+            ackid = text(
+                f"select acknowledgeid from acknowledges order by acknowledgeid desc limit 1")
+            ackid = pd.DataFrame(session.execute(ackid)).replace(np.nan, "")
+            if ackid.empty:
+                session.close()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Error en la consulta en la tabla de acknowledges",
+                )
+            ackid = int(ackid['acknowledgeid'].values[0])+1
+            cassia_acknowledge = CassiaAcknowledge(
+                acknowledge_id=ackid,
+                user_id=current_session.user_id
+            )
+            session.add(cassia_acknowledge)
+            session.commit()
+            session.refresh(cassia_acknowledge)
+        except:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error al crear el acknownledge",
+            )
+
+        return success_response(message="Acknowledge registrado correctamente")
+    else:
+        return await register_ack_cassia(eventid, message, current_session, close)
 
 
 async def get_acks(eventid):
@@ -869,3 +966,28 @@ async def delete_ticket(ticket_id):
     session.close()
 
     return success_response(message="El ticket fue eliminado correctamente")
+
+
+async def register_ack_cassia(eventid, message, current_session, close):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    statement = text(
+        f"select cassia_arch_traffic_events_id  from cassia_arch_traffic_events p where cassia_arch_traffic_events_id ='{eventid}'")
+    problem = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
+    if problem.empty:
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The eventid CASSIA not exists",
+        )
+    cassia_event_acknowledge = CassiaEventAcknowledge(
+        userid=current_session.user_id,
+        eventid=eventid,
+        message=message,
+        action=5 if close else 4
+    )
+    session.add(cassia_event_acknowledge)
+    session.commit()
+    session.refresh(cassia_event_acknowledge)
+
+    return success_response(message="Acknowledge CASSIA registrado correctamente")

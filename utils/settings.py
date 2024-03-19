@@ -156,3 +156,11 @@ class Settings(BaseSettings):
             os.getenv('TRAFFIC_SYSLOG')) == 1 else False
     except:
         pass
+    cassia_diagnosta: bool = False
+    cassia_diagnosta_api_url: str = ""
+    try:
+        cassia_diagnosta: bool = True if int(
+            os.getenv('DIAGNOSTA')) == 1 else False
+        cassia_diagnosta_api_url = os.getenv('DIAGNOSTA_API_URL')
+    except:
+        pass
