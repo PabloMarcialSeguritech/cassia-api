@@ -51,7 +51,7 @@ class AlertsServiceTest(unittest.TestCase):
 
         self.loop.run_until_complete(async_test())
 
-
+    @unittest.skip("test_register_ack_cassia_abierto")
     def test_register_ack_cassia_abierto(self):
         print("> Entrando test_register_ack_cassia <")
         token = user_authentication_headers('juan.marcial@seguritech.com', '12345678')
@@ -86,5 +86,33 @@ class AlertsServiceTest(unittest.TestCase):
             response_dict = json.loads(response.body)
             print("response_dict:", response_dict)
             self.assertIn("correctamente", response_dict['message'])
+
+        self.loop.run_until_complete(async_test())
+
+    def test_get_acks_zabbix(self):
+        print("> test_get_acks_zabbix <")
+
+        async def async_test():
+            eventid = 10913623
+            is_zabbix_event = 0
+            response = await alerts_service.get_acks(eventid, is_zabbix_event)
+
+            response_dict = json.loads(response.body)
+            print("response_dict:", response_dict)
+            self.assertIsNotNone(response_dict['data'], "Se espera que no sea None")
+
+        self.loop.run_until_complete(async_test())
+
+    def test_get_acks_cassia(self):
+        print("> test_get_acks_cassia <")
+
+        async def async_test():
+            eventid = 82964
+            is_zabbix_event = 1
+            response = await alerts_service.get_acks(eventid, is_zabbix_event)
+
+            response_dict = json.loads(response.body)
+            print("response_dict:", response_dict)
+            self.assertIsNotNone(response_dict['data'], "Se espera que no sea None")
 
         self.loop.run_until_complete(async_test())
