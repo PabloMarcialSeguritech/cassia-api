@@ -138,7 +138,18 @@ def process_alerts_local(data, municipalityId, session, tech_id, severities, tip
                 severities = [1, 2, 3, 4, 5]
             alertas = alertas[alertas['severity'].isin(
                 severities)]
+    if not alertas.empty:
 
+        acks = text("""select cea.eventid , cea.message as message from (
+select eventid,MAX(cea.acknowledgeid) acknowledgeid
+from cassia_event_acknowledges cea group by eventid ) ceaa
+left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid""")
+        acks = pd.DataFrame(session.execute(acks)).replace(np.nan, '')
+        if not acks.empty:
+            alertas = pd.merge(alertas, acks, left_on='eventid',
+                               right_on='eventid', how='left')
+            alertas.drop(columns=['Ack_message'], inplace=True)
+            alertas.rename(columns={'message': 'Ack_message'}, inplace=True)
     data = pd.concat([alertas, data],
                      ignore_index=True).replace(np.nan, "")
     return data
@@ -208,10 +219,17 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
             downs_origen['hostid'].tolist()), 'local'] = 0
         data['dependents'] = [0 for i in range(len(data))] """
         data_problems = text(
-            """select cate.*,cdp.dependents  from cassia_arch_traffic_events cate
+            """select cate.*,cdp.dependents,cea.message as Ack_message from cassia_arch_traffic_events cate
+left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
+from cassia_event_acknowledges cea group by eventid ) as ceaa
+on  cate.cassia_arch_traffic_events_id=ceaa.eventid
+left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
 left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
 where cate.closed_at is NULL and cate.hostid in :hostids""")
-        print(data_problems)
+        """select cate.*,cdp.dependents  from cassia_arch_traffic_events cate
+left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
+where cate.closed_at is NULL and cate.hostid in :hostids """
+        """ print(data_problems) """
         data_problems = pd.DataFrame(session.execute(
             data_problems, {'hostids': downs_origen['hostid'].tolist()})).replace(np.nan, 0)
         if not data_problems.empty:
@@ -220,8 +238,8 @@ where cate.closed_at is NULL and cate.hostid in :hostids""")
             data_problems['r_eventid'] = [
                 '' for i in range(len(data_problems))]
             data_problems['Ack'] = [0 for i in range(len(data_problems))]
-            data_problems['Ack_message'] = [
-                '' for i in range(len(data_problems))]
+            """ data_problems['Ack_message'] = [
+                '' for i in range(len(data_problems))] """
             data_problems['manual_close'] = [
                 0 for i in range(len(data_problems))]
             data_problems['local'] = [
@@ -273,7 +291,7 @@ where cate.closed_at is NULL and cate.hostid in :hostids""")
         data['dias'] = data['diferencia'].dt.days
         data['horas'] = data['diferencia'].dt.components.hours
         data['minutos'] = data['diferencia'].dt.components.minutes
-        print(data['diferencia'])
+        """ print(data['diferencia']) """
         data.loc[data['alert_type'].isin(
             ['rfid', 'lpr']), 'Problem'] = data.loc[data['alert_type'].isin(['rfid', 'lpr']), ['dias', 'horas', 'minutos']].apply(lambda x:
                                                                                                                                   f"Este host no ha tenido lecturas por más de {x['dias']} dias {x['horas']} hrs {x['minutos']} min" if x['dias'] > 0
@@ -354,7 +372,11 @@ def get_problems_filter_report(municipalityId, tech_host_type=0, subtype="", sev
                 downs_origen['hostid'].tolist()), 'local'] = 0
             data['dependents'] = [0 for i in range(len(data))] """
             data_problems = text(
-                """select cate.*,cdp.dependents  from cassia_arch_traffic_events cate
+                """select cate.*,cdp.dependents,cea.message as Ack_message from cassia_arch_traffic_events cate
+left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
+from cassia_event_acknowledges cea group by eventid ) as ceaa
+on  cate.cassia_arch_traffic_events_id=ceaa.eventid
+left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
 left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
 where cate.closed_at is NULL and cate.hostid in :hostids""")
             print(data_problems)
@@ -366,8 +388,8 @@ where cate.closed_at is NULL and cate.hostid in :hostids""")
                 data_problems['r_eventid'] = [
                     '' for i in range(len(data_problems))]
                 data_problems['Ack'] = [0 for i in range(len(data_problems))]
-                data_problems['Ack_message'] = [
-                    '' for i in range(len(data_problems))]
+                """ data_problems['Ack_message'] = [
+                    '' for i in range(len(data_problems))] """
                 data_problems['manual_close'] = [
                     0 for i in range(len(data_problems))]
                 data_problems['local'] = [
@@ -445,6 +467,9 @@ where cate.closed_at is NULL and cate.hostid in :hostids""")
                         writer, sheet_name='Data', index=False)
 
     return FileResponse(xlsx_filename, headers={"Content-Disposition": "attachment; filename=alertas.xlsx"}, media_type="application/vnd.ms-excel", filename="alertas.xlsx")
+
+
+""" Exception Agencies """
 
 
 """ Exception Agencies """
@@ -845,11 +870,18 @@ async def register_ack(eventid, message, current_session, close, is_zabbix_event
         return await register_ack_cassia(eventid, message, current_session, close)
 
 
-async def get_acks(eventid):
+async def get_acks(eventid, is_cassia_event):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-    statement = text(
-        f"select eventid,clock  from events p where eventid ='{eventid}'")
+
+    if int(is_cassia_event):
+        statement = text(
+            f"select eventid,clock  from cassia_event_acknowledges p where eventid ='{eventid}'")
+    else:
+        statement = text(
+            f"select eventid,clock  from events p where eventid ='{eventid}'")
+
+
     problem = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
     if problem.empty:
         session.close()
@@ -858,7 +890,7 @@ async def get_acks(eventid):
             detail="The eventid not exists",
         )
     try:
-        acks = text(f"call sp_acknowledgeList({eventid});")
+        acks = text(f"call sp_acknowledgeList1({eventid}, {is_cassia_event});")
         acks = pd.DataFrame(session.execute(acks)).replace(np.nan, "")
         acks['tickets'] = ['' for ack in range(len(acks))]
         statement = text(
@@ -876,9 +908,11 @@ async def get_acks(eventid):
     now = datetime.now(pytz.timezone(
         'America/Mexico_City')).replace(tzinfo=None)
     clock_problem = problem.iloc[0]['clock']
+    print("clock_problem:", clock_problem)
 
-    clock_problem = datetime.fromtimestamp(
-        clock_problem, pytz.timezone('America/Mexico_City')).replace(tzinfo=None)
+    if not int(is_cassia_event):
+        clock_problem = datetime.fromtimestamp(
+            clock_problem, pytz.timezone('America/Mexico_City')).replace(tzinfo=None)
 
     diff = now-clock_problem
     acumulated_cassia = round(diff.days*24 + diff.seconds/3600, 4)

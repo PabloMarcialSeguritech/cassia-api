@@ -40,13 +40,13 @@ async def get_rfid_data():
     print(len(rfid_devices)) """
 
     statement = text(f"""
-    SELECT m.Nombre as Municipio, a.Nombre as Arco, r.Descripcion,
+SELECT m.Nombre as Municipio, a.Nombre as Arco, r.Descripcion,
 r.Estado, a2.UltimaLectura,
 cl.lecturas as Lecturas,
 a.Longitud,a.Latitud,
 r.Ip 
 FROM RFID r
-INNER JOIN Arco a ON (a.IdArco =a.IdArco )
+INNER JOIN Arco a ON (a.IdArco =r.IdArco )
 INNER JOIN Municipio m ON (a.IdMunicipio =M.IdMunicipio)
 LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
 LEFT JOIN (select lr.IdRFID,lr.IdAntena,
