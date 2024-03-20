@@ -349,10 +349,10 @@ a.Longitud,a.Latitud,
 a2.Carril,
 r.Ip 
 FROM RFID r
-INNER JOIN ArcoRFID ar  ON (R.IdRFID = ar.IdRFID )
-INNER JOIN Arco a ON (ar.IdArco =a.IdArco )
-INNER JOIN ArcoMunicipio am ON (a.IdArco =am.IdArco)
-INNER JOIN Municipio m ON (am.IdMunicipio =M.IdMunicipio)
+--INNER JOIN ArcoRFID ar  ON (R.IdRFID = ar.IdRFID )
+INNER JOIN Arco a ON (r.IdArco =a.IdArco )
+--INNER JOIN ArcoMunicipio am ON (a.IdArco =am.IdArco)
+INNER JOIN Municipio m ON (a.IdMunicipio =m.IdMunicipio)
 LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
 LEFT JOIN (select lr.IdRFID,lr.IdAntena,
 COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr

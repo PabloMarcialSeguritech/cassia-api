@@ -40,7 +40,7 @@ async def get_rfid_data():
     print(len(rfid_devices)) """
 
     statement = text(f"""
-    SELECT m.Nombre as Municipio, a.Nombre as Arco, r.Descripcion,
+SELECT m.Nombre as Municipio, a.Nombre as Arco, r.Descripcion,
 r.Estado, a2.UltimaLectura,
 cl.lecturas as Lecturas,
 a.Longitud,a.Latitud,
