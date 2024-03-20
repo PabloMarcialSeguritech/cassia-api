@@ -11,7 +11,7 @@ from services import auth_service2
 from fastapi import Body
 from models.user_model import User
 from models.cassia_user_session import CassiaUserSession
-from fastapi import File, UploadFile, Form
+from fastapi import File, UploadFile, Form, Query
 from fastapi.responses import FileResponse
 from typing import Optional
 
@@ -61,8 +61,8 @@ async def get_problems_filter(eventid: str = "34975081", message: str = Form(max
     summary="Get acknowledges of one event, Ex: 34975081",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_problems_filter(eventid: str = "34975081"):
-    return await alerts_service.get_acks(eventid)
+async def get_problems_filter(eventid: str = "34975081", is_cassia_event: int = Query(0)):
+    return await alerts_service.get_acks(eventid, is_cassia_event)
 
 
 @alerts_router.get(
