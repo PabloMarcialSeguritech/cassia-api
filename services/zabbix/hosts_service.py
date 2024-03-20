@@ -252,8 +252,11 @@ SELECT from_unixtime(p.clock,'%d/%m/%Y %H:%i:%s' ) as Time,
     data['dependents'] = 0
     data['alert_type'] = ""
     data_problems = text(
-        f"""
-        select cate.*,cdp.dependents  from cassia_arch_traffic_events cate
+        f"""select cate.*,cdp.dependents,cea.message as Ack_message  from cassia_arch_traffic_events cate
+left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
+from cassia_event_acknowledges cea group by eventid ) as ceaa
+on  cate.cassia_arch_traffic_events_id=ceaa.eventid
+left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
 left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
 where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at desc limit 20""")
     data_problems = pd.DataFrame(
@@ -264,8 +267,8 @@ where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at
         data_problems['r_eventid'] = [
             '' for i in range(len(data_problems))]
         data_problems['Ack'] = [0 for i in range(len(data_problems))]
-        data_problems['Ack_message'] = [
-            '' for i in range(len(data_problems))]
+        """ data_problems['Ack_message'] = [
+            '' for i in range(len(data_problems))] """
         data_problems['manual_close'] = [
             0 for i in range(len(data_problems))]
         data_problems['local'] = [

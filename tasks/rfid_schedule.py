@@ -46,7 +46,7 @@ cl.lecturas as Lecturas,
 a.Longitud,a.Latitud,
 r.Ip 
 FROM RFID r
-INNER JOIN Arco a ON (a.IdArco =a.IdArco )
+INNER JOIN Arco a ON (a.IdArco =r.IdArco )
 INNER JOIN Municipio m ON (a.IdMunicipio =M.IdMunicipio)
 LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
 LEFT JOIN (select lr.IdRFID,lr.IdAntena,
@@ -54,7 +54,6 @@ COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
 where lr.Fecha between dateadd(second,-30,getdate()) and getdate()
 group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
 order by a.Longitud,a.Latitud
-
 """)
 
     try:
