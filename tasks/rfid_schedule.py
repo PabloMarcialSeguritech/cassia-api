@@ -253,4 +253,4 @@ async def trigger_alerts_close():
             print(ids)
 
             session.execute(statement, params={'ids': ids})
-            """ session.commit() """
+            session.commit()
