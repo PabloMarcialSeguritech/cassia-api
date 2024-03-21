@@ -21,6 +21,7 @@ from fastapi import status, File, UploadFile
 from fastapi.responses import FileResponse
 from models.cassia_config import CassiaConfig
 from models.cassia_arch_traffic_events import CassiaArchTrafficEvent
+from models.cassia_arch_traffic_events_2 import CassiaArchTrafficEvent2
 from models.cassia_event_acknowledges import CassiaEventAcknowledge
 import os
 import ntpath
@@ -36,9 +37,9 @@ settings = Settings()
 
 def process_alerts_local(data, municipalityId, session, tech_id, severities, tipo):
     if municipalityId == '0':
-        alertas = session.query(CassiaArchTrafficEvent).filter(
-            CassiaArchTrafficEvent.closed_at == None,
-            CassiaArchTrafficEvent.tech_id == tech_id
+        alertas = session.query(CassiaArchTrafficEvent2).filter(
+            CassiaArchTrafficEvent2.closed_at == None,
+            CassiaArchTrafficEvent2.tech_id == tech_id
         ).all()
         alertas = pd.DataFrame([(
             r.created_at,
@@ -92,10 +93,10 @@ def process_alerts_local(data, municipalityId, session, tech_id, severities, tip
             municipio = municipio['name'].item()
         else:
             municipio = ''
-        alertas = session.query(CassiaArchTrafficEvent).filter(
-            CassiaArchTrafficEvent.closed_at == None,
-            CassiaArchTrafficEvent.municipality == municipio,
-            CassiaArchTrafficEvent.tech_id == tech_id
+        alertas = session.query(CassiaArchTrafficEvent2).filter(
+            CassiaArchTrafficEvent2.closed_at == None,
+            CassiaArchTrafficEvent2.municipality == municipio,
+            CassiaArchTrafficEvent2.tech_id == tech_id
         ).all()
         alertas = pd.DataFrame([(
             r.created_at,
@@ -208,7 +209,7 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
         data = process_alerts_local(
             data, municipalityId, session, rfid_id, severities, 'rfid')
     downs_origen = text(
-        f"""call sp_diagnostic_problems('{municipalityId}','{tech_host_type}')""")
+        f"""call sp_diagnostic_problems1('{municipalityId}','{tech_host_type}')""")
     downs_origen = pd.DataFrame(session.execute(downs_origen))
     if not downs_origen.empty:
         """ data['tipo'] = [0 for i in range(len(data))]
@@ -219,12 +220,12 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
             downs_origen['hostid'].tolist()), 'local'] = 0
         data['dependents'] = [0 for i in range(len(data))] """
         data_problems = text(
-            """select cate.*,cdp.dependents,cea.message as Ack_message from cassia_arch_traffic_events cate
+            """select cate.*,cdp.dependents,cea.message as Ack_message from cassia_arch_traffic_events_2 cate
 left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
 from cassia_event_acknowledges cea group by eventid ) as ceaa
 on  cate.cassia_arch_traffic_events_id=ceaa.eventid
 left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
-left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
+left join cassia_diagnostic_problems_2 cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
 where cate.closed_at is NULL and cate.hostid in :hostids""")
         """select cate.*,cdp.dependents  from cassia_arch_traffic_events cate
 left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
@@ -361,7 +362,7 @@ def get_problems_filter_report(municipalityId, tech_host_type=0, subtype="", sev
             data = process_alerts_local(
                 data, municipalityId, session, rfid_id, severities, 'rfid')
         downs_origen = text(
-            f"""call sp_diagnostic_problems('{municipalityId}','{tech_host_type}')""")
+            f"""call sp_diagnostic_problems1('{municipalityId}','{tech_host_type}')""")
         downs_origen = pd.DataFrame(session.execute(downs_origen))
         if not downs_origen.empty:
             """ data['tipo'] = [0 for i in range(len(data))]
@@ -372,12 +373,12 @@ def get_problems_filter_report(municipalityId, tech_host_type=0, subtype="", sev
                 downs_origen['hostid'].tolist()), 'local'] = 0
             data['dependents'] = [0 for i in range(len(data))] """
             data_problems = text(
-                """select cate.*,cdp.dependents,cea.message as Ack_message from cassia_arch_traffic_events cate
+                """select cate.*,cdp.dependents,cea.message as Ack_message from cassia_arch_traffic_events_2 cate
 left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
 from cassia_event_acknowledges cea group by eventid ) as ceaa
 on  cate.cassia_arch_traffic_events_id=ceaa.eventid
 left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
-left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
+left join cassia_diagnostic_problems_2 cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
 where cate.closed_at is NULL and cate.hostid in :hostids""")
             print(data_problems)
             data_problems = pd.DataFrame(session.execute(
@@ -880,7 +881,6 @@ async def get_acks(eventid, is_cassia_event):
     else:
         statement = text(
             f"select eventid,clock  from events p where eventid ='{eventid}'")
-
 
     problem = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
     if problem.empty:

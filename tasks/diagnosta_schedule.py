@@ -111,6 +111,7 @@ def get_downs(session):
 def get_sincronizados(session):
     sincronizados = pd.DataFrame(session.execute(
         text("SELECT * FROM cassia_diagnostic_problems_2 where closed_at is null")))
+
     return pd.DataFrame(
         columns=['diagnostic_problem_id', 'hostid_origen', 'depends_hostid', 'status', 'closed_at', 'local', 'hostid', 'created_at', 'dependents', 'local_eventid']) if sincronizados.empty else sincronizados
 
@@ -151,28 +152,28 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
         """ print("null") """
         return a_sincronizar
     if len(problematico):
-        print(res_host)
+        """ print(res_host)
         print(problematico)
-        print("AAAAAAAAAAAAAAAAAAA")
+        print("AAAAAAAAAAAAAAAAAAA") """
         """ print(problematico) """
         if not problematico[9]:
-            print("BBBBBBBBB")
+            """ print("BBBBBBBBB") """
             sincronizado = a_sincronizar.loc[a_sincronizar['hostid']
                                              == problematico[0]]
 
             if not sincronizado.empty:
                 return a_sincronizar
-            print("F3")
+            """ print("F3") """
             es_down = downs.loc[downs['hostid'].astype('str')
                                 == str(problematico[0])]
             if es_down.empty:
                 return a_sincronizar
-            print("F4")
+            """ print("F4") """
             tiene_eventos = downs[downs['hostid'] == problematico[0]]
-            print(tiene_eventos)
+            """ print(tiene_eventos) """
             tiene_eventos = tiene_eventos[tiene_eventos['eventid']
                                           == np.nan]
-            print(tiene_eventos)
+            """ print(tiene_eventos) """
             if tiene_eventos.empty:
                 host_padre = text(f"""
     SELECT h.hostid ,h.host as hostname,hi.location_lat as latitude,hi.location_lon as longitude,
@@ -300,7 +301,7 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
         return a_sincronizar
 
 
-@diagnosta_schedule.task(("every 15 seconds & diagnosta"), execution="thread")
+@diagnosta_schedule.task(("every 60 seconds & diagnosta"), execution="thread")
 async def close_problems():
     db_zabbix = DB_Zabbix()
     with db_zabbix.Session() as session:
@@ -310,7 +311,7 @@ async def close_problems():
         sincronizados = get_sincronizados(session)
         a_cerrar = sincronizados[~sincronizados['hostid'].isin(
             downs['hostid'].to_list())]
-        print(a_cerrar.to_string())
+        """ print(a_cerrar.to_string()) """
         if a_cerrar.empty:
             ids = [0]
         else:
@@ -338,6 +339,88 @@ async def close_problems():
         session.execute(statement, params={'now': now, 'status': 'RESOLVED',
                         'ids': ids})
         session.commit()
+
+        sincronizados = get_sincronizados(session)
+        """ if not sincronizados.empty:
+            sincronizados['local_eventid']=sincronizados['local_eventid'].astype('int') """
+        sincronizados_locales = sincronizados[sincronizados['local'] == 1]
+        """ print("Sincronizados locales:", sincronizados_locales.to_string()) """
+        if not downs.empty:
+            downs['eventid'].replace(np.nan, 0, inplace=True)
+            downs['eventid'] = downs['eventid'].astype('int')
+        downs_evento_zabbix = downs[downs['eventid'] != 0]
+        """ print("Downs de zabbix:", downs_evento_zabbix.to_string()) """
+        """ print(type(downs['eventid'][140]))
+        print("Downs de zabbix:", downs_evento_zabbix.to_string()) """
+        a_cerrar_locales = sincronizados_locales[sincronizados_locales['hostid'].isin(
+            downs_evento_zabbix['hostid'])]
+        """ print("A cerrar locales:", a_cerrar_locales.to_string()) """
+        if a_cerrar_locales.empty:
+            ids = [0]
+        else:
+            ids = a_cerrar_locales['diagnostic_problem_id'].to_list()
+        now = datetime.now(pytz.timezone('America/Mexico_City'))
+        statement = text(f"""
+        UPDATE cassia_diagnostic_problems_2
+        set closed_at= :now,
+        status= :status
+        where diagnostic_problem_id in :ids""")
+        session.execute(statement, params={'now': now, 'status': 'Cerrado',
+                        'ids': ids})
+        statement = text(f"""
+        UPDATE cassia_arch_traffic_events_2
+        set closed_at=:now,
+        status=:status               
+        where cassia_arch_traffic_events_id in :ids""")
+        ids = a_cerrar_locales[a_cerrar_locales['local'] == 1]
+        ids = ids[ids['local_eventid'] != np.nan]
+        """ print(ids.to_string()) """
+        if ids.empty:
+            ids = [0]
+        else:
+            ids = ids['local_eventid'].astype(int).to_list()
+        """ print(ids) """
+        session.execute(statement, params={'now': now, 'status': 'RESOLVED',
+                        'ids': ids})
+        session.commit()
+
+        sincronizados = get_sincronizados(session)
+        sincronizados_locales = sincronizados[sincronizados['local'] == 1]
+        if not sincronizados_locales.empty:
+            sincronizados_locales['local_eventid'] = sincronizados_locales['local_eventid'].astype(
+                'int')
+        sincronizados_locales['duplicates'] = sincronizados_locales.groupby('hostid')[
+            'hostid'].transform('count')
+        sincronizados_locales = sincronizados_locales[sincronizados_locales['duplicates'] > 1]
+
+        a_cerrar_sincronizados = [0]
+        eventos_a_cerrar = [0]
+        hostid = 0
+        if not sincronizados_locales.empty:
+            for ind in sincronizados_locales.index:
+                if hostid != sincronizados_locales['hostid'][ind]:
+                    hostid = sincronizados_locales['hostid'][ind]
+                    continue
+                a_cerrar_sincronizados.append(
+                    sincronizados_locales['diagnostic_problem_id'][ind])
+                eventos_a_cerrar.append(
+                    sincronizados_locales['local_eventid'][ind])
+
+            statement = text(f"""
+        UPDATE cassia_diagnostic_problems_2
+        set closed_at= :now,
+        status= :status
+        where diagnostic_problem_id in :ids""")
+            session.execute(statement, params={'now': now, 'status': 'Cerrado',
+                            'ids': a_cerrar_sincronizados})
+            statement = text(f"""
+            UPDATE cassia_arch_traffic_events_2
+            set closed_at=:now,
+            status=:status               
+            where cassia_arch_traffic_events_id in :ids""")
+            session.execute(statement, params={'now': now, 'status': 'RESOLVED',
+                                               'ids': eventos_a_cerrar})
+            session.commit()
 
 
 def get_zabbix_events(downs):
