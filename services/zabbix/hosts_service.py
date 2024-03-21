@@ -258,7 +258,7 @@ left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
 from cassia_event_acknowledges cea group by eventid ) as ceaa
 on  cate.cassia_arch_traffic_events_id=ceaa.eventid
 left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
-left join cassia_diagnostic_problems_2 cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
+left join cassia_diagnostic_problems_2 cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id 
 where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at desc limit 20""")
     data_problems = pd.DataFrame(
         session.execute(data_problems)).replace(np.nan, '')

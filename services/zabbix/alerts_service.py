@@ -225,7 +225,7 @@ left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
 from cassia_event_acknowledges cea group by eventid ) as ceaa
 on  cate.cassia_arch_traffic_events_id=ceaa.eventid
 left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
-left join cassia_diagnostic_problems_2 cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
+left join cassia_diagnostic_problems_2 cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id 
 where cate.closed_at is NULL and cate.hostid in :hostids""")
         """select cate.*,cdp.dependents  from cassia_arch_traffic_events cate
 left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
@@ -378,7 +378,7 @@ left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
 from cassia_event_acknowledges cea group by eventid ) as ceaa
 on  cate.cassia_arch_traffic_events_id=ceaa.eventid
 left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
-left join cassia_diagnostic_problems_2 cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
+left join cassia_diagnostic_problems_2 cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id 
 where cate.closed_at is NULL and cate.hostid in :hostids""")
             print(data_problems)
             data_problems = pd.DataFrame(session.execute(
