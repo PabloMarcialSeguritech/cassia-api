@@ -22,7 +22,36 @@ async def get_aps_layer():
 
 
 def get_downs_layer(municipality_id, dispId, subtype_id):
-    db_zabbix = DB_Zabbix()
+    with DB_Zabbix().Session() as session:
+        statement = text(
+            f"call sp_hostDown('{municipality_id}','{dispId}','{subtype_id}')")
+
+        downs = session.execute(statement)
+        downs = pd.DataFrame(downs).replace(np.nan, "")
+        print(len(downs))
+        dependientes = text(f"""SELECT DISTINCT (hostid) from cassia_diagnostic_problems_2 cdp 
+where closed_at is null and depends_hostid is not null""")
+        dependientes = pd.DataFrame(
+            session.execute(dependientes)).replace(np.nan, '')
+        if not downs.empty:
+            downs['value'] = [1 for i in range(len(downs))]
+            downs['description'] = [
+                'ICMP ping' for i in range(len(downs))]
+            downs['origen'] = [1 for i in range(len(downs))]
+        if not downs.empty and not dependientes.empty:
+            """ downs = downs[~downs['hostid'].isin(
+                dependientes['hostid'].to_list())] """
+            print("F1")
+            downs.loc[downs['hostid'].isin(
+                dependientes['hostid'].to_list()), 'origen'] = 0
+        print(len(downs))
+        response = {"downs": downs.to_dict(
+            orient="records")
+        }
+        return success_response(data=response)
+
+
+""" db_zabbix = DB_Zabbix()
     statement = text(
         f"call sp_hostDown('{municipality_id}','{dispId}','{subtype_id}')")
     session = db_zabbix.Session()
@@ -30,7 +59,7 @@ def get_downs_layer(municipality_id, dispId, subtype_id):
     data = pd.DataFrame(aps).replace(np.nan, "")
 
     downs_origen = text(
-        f"""call sp_diagnostic_problems('{municipality_id}','{dispId}')""")
+        fcall sp_diagnostic_problems('{municipality_id}','{dispId}'))
     downs_origen = pd.DataFrame(
         session.execute(downs_origen)).replace(np.nan, "")
     if not downs_origen.empty:
@@ -51,23 +80,31 @@ def get_downs_layer(municipality_id, dispId, subtype_id):
         orient="records")
     }
     session.close()
-    return success_response(data=response)
+return success_response(data=response) """
 
 
 def get_downs_origin_layer(municipality_id, dispId, subtype_id):
     with DB_Zabbix().Session() as session:
-        downs_origen = text(
-            f"""call sp_diagnostic_problems('{municipality_id}','{dispId}')""")
-        downs_origen = pd.DataFrame(
-            session.execute(downs_origen)).replace(np.nan, "")
+        statement = text(
+            f"call sp_hostDown('{municipality_id}','{dispId}','{subtype_id}')")
 
-        if not downs_origen.empty:
-            downs_origen['value'] = [1 for i in range(len(downs_origen))]
-            downs_origen['description'] = [
-                'ICMP ping' for i in range(len(downs_origen))]
-            downs_origen['origen'] = [1 for i in range(len(downs_origen))]
-
-        response = {"downs": downs_origen.to_dict(
+        downs = session.execute(statement)
+        downs = pd.DataFrame(downs).replace(np.nan, "")
+        print(len(downs))
+        dependientes = text(f"""SELECT DISTINCT (hostid) from cassia_diagnostic_problems_2 cdp 
+where closed_at is null and depends_hostid is not null""")
+        dependientes = pd.DataFrame(
+            session.execute(dependientes)).replace(np.nan, '')
+        if not downs.empty and not dependientes.empty:
+            downs = downs[~downs['hostid'].isin(
+                dependientes['hostid'].to_list())]
+        if not downs.empty:
+            downs['value'] = [1 for i in range(len(downs))]
+            downs['description'] = [
+                'ICMP ping' for i in range(len(downs))]
+            downs['origen'] = [1 for i in range(len(downs))]
+        print(len(downs))
+        response = {"downs": downs.to_dict(
             orient="records")
         }
         return success_response(data=response)
