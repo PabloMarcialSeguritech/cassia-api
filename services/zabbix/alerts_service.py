@@ -220,7 +220,7 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
             downs_origen['hostid'].tolist()), 'local'] = 0
         data['dependents'] = [0 for i in range(len(data))] """
         data_problems = text(
-            """select cate.*,cdp.dependents,cea.message as Ack_message from cassia_arch_traffic_events_2 cate
+            """select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message from cassia_arch_traffic_events_2 cate
 left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
 from cassia_event_acknowledges cea group by eventid ) as ceaa
 on  cate.cassia_arch_traffic_events_id=ceaa.eventid
@@ -373,7 +373,7 @@ def get_problems_filter_report(municipalityId, tech_host_type=0, subtype="", sev
                 downs_origen['hostid'].tolist()), 'local'] = 0
             data['dependents'] = [0 for i in range(len(data))] """
             data_problems = text(
-                """select cate.*,cdp.dependents,cea.message as Ack_message from cassia_arch_traffic_events_2 cate
+                """select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message from cassia_arch_traffic_events_2 cate
 left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
 from cassia_event_acknowledges cea group by eventid ) as ceaa
 on  cate.cassia_arch_traffic_events_id=ceaa.eventid
