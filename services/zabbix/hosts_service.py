@@ -150,6 +150,18 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         f"call sp_hostAvailPingLoss('{municipalityId}','{dispId}','')")
     hostAvailables = session.execute(statement4)
     data4 = pd.DataFrame(hostAvailables).replace(np.nan, "")
+    dependientes = text(
+        f"call sp_diagnostic_problemsD('{municipalityId}','{dispId}')")
+    dependientes = pd.DataFrame(
+        session.execute(dependientes)).replace(np.nan, '')
+    if not data4.empty:
+        downs_totales = int(data4['Down'][0])
+        dependientes = int(len(dependientes))
+        origenes = downs_totales-dependientes
+        data4.rename(
+            columns={'Down': 'Downs_totales'}, inplace=True)
+        data4['Downs_origen'] = origenes
+        data4['Downs_dependientes'] = dependientes
     data2 = pd.DataFrame(corelations)
     data2 = data2.replace(np.nan, "")
     # aditional data
@@ -171,6 +183,17 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         f"call sp_hostAvailPingLoss('0','{dispId}','')")
     global_host_available = pd.DataFrame(
         session.execute(global_host_available))
+    dependientes_global = text(f"call sp_diagnostic_problemsD('0','{dispId}')")
+    dependientes_global = pd.DataFrame(
+        session.execute(dependientes_global)).replace(np.nan, '')
+    if not global_host_available.empty:
+        downs_totales = int(global_host_available['Down'][0])
+        dependientes_conteo = int(len(dependientes_global))
+        origenes = downs_totales-dependientes_conteo
+        global_host_available.rename(
+            columns={'Down': 'Downs_totales'}, inplace=True)
+        global_host_available['Downs_origen'] = origenes
+        global_host_available['Downs_dependientes'] = dependientes_conteo
     """ print(global_host_available.to_string()) """
     session.close()
     response = {"hosts": data.to_dict(
@@ -298,7 +321,7 @@ where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at
                          ignore_index=True).replace(np.nan, "")
         if not data_diagnosta.empty:
             data.loc[data['eventid'].isin(
-                data_diagnosta['eventid'].to_list()), 'tipo'] = 1
+                data_diagnosta['local_eventid'].to_list()), 'tipo'] = 1
     if not data.empty:
         now = datetime.now(pytz.timezone('America/Mexico_City'))
         data['fecha'] = pd.to_datetime(data['Time'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
