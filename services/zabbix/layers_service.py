@@ -21,7 +21,7 @@ async def get_aps_layer():
             orient="records"))
 
 
-def get_downs_layer(municipality_id, dispId, subtype_id):
+async def get_downs_layer(municipality_id, dispId, subtype_id):
     with DB_Zabbix().Session() as session:
         statement = text(
             f"call sp_hostDown('{municipality_id}','{dispId}','{subtype_id}')")
@@ -38,16 +38,55 @@ where closed_at is null and depends_hostid is not null""")
             downs['description'] = [
                 'ICMP ping' for i in range(len(downs))]
             downs['origen'] = [1 for i in range(len(downs))]
+        statement = text(
+            f"call sp_hostDown('0','','')")
+
+        downs_totales = session.execute(statement)
+        downs_totales = pd.DataFrame(downs_totales).replace(np.nan, "")
+        dependientes_filtro = text(
+            f"call sp_diagnostic_problemsD('{municipality_id}','{dispId}')")
+        dependientes_filtro = pd.DataFrame(
+            session.execute(dependientes_filtro)).replace(np.nan, '')
+        "GLOBAL"
+        glob = {'downs_totales': 0,
+                'downs_dependientes': 0,
+                'downs_origen': 0}
+        filtro = {
+            'downs_totales': 0,
+            'downs_dependientes': 0,
+            'downs_origen': 0
+        }
+        if not downs_totales.empty:
+            downs_totales_count = len(downs_totales)
+            dependientes_count = len(dependientes)
+            origenes_count = downs_totales_count-dependientes_count
+            glob = {
+                'downs_totales': downs_totales_count,
+                'downs_dependientes': dependientes_count,
+                'downs_origen': origenes_count
+            }
+        if not downs.empty:
+            downs_count = len(downs)
+            dependientes_count = len(dependientes_filtro)
+            origenes_count = downs_count-dependientes_count
+            filtro = {
+                'downs_totales': downs_count,
+                'downs_dependientes': dependientes_count,
+                'downs_origen': origenes_count
+            }
         if not downs.empty and not dependientes.empty:
             """ downs = downs[~downs['hostid'].isin(
                 dependientes['hostid'].to_list())] """
+
             print("F1")
+
             downs.loc[downs['hostid'].isin(
                 dependientes['hostid'].to_list()), 'origen'] = 0
         print(len(downs))
         response = {"downs": downs.to_dict(
-            orient="records")
+            orient="records"), 'global_count': glob, 'filter_count': filtro
         }
+        print(response)
         return success_response(data=response)
 
 
@@ -83,7 +122,7 @@ where closed_at is null and depends_hostid is not null""")
 return success_response(data=response) """
 
 
-def get_downs_origin_layer(municipality_id, dispId, subtype_id):
+async def get_downs_origin_layer(municipality_id, dispId, subtype_id):
     with DB_Zabbix().Session() as session:
         statement = text(
             f"call sp_hostDown('{municipality_id}','{dispId}','{subtype_id}')")
@@ -95,6 +134,42 @@ def get_downs_origin_layer(municipality_id, dispId, subtype_id):
 where closed_at is null and depends_hostid is not null""")
         dependientes = pd.DataFrame(
             session.execute(dependientes)).replace(np.nan, '')
+        statement = text(
+            f"call sp_hostDown('0','','')")
+
+        downs_totales = session.execute(statement)
+        downs_totales = pd.DataFrame(downs_totales).replace(np.nan, "")
+        dependientes_filtro = text(
+            f"call sp_diagnostic_problemsD('{municipality_id}','{dispId}')")
+        dependientes_filtro = pd.DataFrame(
+            session.execute(dependientes_filtro)).replace(np.nan, '')
+        "GLOBAL"
+        glob = {'downs_totales': 0,
+                'downs_dependientes': 0,
+                'downs_origen': 0}
+        filtro = {
+            'downs_totales': 0,
+            'downs_dependientes': 0,
+            'downs_origen': 0
+        }
+        if not downs_totales.empty:
+            downs_totales_count = len(downs_totales)
+            dependientes_count = len(dependientes)
+            origenes_count = downs_totales_count-dependientes_count
+            glob = {
+                'downs_totales': downs_totales_count,
+                'downs_dependientes': dependientes_count,
+                'downs_origen': origenes_count
+            }
+        if not downs.empty:
+            downs_count = len(downs)
+            dependientes_count = len(dependientes_filtro)
+            origenes_count = downs_count-dependientes_count
+            filtro = {
+                'downs_totales': downs_count,
+                'downs_dependientes': dependientes_count,
+                'downs_origen': origenes_count
+            }
         if not downs.empty and not dependientes.empty:
             downs = downs[~downs['hostid'].isin(
                 dependientes['hostid'].to_list())]
@@ -105,7 +180,7 @@ where closed_at is null and depends_hostid is not null""")
             downs['origen'] = [1 for i in range(len(downs))]
         print(len(downs))
         response = {"downs": downs.to_dict(
-            orient="records")
+            orient="records"), 'global_count': glob, 'filter_count': filtro
         }
         return success_response(data=response)
 
