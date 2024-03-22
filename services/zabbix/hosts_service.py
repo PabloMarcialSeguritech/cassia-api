@@ -327,13 +327,13 @@ where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at
         if not data_diagnosta.empty:
             data.loc[data['eventid'].isin(
                 data_diagnosta['local_eventid'].to_list()), 'tipo'] = 1
-        if not dependientes_filtro.empty:
-            indexes = data[data['Problem'] == 'Unavailable by ICMP ping']
-            indexes = indexes[indexes['hostid'].isin(
-                dependientes_filtro['hostid'].to_list())]
-            data.loc[data.index.isin(indexes.index.to_list()), 'tipo'] = 0
-            """ data.loc[(data['Problem'] ==
-                          'Unavailable by ICMP ping' and data['host'])] """
+    if not dependientes_filtro.empty:
+        indexes = data[data['Problem'] == 'Unavailable by ICMP ping']
+        indexes = indexes[indexes['hostid'].isin(
+            dependientes_filtro['hostid'].to_list())]
+        data.loc[data.index.isin(indexes.index.to_list()), 'tipo'] = 0
+        """ data.loc[(data['Problem'] ==
+                      'Unavailable by ICMP ping' and data['host'])] """
     if not data.empty:
         now = datetime.now(pytz.timezone('America/Mexico_City'))
         data['fecha'] = pd.to_datetime(data['Time'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
