@@ -17,6 +17,7 @@ syslog_schedule = Grouper()
 SETTINGS = Settings()
 syslog = SETTINGS.cassia_syslog
 traffic_syslog = SETTINGS.cassia_traffic_syslog
+traffic_syslog_close = SETTINGS.cassia_traffic_syslog_close
 
 
 @syslog_schedule.cond('syslog')
@@ -27,6 +28,11 @@ def is_syslog():
 @syslog_schedule.cond('traffic_syslog')
 def is_traffic_syslog():
     return traffic_syslog
+
+
+@syslog_schedule.cond('traffic_syslog_close')
+def is_traffic_syslog_close():
+    return traffic_syslog_close
 
 
 @syslog_schedule.task(("every 30 seconds & syslog"), execution="thread")
@@ -250,7 +256,7 @@ where hi.device_id=1""")
             session.commit()
 
 
-@syslog_schedule.task(("every 60 seconds & traffic_syslog"), execution="thread")
+@syslog_schedule.task(("every 60 seconds & traffic_syslog_close"), execution="thread")
 async def trigger_alerts_lpr_close():
     with DB_Zabbix().Session() as session:
         lpr_config = session.query(CassiaConfig).filter(
