@@ -203,6 +203,7 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
         data['local'] = [0 for i in range(len(data))]
         data['dependents'] = [0 for i in range(len(data))]
         data['alert_type'] = ["" for i in range(len(data))]
+
     if tech_host_type == lpr_id:
         data = process_alerts_local(
             data, municipalityId, session, lpr_id, severities, 'lpr')
@@ -234,10 +235,6 @@ where cate.closed_at is NULL and cate.hostid in :hostids """
         """ print(data_problems) """
         data_problems = pd.DataFrame(session.execute(
             data_problems, {'hostids': downs_origen['hostid'].tolist()})).replace(np.nan, 0)
-        dependientes_filtro = text(
-            f"call sp_diagnostic_problemsD('{municipalityId}','{tech_host_type}')")
-        dependientes_filtro = pd.DataFrame(
-            session.execute(dependientes_filtro)).replace(np.nan, '')
 
         if not data_problems.empty:
             """ data_problems['TimeRecovery'] = [
@@ -283,18 +280,28 @@ where cate.closed_at is NULL and cate.hostid in :hostids """
 
             data = pd.concat([data_problems, data],
                              ignore_index=True).replace(np.nan, "")
-            if not dependientes_filtro.empty:
-                indexes = data[data['Problem'] == 'Unavailable by ICMP ping']
-                indexes = indexes[indexes['hostid'].isin(
-                    dependientes_filtro['hostid'].to_list())]
-                data.loc[data.index.isin(indexes.index.to_list()), 'tipo'] = 0
-                """ data.loc[(data['Problem'] ==
-                          'Unavailable by ICMP ping' and data['host'])] """
-            """ print(data.to_string()) """
+    dependientes_filtro = text(
+        f"call sp_diagnostic_problemsD('{municipalityId}','{tech_host_type}')")
+    dependientes_filtro = pd.DataFrame(
+        session.execute(dependientes_filtro)).replace(np.nan, '')
+    """ host = dependientes_filtro[dependientes_filtro['hostid'] == 16143]
+        print(host.to_string())
+        print(dependientes_filtro) """
+    if not dependientes_filtro.empty:
+        indexes = data[data['Problem'] == 'Unavailable by ICMP ping']
+        indexes = indexes[indexes['hostid'].isin(
+            dependientes_filtro['hostid'].to_list())]
+        data.loc[data.index.isin(indexes.index.to_list()), 'tipo'] = 0
+    """ host = data[data['hostid'] == 16143]
+    print(host.to_string()) """
 
-        origen = data[data['tipo'] == 1]
+    """ data.loc[(data['Problem'] ==
+    'Unavailable by ICMP ping' and data['host'])] """
+    """ print(data.to_string()) """
 
-        """ print("aqui")
+    origen = data[data['tipo'] == 1]
+
+    """ print("aqui")
         print(origen.to_string()) """
 
     if not data.empty:
@@ -397,10 +404,6 @@ where cate.closed_at is NULL and cate.hostid in :hostids""")
             print(data_problems)
             data_problems = pd.DataFrame(session.execute(
                 data_problems, {'hostids': downs_origen['hostid'].tolist()})).replace(np.nan, 0)
-            dependientes_filtro = text(
-            f"call sp_diagnostic_problemsD('{municipalityId}','{tech_host_type}')")
-            dependientes_filtro = pd.DataFrame(
-            session.execute(dependientes_filtro)).replace(np.nan, '')
 
             if not data_problems.empty:
                 """ data_problems['TimeRecovery'] = [
@@ -447,16 +450,22 @@ where cate.closed_at is NULL and cate.hostid in :hostids""")
 
                 data = pd.concat([data_problems, data],
                                  ignore_index=True).replace(np.nan, "")
-                if not dependientes_filtro.empty:
-                    indexes = data[data['Problem'] == 'Unavailable by ICMP ping']
-                    indexes = indexes[indexes['hostid'].isin(
-                        dependientes_filtro['hostid'].to_list())]
-                    data.loc[data.index.isin(indexes.index.to_list()), 'tipo'] = 0
-                    """ data.loc[(data['Problem'] ==
-                            'Unavailable by ICMP ping' and data['host'])] """
+        dependientes_filtro = text(
+            f"call sp_diagnostic_problemsD('{municipalityId}','{tech_host_type}')")
+        dependientes_filtro = pd.DataFrame(
+            session.execute(dependientes_filtro)).replace(np.nan, '')
+        if not dependientes_filtro.empty:
+            indexes = data[data['Problem'] ==
+                           'Unavailable by ICMP ping']
+            indexes = indexes[indexes['hostid'].isin(
+                dependientes_filtro['hostid'].to_list())]
+            data.loc[data.index.isin(
+                indexes.index.to_list()), 'tipo'] = 0
+            """ data.loc[(data['Problem'] ==
+                    'Unavailable by ICMP ping' and data['host'])] """
             """ print(data.to_string()) """
 
-            origen = data[data['tipo'] == 1]
+            """ origen = data[data['tipo'] == 1] """
 
             """ print("aqui")
         print(origen.to_string()) """
