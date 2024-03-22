@@ -164,3 +164,16 @@ class Settings(BaseSettings):
         cassia_diagnosta_api_url = os.getenv('DIAGNOSTA_API_URL')
     except:
         pass
+
+    cassia_traffic_close: bool = False
+    try:
+        cassia_traffic_close: bool = True if int(
+            os.getenv('TRAFFIC_CLOSE')) == 1 else False
+    except:
+        pass
+    cassia_traffic_syslog_close: bool = False
+    try:
+        cassia_traffic_syslog_close: bool = True if int(
+            os.getenv('TRAFFIC_SYSLOG_CLOSE')) == 1 else False
+    except:
+        pass
