@@ -15,11 +15,17 @@ rfid_schedule = Grouper()
 # Creating some tasks
 SETTINGS = settings.Settings()
 traffic = SETTINGS.cassia_traffic
+traffic_close = SETTINGS.cassia_traffic_close
 
 
 @rfid_schedule.cond('traffic')
 def is_traffic():
     return traffic
+
+
+@rfid_schedule.cond('traffic_close')
+def is_traffic_close():
+    return traffic_close
 
 
 @rfid_schedule.task(("every 30 seconds & traffic"), execution="thread")
@@ -218,7 +224,7 @@ async def trigger_alerts():
     session.close()
 
 
-@rfid_schedule.task(("every 60 seconds & traffic"), execution="thread")
+@rfid_schedule.task(("every 60 seconds & traffic_close"), execution="thread")
 async def trigger_alerts_close():
     with DB_Zabbix().Session() as session:
         rfid_config = session.query(CassiaConfig).filter(
