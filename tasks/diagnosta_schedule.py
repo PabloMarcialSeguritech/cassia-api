@@ -42,13 +42,21 @@ async def process_problems():
         up = len_iteracion
         a_sincronizar = pd.DataFrame(columns=['hostid_origen',
                                      'depends_hostid', 'status', 'closed_at', 'local', 'hostid', 'dependents', 'local_eventid'])
+
+        """ existe = a_diagnosticar[a_diagnosticar['hostid'].astype(
+            'int') == 19376] """
+
+        a_diagnosticar.reset_index(inplace=True)
         for ind in a_diagnosticar.index:
+
             init = datetime.now()
             low = ind*len_iteracion
+
             if len_iteracion*(ind+1) < len(a_diagnosticar):
                 up = len_iteracion*(ind+1)
             else:
                 up = len(a_diagnosticar)+1
+
             if low >= len(a_diagnosticar):
                 break
             ids = pd.DataFrame(columns=['hostid'], data=a_diagnosticar['hostid'].astype(
@@ -397,6 +405,8 @@ async def close_problems():
         eventos_a_cerrar = [0]
         hostid = 0
         if not sincronizados_locales.empty:
+            sincronizados_locales.sort_values(
+                by=['hostid', 'created_at'], inplace=True)
             for ind in sincronizados_locales.index:
                 if hostid != sincronizados_locales['hostid'][ind]:
                     hostid = sincronizados_locales['hostid'][ind]
@@ -420,6 +430,44 @@ async def close_problems():
             where cassia_arch_traffic_events_id in :ids""")
             session.execute(statement, params={'now': now, 'status': 'RESOLVED',
                                                'ids': eventos_a_cerrar})
+            session.commit()
+
+        sincronizados = get_sincronizados(session)
+        sincronizados_zabbix = sincronizados[sincronizados['local'] == 0]
+        if not sincronizados_zabbix.empty:
+            sincronizados_locales['hostid'] = sincronizados_locales['hostid'].astype(
+                'int')
+            sincronizados_locales['hostid_origen'] = sincronizados_locales['hostid_origen'].astype(
+                'int')
+
+        sincronizados_zabbix['duplicates'] = sincronizados_zabbix.groupby(['hostid_origen', 'hostid'])[
+            'hostid'].transform('count')
+        sincronizados_zabbix = sincronizados_zabbix[sincronizados_zabbix['duplicates'] > 1]
+
+        a_cerrar_sincronizados = [0]
+        hostid = 0
+        if not sincronizados_zabbix.empty:
+            sincronizados_zabbix.sort_values(
+                by=['hostid', 'created_at'], inplace=True)
+            """ print(sincronizados_zabbix.to_string()) """
+            for ind in sincronizados_zabbix.index:
+
+                if hostid != sincronizados_zabbix['hostid'][ind]:
+                    hostid = sincronizados_zabbix['hostid'][ind]
+                    continue
+                a_cerrar_sincronizados.append(
+                    sincronizados_zabbix['diagnostic_problem_id'][ind])
+                """ eventos_a_cerrar.append(
+                    sincronizados_locales['local_eventid'][ind]) """
+            """ print(a_cerrar_sincronizados) """
+            statement = text(f"""
+        UPDATE cassia_diagnostic_problems_2
+        set closed_at= :now,
+        status= :status
+        where diagnostic_problem_id in :ids""")
+            session.execute(statement, params={'now': now, 'status': 'Cerrado',
+                            'ids': a_cerrar_sincronizados})
+
             session.commit()
 
 
