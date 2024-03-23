@@ -22,6 +22,7 @@ import json
 import re
 import time
 from pythonping import ping
+from services.zabbix import hosts_service_
 
 settings = Settings()
 
@@ -480,46 +481,7 @@ async def prepare_action(ip, id_action, user_session):
             ping_id = 0
 
     if id_action == ping_id:
-        response = await get_configuration()
-        try:
-            # Utiliza el método json() de tu objeto JSONResponse
-            data = json.loads(response.body)
-            # Verifica que la respuesta sea valida y contiene el campo 'data'
-            if 'data' in data and isinstance(data['data'], list):
-                # Itera sobre la lista de diccionarios en 'data'
-                for config in data['data']:
-                    # Busca el diccionario con el nombre 'ping_by_proxy'
-                    if config.get('name') == 'ping_by_proxy':
-                        # Obtiene el valor asociado con 'ping_by_proxy'
-                        value = config.get('value')
-                        if value:
-                            dict_credentials_list = get_credentials_for_proxy(
-                                ip)
-                        else:
-                            dict_credentials_list = get_credentials(ip)
-                        if dict_credentials_list is None or not dict_credentials_list:
-                            log = {'action_id': ping_id,
-                                   'clock': datetime.now(pytz.timezone('America/Mexico_City')),
-                                   'session_id': user_session.session_id.hex,
-                                   'interface_id': None,
-                                   'result': 0,
-                                   'comments': f"Credenciales no encontradas para la ip {ip}"}
-                            with DB_Zabbix().Session() as session:
-                                log_register = CassiaActionLog(
-                                    **log
-                                )
-                                session.add(log_register)
-                                session.commit()
-                            return failure_response(message="El proxy no esta configurado o las credenciales "
-                                                            "configuradas son incorrectas")
-                        else:
-                            dict_credentials = dict_credentials_list[0]
-                            return run_action(dict_credentials['ip'], 'ping -c 4 ' + ip,
-                                              dict_credentials_list, 0, ping_id, user_session)
-
-        except json.JSONDecodeError:
-            print("Error decoding JSON response")
-
+        return await hosts_service_.run_action_(ip, id_action, '')
     else:
         db_zabbix = DB_Zabbix()
         session = db_zabbix.Session()
