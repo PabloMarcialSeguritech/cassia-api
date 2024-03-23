@@ -246,6 +246,8 @@ where cate.closed_at is NULL and cate.hostid in :hostids """
                 '' for i in range(len(data_problems))] """
             data_problems['manual_close'] = [
                 0 for i in range(len(data_problems))]
+            data_problems['dependents'] = [
+                0 for i in range(len(data_problems))]
             data_problems['local'] = [
                 1 for i in range(len(data_problems))]
             data_problems['tipo'] = [
@@ -292,6 +294,27 @@ where cate.closed_at is NULL and cate.hostid in :hostids """
         indexes = indexes[indexes['hostid'].isin(
             dependientes_filtro['hostid'].to_list())]
         data.loc[data.index.isin(indexes.index.to_list()), 'tipo'] = 0
+
+    sincronizados_totales = text("""select * from cassia_diagnostic_problems_2 cdp 
+where cdp.closed_at is NULL""")
+
+    sincronizados_totales = pd.DataFrame(
+        session.execute(sincronizados_totales)).replace(np.nan, 0)
+    if not sincronizados_totales.empty:
+        if not data.empty:
+            for ind in data.index:
+                if data['Problem'][ind] == 'Unavailable by ICMP ping':
+                    dependientes = sincronizados_totales[sincronizados_totales['hostid_origen']
+                                                         == data['hostid'][ind]]
+                    print(dependientes)
+                    dependientes['depends_hostid'] = dependientes['depends_hostid'].astype(
+                        'int')
+                    dependientes = dependientes[dependientes['depends_hostid'] != 0]
+                    dependientes = dependientes.drop_duplicates(
+                        subset=['depends_hostid'])
+                    data.loc[data.index == ind,
+                             'dependents'] = len(dependientes)
+
     """ host = data[data['hostid'] == 16143]
     print(host.to_string()) """
 
@@ -415,6 +438,8 @@ where cate.closed_at is NULL and cate.hostid in :hostids""")
                     '' for i in range(len(data_problems))] """
                 data_problems['manual_close'] = [
                     0 for i in range(len(data_problems))]
+                data_problems['dependents'] = [
+                0 for i in range(len(data_problems))]
                 data_problems['local'] = [
                     1 for i in range(len(data_problems))]
                 data_problems['tipo'] = [
@@ -461,6 +486,25 @@ where cate.closed_at is NULL and cate.hostid in :hostids""")
                 dependientes_filtro['hostid'].to_list())]
             data.loc[data.index.isin(
                 indexes.index.to_list()), 'tipo'] = 0
+        sincronizados_totales = text("""select * from cassia_diagnostic_problems_2 cdp 
+where cdp.closed_at is NULL""")
+
+        sincronizados_totales = pd.DataFrame(
+            session.execute(sincronizados_totales)).replace(np.nan, 0)
+        if not sincronizados_totales.empty:
+            if not data.empty:
+                for ind in data.index:
+                    if data['Problem'][ind] == 'Unavailable by ICMP ping':
+                        dependientes = sincronizados_totales[sincronizados_totales['hostid_origen']
+                                                             == data['hostid'][ind]]
+                        print(dependientes)
+                        dependientes['depends_hostid'] = dependientes['depends_hostid'].astype(
+                            'int')
+                        dependientes = dependientes[dependientes['depends_hostid'] != 0]
+                        dependientes = dependientes.drop_duplicates(
+                            subset=['depends_hostid'])
+                        data.loc[data.index == ind,
+                                 'dependents'] = len(dependientes)
             """ data.loc[(data['Problem'] ==
                     'Unavailable by ICMP ping' and data['host'])] """
             """ print(data.to_string()) """
