@@ -243,7 +243,7 @@ async def async_ping_by_local(ip):
             message = "no ejecutado con exito"
             return success_ping, message
     except Exception as e:
-        print("Excepción ocurrida en la función async_ping_by_local ")
+        print(f"Excepción ocurrida en la función async_ping_by_local: {e}")
         success_ping = False
         message = "no ejecutado con exito"
         return success_ping, message
