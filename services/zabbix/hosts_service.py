@@ -300,6 +300,8 @@ where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at
             '' for i in range(len(data_problems))] """
         data_problems['manual_close'] = [
             0 for i in range(len(data_problems))]
+        data_problems['dependents'] = [
+            0 for i in range(len(data_problems))]
         data_problems['local'] = [
             1 for i in range(len(data_problems))]
         data_diagnosta = text(
@@ -334,6 +336,25 @@ where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at
         data.loc[data.index.isin(indexes.index.to_list()), 'tipo'] = 0
         """ data.loc[(data['Problem'] ==
                       'Unavailable by ICMP ping' and data['host'])] """
+    sincronizados_totales = text("""select * from cassia_diagnostic_problems_2 cdp 
+where cdp.closed_at is NULL""")
+
+    sincronizados_totales = pd.DataFrame(
+        session.execute(sincronizados_totales)).replace(np.nan, 0)
+    if not sincronizados_totales.empty:
+        if not data.empty:
+            for ind in data.index:
+                if data['Problem'][ind] == 'Unavailable by ICMP ping':
+                    dependientes = sincronizados_totales[sincronizados_totales['hostid_origen']
+                                                         == data['hostid'][ind]]
+                    print(dependientes)
+                    dependientes['depends_hostid'] = dependientes['depends_hostid'].astype(
+                        'int')
+                    dependientes = dependientes[dependientes['depends_hostid'] != 0]
+                    dependientes = dependientes.drop_duplicates(
+                        subset=['depends_hostid'])
+                    data.loc[data.index == ind,
+                             'dependents'] = len(dependientes)
     if not data.empty:
         now = datetime.now(pytz.timezone('America/Mexico_City'))
         data['fecha'] = pd.to_datetime(data['Time'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
