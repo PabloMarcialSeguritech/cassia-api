@@ -132,7 +132,14 @@ async def proxy_validation(ip):
         return has_proxy, credentials
     except (ValueError, Exception) as e:
         print(f"Error en proxy_validation: {e}")
-        raise # Re-lanza la excepción para que el llamador pueda manejarla adecuadamente
+        has_proxy = False
+        credentials = {
+            'ip_proxy': None,
+            'user_proxy': None,
+            'password_proxy': None
+        }
+        return has_proxy, credentials
+
 
 
 async def async_ping_by_proxy(ip, ssh_host, ssh_user, ssh_pass):
@@ -228,20 +235,20 @@ async def verify_output_ping(output):
 
 async def async_ping_by_local(ip):
     # -n para windows -c para ubuntu
-    cmd = ['ping', '-c', '2', '-w', '5', ip]  # Envía 4 paquetes
+    cmd = ['ping', '-c', '4', '-w', '5', ip]  # Envía 4 paquetes
     try:
         process = await asyncio.create_subprocess_exec(*cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = await process.communicate()
         output = stdout.decode('utf-8', errors='ignore')
-        if "0% packet loss" in output or "0% pérdida de paquetes" in output or "0% perdidos" in output:
-            print("exitoso")
-            success_ping = True
-            message = "success"
-            return success_ping, message
-        else:
+        if "100% packet loss" in output or "100% pérdida de paquetes" in output or "100% perdidos" in output:
             success_ping = False
             message = "no ejecutado con exito"
             return success_ping, message
+        else:
+            success_ping = True
+            message = "success"
+            return success_ping, message
+
     except Exception as e:
         print(f"Excepción ocurrida en la función async_ping_by_local: {e}")
         success_ping = False
