@@ -37,9 +37,9 @@ settings = Settings()
 
 def process_alerts_local(data, municipalityId, session, tech_id, severities, tipo):
     if municipalityId == '0':
-        alertas = session.query(CassiaArchTrafficEvent2).filter(
-            CassiaArchTrafficEvent2.closed_at == None,
-            CassiaArchTrafficEvent2.tech_id == tech_id
+        alertas = session.query(CassiaArchTrafficEvent).filter(
+            CassiaArchTrafficEvent.closed_at == None,
+            CassiaArchTrafficEvent.tech_id == tech_id
         ).all()
         alertas = pd.DataFrame([(
             r.created_at,
@@ -93,10 +93,10 @@ def process_alerts_local(data, municipalityId, session, tech_id, severities, tip
             municipio = municipio['name'].item()
         else:
             municipio = ''
-        alertas = session.query(CassiaArchTrafficEvent2).filter(
-            CassiaArchTrafficEvent2.closed_at == None,
-            CassiaArchTrafficEvent2.municipality == municipio,
-            CassiaArchTrafficEvent2.tech_id == tech_id
+        alertas = session.query(CassiaArchTrafficEvent).filter(
+            CassiaArchTrafficEvent.closed_at == None,
+            CassiaArchTrafficEvent.municipality == municipio,
+            CassiaArchTrafficEvent.tech_id == tech_id
         ).all()
         alertas = pd.DataFrame([(
             r.created_at,
@@ -439,7 +439,7 @@ where cate.closed_at is NULL and cate.hostid in :hostids""")
                 data_problems['manual_close'] = [
                     0 for i in range(len(data_problems))]
                 data_problems['dependents'] = [
-                0 for i in range(len(data_problems))]
+                    0 for i in range(len(data_problems))]
                 data_problems['local'] = [
                     1 for i in range(len(data_problems))]
                 data_problems['tipo'] = [
