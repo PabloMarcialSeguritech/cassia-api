@@ -271,19 +271,32 @@ SELECT from_unixtime(p.clock,'%d/%m/%Y %H:%i:%s' ) as Time,
 """)
     data = session.execute(statement)
     data = pd.DataFrame(data).replace(np.nan, "")
-    data['local'] = 0
-    data['tipo'] = 0
-    data.loc[data['Problem'] == 'Unavailable by ICMP ping', 'tipo'] = 1
-    data['dependents'] = 0
-    data['alert_type'] = ""
+    if not data.empty:
+        data['local'] = 0
+        data['tipo'] = 0
+        data.loc[data['Problem'] == 'Unavailable by ICMP ping', 'tipo'] = 1
+        data['dependents'] = 0
+        data['alert_type'] = ""
+    else:
+        data = pd.DataFrame(columns=['Time', 'severity', 'hostid', 'Host', 'latitude',
+                            'longitude', 'ip', 'Problem', 'Estatus', 'r_eventid', 'Ack_message'])
     data_problems = text(
-        f"""select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message  from cassia_arch_traffic_events_2 cate
+        f"""(select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message  from cassia_arch_traffic_events_2 cate
 left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
 from cassia_event_acknowledges cea group by eventid ) as ceaa
 on  cate.cassia_arch_traffic_events_id=ceaa.eventid
 left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
 left join cassia_diagnostic_problems_2 cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id 
-where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at desc limit 20""")
+where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at desc limit 20
+)UNION(
+select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message  from cassia_arch_traffic_events cate
+left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
+from cassia_event_acknowledges cea group by eventid ) as ceaa
+on  cate.cassia_arch_traffic_events_id=ceaa.eventid
+left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
+left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
+where cate.closed_at is NULL and cate.hostid ={host_id}
+and cate.alert_type !='diagnosta' order by cate.created_at desc limit 20)""")
     data_problems = pd.DataFrame(
         session.execute(data_problems)).replace(np.nan, '')
     dependientes_filtro = text(
