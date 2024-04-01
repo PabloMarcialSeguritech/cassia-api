@@ -364,7 +364,7 @@ where cdp.closed_at is NULL""")
     'Unavailable by ICMP ping' and data['host'])] """
     """ print(data.to_string()) """
 
-    origen = data[data['tipo'] == 1]
+    
 
     """ print("aqui")
         print(origen.to_string()) """
