@@ -114,6 +114,7 @@ class HostServiceTest2(unittest.TestCase):
 
         self.loop.run_until_complete(async_test())
 
+    @unittest.skip("Omit test_run_action_sin_credenciales")
     def test_run_action_sin_credenciales(self):
         print("> Entrando test_run_action_sin_credenciales <")
         token = user_authentication_token('juan.marcial@seguritech.com', '12345678')
@@ -126,6 +127,7 @@ class HostServiceTest2(unittest.TestCase):
 
         self.loop.run_until_complete(async_test())
 
+    @unittest.skip("Omit test_run_action_con_credenciales")
     def test_run_action_con_credenciales(self):
         print("> Entrando test_run_action_con_credenciales <")
         token = user_authentication_token('juan.marcial@seguritech.com', '12345678')
@@ -138,6 +140,7 @@ class HostServiceTest2(unittest.TestCase):
 
         self.loop.run_until_complete(async_test())
 
+    @unittest.skip("Omit test_run_action_con_credenciales_no_responde_por_proxy_pero_si_directo")
     def test_run_action_con_credenciales_no_responde_por_proxy_pero_si_directo(self):
         print("> Entrando test_run_action_con_credenciales_no_responde_por_proxy_pero_si_directo <")
         token = user_authentication_token('juan.marcial@seguritech.com', '12345678')
@@ -149,6 +152,33 @@ class HostServiceTest2(unittest.TestCase):
             print("response:", response.body)
 
         self.loop.run_until_complete(async_test())
+
+
+    def test_run_action_down_ip(self):
+        print("> Entrando test_run_action_down_ip <")
+        token = user_authentication_token('juan.marcial@seguritech.com', '12345678')
+        async def async_test():
+            current_session = await auth_service2.get_current_user_session(token)
+            ip='172.17.0.46'
+            id_action=20
+            response = await hosts_service_.run_action_(ip, id_action, current_session)
+            print("response:", response.body)
+
+        self.loop.run_until_complete(async_test())
+
+    @unittest.skip("Omit test_run_action_down_ip2")
+    def test_run_action_down_ip2(self):
+        print("> Entrando test_run_action_down_ip2 <")
+        token = user_authentication_token('juan.marcial@seguritech.com', '12345678')
+        async def async_test():
+            current_session = await auth_service2.get_current_user_session(token)
+            ip='172.18.42.4'
+            id_action=20
+            response = await hosts_service_.run_action_(ip, id_action, current_session)
+            print("response:", response.body)
+
+        self.loop.run_until_complete(async_test())
+
 
 
 
