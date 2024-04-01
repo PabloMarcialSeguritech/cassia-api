@@ -52,7 +52,7 @@ async def send_messages():
         problems = pd.DataFrame(session.execute(statement))
         if not problems.empty:
             problems = problems[(problems['Problem']
-                                == 'Unavailable by ICMP ping') | (problems['Problem'] == "ICMP: Unavailable by ICMP ping")]
+                                == 'ICMP: Unavailable by ICMP ping') | (problems['Problem'] == "ICMP: Unavailable by ICMP ping")]
 
         mensajes = text(
             "select eventid from cassia_slack_notifications where local=1")

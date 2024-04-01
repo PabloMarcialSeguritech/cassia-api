@@ -218,7 +218,7 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
                     problem_local = CassiaArchTrafficEvent2(
                         hostid=host_padre['hostid'][0],
                         severity=5,
-                        message='Unavailable by ICMP ping',
+                        message='ICMP: Unavailable by ICMP ping',
                         status='PROBLEM',
                         latitude=host_padre['latitude'][0],
                         longitude=host_padre['longitude'][0],

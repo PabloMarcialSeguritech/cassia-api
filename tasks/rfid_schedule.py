@@ -237,7 +237,7 @@ async def trigger_alerts_close():
                         where closed_at is NULL
                         and tech_id='{rfid_id}'
                         and alert_type='rfid'
-                        and message!='Unavailable by ICMP ping'
+                        and message!='ICMP: Unavailable by ICMP ping'
                         and hostid in (
                         SELECT DISTINCT hostid FROM cassia_arch_traffic where readings>0)""")
         a_cerrar = pd.DataFrame(session.execute(a_cerrar)).replace(np.nan, '')

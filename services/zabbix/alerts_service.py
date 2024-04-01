@@ -197,9 +197,10 @@ def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities
 
     problems = session.execute(statement)
     data = pd.DataFrame(problems).replace(np.nan, "")
+
     if not data.empty:
         data['tipo'] = [0 for i in range(len(data))]
-        data.loc[data['Problem'] == 'Unavailable by ICMP ping', 'tipo'] = 1
+        data.loc[data['Problem'] == 'ICMP: Unavailable by ICMP ping', 'tipo'] = 1
         data['local'] = [0 for i in range(len(data))]
         data['dependents'] = [0 for i in range(len(data))]
         data['alert_type'] = ["" for i in range(len(data))]
@@ -273,7 +274,7 @@ where cate.closed_at is NULL and cate.hostid in :hostids """
                 severities = [1, 2, 3, 4, 5, 6]
             if 6 in severities:
                 downs = data_problems[data_problems['Problem']
-                                      == 'Unavailable by ICMP ping']
+                                      == 'ICMP: Unavailable by ICMP ping']
             data_problems = data_problems[data_problems['severity'].isin(
                 severities)]
             if 6 in severities:
@@ -290,7 +291,7 @@ where cate.closed_at is NULL and cate.hostid in :hostids """
         print(host.to_string())
         print(dependientes_filtro) """
     if not dependientes_filtro.empty:
-        indexes = data[data['Problem'] == 'Unavailable by ICMP ping']
+        indexes = data[data['Problem'] == 'ICMP: Unavailable by ICMP ping']
         indexes = indexes[indexes['hostid'].isin(
             dependientes_filtro['hostid'].to_list())]
         data.loc[data.index.isin(indexes.index.to_list()), 'tipo'] = 0
@@ -303,7 +304,7 @@ where cdp.closed_at is NULL""")
     if not sincronizados_totales.empty:
         if not data.empty:
             for ind in data.index:
-                if data['Problem'][ind] == 'Unavailable by ICMP ping':
+                if data['Problem'][ind] == 'ICMP: Unavailable by ICMP ping':
                     dependientes = sincronizados_totales[sincronizados_totales['hostid_origen']
                                                          == data['hostid'][ind]]
                     print(dependientes)
@@ -351,6 +352,8 @@ where cdp.closed_at is NULL""")
         """ data['Problem'] = data.apply(lambda x: x['diferencia'] if x['alert_type'] in [
                                      'rfid', 'lpr'] else x['Problem']) """
     session.close()
+    """ origen = data[data['tipo'] == 1]
+    print(origen) """
     return success_response(data=data.to_dict(orient="records"))
 
 
@@ -395,7 +398,7 @@ def get_problems_filter_report(municipalityId, tech_host_type=0, subtype="", sev
         data = pd.DataFrame(problems).replace(np.nan, "")
         if not data.empty:
             data['tipo'] = [0 for i in range(len(data))]
-            data.loc[data['Problem'] == 'Unavailable by ICMP ping', 'tipo'] = 1
+            data.loc[data['Problem'] == 'ICMP: Unavailable by ICMP ping', 'tipo'] = 1
             data['local'] = [0 for i in range(len(data))]
             data['dependents'] = [0 for i in range(len(data))]
             data['alert_type'] = ["" for i in range(len(data))]
@@ -466,7 +469,7 @@ where cate.closed_at is NULL and cate.hostid in :hostids""")
                     severities = [1, 2, 3, 4, 5, 6]
                 if 6 in severities:
                     downs = data_problems[data_problems['Problem']
-                                          == 'Unavailable by ICMP ping']
+                                          == 'ICMP: Unavailable by ICMP ping']
                 data_problems = data_problems[data_problems['severity'].isin(
                     severities)]
                 if 6 in severities:
@@ -481,7 +484,7 @@ where cate.closed_at is NULL and cate.hostid in :hostids""")
             session.execute(dependientes_filtro)).replace(np.nan, '')
         if not dependientes_filtro.empty:
             indexes = data[data['Problem'] ==
-                           'Unavailable by ICMP ping']
+                           'ICMP: Unavailable by ICMP ping']
             indexes = indexes[indexes['hostid'].isin(
                 dependientes_filtro['hostid'].to_list())]
             data.loc[data.index.isin(
@@ -494,7 +497,7 @@ where cdp.closed_at is NULL""")
         if not sincronizados_totales.empty:
             if not data.empty:
                 for ind in data.index:
-                    if data['Problem'][ind] == 'Unavailable by ICMP ping':
+                    if data['Problem'][ind] == 'ICMP: Unavailable by ICMP ping':
                         dependientes = sincronizados_totales[sincronizados_totales['hostid_origen']
                                                              == data['hostid'][ind]]
                         print(dependientes)

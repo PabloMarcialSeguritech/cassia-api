@@ -154,7 +154,7 @@ where closed_at is null and depends_hostid is not null""")
             print(len(downs_globales))
             downs_totales = len(downs_globales)
             origenes = len(downs_globales_problems)
-
+            print(origenes)
             """ data4['Downs_origen'] = origenes """
         glob = {
             'downs_totales': downs_totales,
@@ -216,7 +216,8 @@ async def downs_count(municipalityId, dispId, subtype, session):
     data = pd.DataFrame(problems).replace(np.nan, "")
     if not data.empty:
         data['tipo'] = [0 for i in range(len(data))]
-        data.loc[data['Problem'] == 'Unavailable by ICMP ping', 'tipo'] = 1
+        data.loc[data['Problem'] ==
+                 'ICMP: Unavailable by ICMP ping', 'tipo'] = 1
         data['local'] = [0 for i in range(len(data))]
         data['dependents'] = [0 for i in range(len(data))]
         data['alert_type'] = ["" for i in range(len(data))]
@@ -301,7 +302,7 @@ where cate.closed_at is NULL and cate.hostid in :hostids """
         print(host.to_string())
         print(dependientes_filtro) """
     if not dependientes_filtro.empty:
-        indexes = data[data['Problem'] == 'Unavailable by ICMP ping']
+        indexes = data[data['Problem'] == 'ICMP: Unavailable by ICMP ping']
         indexes = indexes[indexes['hostid'].isin(
             dependientes_filtro['hostid'].to_list())]
         data.loc[data.index.isin(indexes.index.to_list()), 'tipo'] = 0
@@ -314,7 +315,7 @@ where cdp.closed_at is NULL""")
     if not sincronizados_totales.empty:
         if not data.empty:
             for ind in data.index:
-                if data['Problem'][ind] == 'Unavailable by ICMP ping':
+                if data['Problem'][ind] == 'ICMP: Unavailable by ICMP ping':
                     dependientes = sincronizados_totales[sincronizados_totales['hostid_origen']
                                                          == data['hostid'][ind]]
                     """ print(dependientes) """
@@ -333,7 +334,7 @@ where cdp.closed_at is NULL""")
     'Unavailable by ICMP ping' and data['host'])] """
     """ print(data.to_string()) """
 
-    origen = data[data['tipo'] == 1]
+    """ origen = data[data['tipo'] == 1] """
 
     """ print("aqui")
         print(origen.to_string()) """
@@ -361,10 +362,12 @@ where cdp.closed_at is NULL""")
 
         """ data['Problem'] = data.apply(lambda x: x['diferencia'] if x['alert_type'] in [
                                      'rfid', 'lpr'] else x['Problem']) """
+    """ print(data) """
     if not data.empty:
         data = data[data['Estatus'] == 'PROBLEM']
         if not data.empty:
             data = data[data['tipo'] == 1]
+    """ print(data.head()) """
     return data
 
 
