@@ -382,9 +382,7 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
         return a_sincronizar
 
 
-""" @diagnosta_schedule.task(("every 60 seconds & diagnosta"), execution="thread") """
-
-
+@diagnosta_schedule.task(("every 60 seconds & diagnosta"), execution="thread")
 async def close_problems():
     db_zabbix = DB_Zabbix()
     with db_zabbix.Session() as session:
