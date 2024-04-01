@@ -322,7 +322,7 @@ where cdp.closed_at is NULL""")
     'Unavailable by ICMP ping' and data['host'])] """
     """ print(data.to_string()) """
 
-    origen = data[data['tipo'] == 1]
+    """ origen = data[data['tipo'] == 1] """
 
     """ print("aqui")
         print(origen.to_string()) """
@@ -529,9 +529,11 @@ where cdp.closed_at is NULL""")
                                                                                                                                       f"Este host no ha tenido lecturas por más de {x['dias']} dias {x['horas']} hrs {x['minutos']} min" if x['dias'] > 0
                                                                                                                                       else f"Este host no ha tenido lecturas por más de {x['horas']} hrs {x['minutos']} min" if x['horas'] > 0
                                                                                                                                       else f"Este host no ha tenido lecturas por más de {x['minutos']} min", axis=1)
-
+            data = data.drop(columns=['diferencia'])
             data['diferencia'] = data.apply(
                 lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
+            data.drop_duplicates(
+                subset=['hostid', 'Problem'], inplace=True)
             with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp_file:
                 xlsx_filename = temp_file.name
                 with pd.ExcelWriter(xlsx_filename, engine="xlsxwriter") as writer:
