@@ -27,8 +27,8 @@ tasks = {}
     summary="Get host by municipality ID, technology or device type, and subtype",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def get_hosts_filter(municipalityId: str = "", dispId: str = "", subtype_id: str = ""):
-    return hosts_service.get_host_filter(municipalityId, dispId, subtype_id)
+async def get_hosts_filter(municipalityId: str = "", dispId: str = "", subtype_id: str = ""):
+    return await hosts_service.get_host_filter(municipalityId, dispId, subtype_id)
 
 
 @hosts_router.get(
@@ -157,14 +157,16 @@ def get_info_actions(ip: str = Path(description="IP address", example="192.168.1
                    summary="Run action on a server",
                    dependencies=[Depends(auth_service2.get_current_user_session)])
 async def run_action(ip: str = Path(description="IP address", example="192.168.100.1"),
-                     id_action: int = Path(description="ID action", example="119"),
+                     id_action: int = Path(
+                         description="ID action", example="119"),
                      current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
     return await hosts_service.prepare_action(ip, id_action, current_user_session)
 
 
 async def send_command(shell, command):
     print("en send_command")
-    shell.send(command + "\r\n")  # Asegúrate de enviar el retorno de carro y nueva línea
+    # Asegúrate de enviar el retorno de carro y nueva línea
+    shell.send(command + "\r\n")
     await asyncio.sleep(0.8)  # Espera para la ejecución
 
 
@@ -196,15 +198,18 @@ async def websocket_endpoint(websocket: WebSocket):
                 del tasks[session_id]
             await send_command(sessions[session_id]['shell'], command)
             response = await get_response(sessions[session_id]['shell'])
-            await websocket.send_text(response)  # Envía directamente sin procesar
+            # Envía directamente sin procesar
+            await websocket.send_text(response)
         elif command.startswith('ping'):
             # Lanzar la tarea para comandos con salida continua
-            task = asyncio.create_task(send_continuous_data(websocket, command, shell, session_id))
+            task = asyncio.create_task(send_continuous_data(
+                websocket, command, shell, session_id))
             tasks[session_id] = task
         elif (command.startswith('htop') or command.startswith('top')) and session_id in sistema_operativo and \
                 sistema_operativo[session_id] == "Linux":
             # Lanzar la tarea para comandos con salida continua
-            task = asyncio.create_task(send_continuous_data(websocket, command, shell, session_id))
+            task = asyncio.create_task(send_continuous_data(
+                websocket, command, shell, session_id))
             tasks[session_id] = task
         elif command.startswith('hosttarget:'):
             partes = command.split(":")
@@ -213,13 +218,17 @@ async def websocket_endpoint(websocket: WebSocket):
             dict_credentials_list = hosts_service.get_credentials(direccion_ip)
             if dict_credentials_list is None or not dict_credentials_list:
                 error_message = f"Credenciales no encontradas para la ip {direccion_ip}"
-                await send_message(websocket, error_message)  # Enviar el mensaje de error al websocket
-                await asyncio.sleep(4)  # Esperar 2 segundos antes de cerrar la conexión
+                # Enviar el mensaje de error al websocket
+                await send_message(websocket, error_message)
+                # Esperar 2 segundos antes de cerrar la conexión
+                await asyncio.sleep(4)
                 await websocket.close()  # Cerrar la conexión websocket
             else:
                 dict_credentials = dict_credentials_list[0]
-                ssh_user = hosts_service.decrypt(dict_credentials['usr'], settings.ssh_key_gen)
-                ssh_pass = hosts_service.decrypt(dict_credentials['psswrd'], settings.ssh_key_gen)
+                ssh_user = hosts_service.decrypt(
+                    dict_credentials['usr'], settings.ssh_key_gen)
+                ssh_pass = hosts_service.decrypt(
+                    dict_credentials['psswrd'], settings.ssh_key_gen)
                 if session_id not in sessions:
                     ssh = paramiko.SSHClient()
                     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -227,9 +236,12 @@ async def websocket_endpoint(websocket: WebSocket):
                         ssh = await connect_ssh(direccion_ip, ssh_user, ssh_pass)
                     except Exception as e:
                         error_message = "No fue posible hacer la conexión al servidor"
-                        print(f"Error al conectar a la ip {direccion_ip} por SSH: {str(e)}")
-                        await send_message(websocket, error_message)  # Enviar el mensaje de error al websocket
-                        await asyncio.sleep(4)   # Esperar 2 segundos antes de cerrar la conexión
+                        print(
+                            f"Error al conectar a la ip {direccion_ip} por SSH: {str(e)}")
+                        # Enviar el mensaje de error al websocket
+                        await send_message(websocket, error_message)
+                        # Esperar 2 segundos antes de cerrar la conexión
+                        await asyncio.sleep(4)
                         await websocket.close()
 
                     shell = ssh.invoke_shell()
@@ -246,16 +258,20 @@ async def websocket_endpoint(websocket: WebSocket):
                     comando_info_windows = """ powershell "(Get-WmiObject -Class Win32_OperatingSystem).Caption; (Get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object { $_.IPAddress -ne $null }).IPAddress[0]" """
 
                     # Obtencion de RAM total GB
-                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(comando_ram_total_usada_windows)
+                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(
+                        comando_ram_total_usada_windows)
                     resultado_ramGB_windows = stdout.read().decode() + stderr.read().decode()
                     # Obtencion de Ram utilization %
-                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(comando_ram_utilizacion_windows)
+                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(
+                        comando_ram_utilizacion_windows)
                     resultado_ramPorcentaje_windows = stdout.read().decode() + stderr.read().decode()
                     # Obtencion de Espacio en disco
-                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(comando_espacioDisco_windows)
+                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(
+                        comando_espacioDisco_windows)
                     resultado_espacioDisco_windows = stdout.read().decode() + stderr.read().decode()
                     # obtencion de info windows
-                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(comando_info_windows)
+                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(
+                        comando_info_windows)
                     resultado_info_windows = stdout.read().decode() + stderr.read().decode()
 
                     # await websocket.send_text(f"RAM GB: {resultado_ramGB} & RAM %: {resultado_ramPorcentaje}")
@@ -295,19 +311,24 @@ async def websocket_endpoint(websocket: WebSocket):
                     comando_info_linux = """ cat /etc/os-release | grep PRETTY_NAME | cut -d '"' -f2 """
                     commando_infoIP_linux = """ hostname -I | awk '{print $1}' """
                     # Obtencion de RAM total GB
-                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(comando_ram_total_usada_linux)
+                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(
+                        comando_ram_total_usada_linux)
                     resultado_ramGB_linux = stdout.read().decode() + stderr.read().decode()
                     # Obtencion de Ram utilization %
-                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(comando_ram_utilizacion_linux)
+                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(
+                        comando_ram_utilizacion_linux)
                     resultado_ramPorcentaje_linux = stdout.read().decode() + stderr.read().decode()
                     # Obtencion de Espacio en disco
-                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(comando_espacioDisco_linux)
+                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(
+                        comando_espacioDisco_linux)
                     resultado_espacioDisco_linux = stdout.read().decode() + stderr.read().decode()
                     # obtencion de info windows
-                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(comando_info_linux)
+                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(
+                        comando_info_linux)
                     resultado_infolinux = stdout.read().decode() + stderr.read().decode()
                     # obtencion de info IP windows
-                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(commando_infoIP_linux)
+                    stdin, stdout, stderr = sessions[session_id]['ssh'].exec_command(
+                        commando_infoIP_linux)
                     resultado_infoIPlinux = stdout.read().decode() + stderr.read().decode()
 
                     # await websocket.send_text(f"RAM GB: {resultado_ramGB} & RAM %: {resultado_ramPorcentaje}")
@@ -355,18 +376,20 @@ async def detectar_sistema_operativo(shell):
 
     print("shell:", shell)
     await send_command(shell, comando_linux)
-    resultado_linux =  await get_response(shell)
+    resultado_linux = await get_response(shell)
     if "Linux" in resultado_linux or "Darwin" in resultado_linux:
         return "Linux"  # o "Unix-like" si prefieres un término más genérico
     else:
         await send_command(shell, comando_windows)
-        resultado_windows =  await get_response(shell)
+        resultado_windows = await get_response(shell)
         if "Microsoft Windows" in resultado_windows:
             return "Windows"
     return "Desconocido"
 
+
 async def send_message(websocket, message):
     await websocket.send_text(message)
+
 
 async def send_continuous_data(websocket: WebSocket, command: str, shell, session_id):
     shell.send(command + "\n")
@@ -378,17 +401,20 @@ async def send_continuous_data(websocket: WebSocket, command: str, shell, sessio
         if session_id not in tasks:  # Verificar si la tarea fue cancelada
             break
 
+
 async def connect_ssh(direccion_ip, ssh_user, ssh_pass):
     loop = asyncio.get_running_loop()
     with ThreadPoolExecutor() as pool:
         ssh = await loop.run_in_executor(pool, connect_ssh_blocking, direccion_ip, ssh_user, ssh_pass)
     return ssh
 
+
 def connect_ssh_blocking(direccion_ip, ssh_user, ssh_pass):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        ssh.connect(direccion_ip, username=ssh_user, password=ssh_pass, timeout=30)
+        ssh.connect(direccion_ip, username=ssh_user,
+                    password=ssh_pass, timeout=30)
         return ssh
     except paramiko.ssh_exception.SSHException as e:
         # Manejar el error de conexión SSH aquí
