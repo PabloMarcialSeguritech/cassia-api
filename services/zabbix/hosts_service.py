@@ -256,9 +256,7 @@ async def downs_count(municipalityId, dispId, subtype, session):
     data = pd.DataFrame(problems).replace(np.nan, "")
     ping_loss_message = session.query(CassiaConfig).filter(
         CassiaConfig.name == "ping_loss_message").first()
-    ping_loss_message = "Unavailable by ICMP ping"
-    if ping_loss_message:
-        ping_loss_message = ping_loss_message.value
+    ping_loss_message = ping_loss_message.value if ping_loss_message else "Unavailable by ICMP ping"
     if not data.empty:
         data['tipo'] = [0 for i in range(len(data))]
         data.loc[data['Problem'] ==
@@ -468,9 +466,7 @@ SELECT from_unixtime(p.clock,'%d/%m/%Y %H:%i:%s' ) as Time,
     data = pd.DataFrame(data).replace(np.nan, "")
     ping_loss_message = session.query(CassiaConfig).filter(
         CassiaConfig.name == "ping_loss_message").first()
-    ping_loss_message = "Unavailable by ICMP ping"
-    if ping_loss_message:
-        ping_loss_message = ping_loss_message.value
+    ping_loss_message = ping_loss_message.value if ping_loss_message else "Unavailable by ICMP ping"
     if not data.empty:
         data['local'] = 0
         data['tipo'] = 0
@@ -540,7 +536,7 @@ where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at
         indexes = indexes[indexes['hostid'].isin(
             dependientes_filtro['hostid'].to_list())]
         data.loc[data.index.isin(indexes.index.to_list()), 'tipo'] = 0
-        
+
     sincronizados_totales = text("""select * from cassia_diagnostic_problems_2 cdp 
 where cdp.closed_at is NULL""")
 
