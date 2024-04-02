@@ -233,8 +233,8 @@ async def downs_count(municipalityId, dispId, subtype, session):
         subtype = '376276,375090'
     """ if tech_host_type == "11":
         tech_host_type = "11,2" """
-    if subtype != "" and tech_host_type == "":
-        tech_host_type = "0"
+    """ if subtype != "" and tech_host_type == "":
+        tech_host_type = "0" """
     switch_config = session.query(CassiaConfig).filter(
         CassiaConfig.name == "switch_id").first()
     switch_id = "12"
