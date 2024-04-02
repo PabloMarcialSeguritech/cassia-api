@@ -25,8 +25,8 @@ alerts_router = APIRouter()
     summary="Get problems by municipality ID, device type and technology, and subtype",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
-    return alerts_service.get_problems_filter(municipalityId, tech_host_type, subtype, severities)
+async def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
+    return await alerts_service.get_problems_filter(municipalityId, tech_host_type, subtype, severities)
 
 
 @alerts_router.get(
@@ -37,8 +37,8 @@ def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: 
     response_class=FileResponse,
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
-    return alerts_service.get_problems_filter_report(municipalityId, tech_host_type, subtype, severities)
+async def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
+    return await alerts_service.get_problems_filter_report(municipalityId, tech_host_type, subtype, severities)
 
 
 @alerts_router.post(
@@ -119,8 +119,8 @@ def get_problems_filter(municipalityId: str, tech: str = "", hostType: str = "")
     summary="Get all exception agencies",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def get_agencies():
-    return alerts_service.get_exception_agencies()
+async def get_agencies():
+    return await alerts_service.get_exception_agencies()
 
 
 @alerts_router.post(
@@ -168,7 +168,7 @@ def create_agency(exception_agency_id):
     summary="Get all Exceptions",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_agencies():
+async def get_exceptions():
     return await alerts_service.get_exceptions()
 
 
@@ -242,7 +242,8 @@ def create_agency(exception_agency_id):
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def create_message(problemid: int, message: Optional[str] = Form(None),
-                         current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session),
+                         current_user_session: CassiaUserSession = Depends(
+                             auth_service2.get_current_user_session),
                          file: UploadFile | None = None):
     return await alerts_service.create_message(problemid=problemid, current_user_id=current_user_session.user_id,
                                                message=message, file=file)
@@ -278,6 +279,7 @@ async def download_file(message_id: str):
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def get_problems_filter_(eventid: str = "34975081", message: str = Form(max_length=2048), close: bool = Form(...),
-                              current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session),
-                              is_zabbix_event: bool = Form(...)):
+                               current_user_session: CassiaUserSession = Depends(
+                                   auth_service2.get_current_user_session),
+                               is_zabbix_event: bool = Form(...)):
     return await alerts_service.register_ack(eventid, message, current_user_session, close, is_zabbix_event)
