@@ -148,7 +148,8 @@ async def async_ping_by_proxy(ip, ssh_host, ssh_user, ssh_pass):
     message = ""
     try:
 
-        async with asyncssh.connect(ssh_host, username=ssh_user, password=ssh_pass, known_hosts=None) as conn:
+        async with asyncssh.connect(ssh_host, username=ssh_user, password=ssh_pass, known_hosts=None,
+                                    connect_timeout=6) as conn:
             result = await conn.run(f'ping -c 2 -W 5 {ip}', check=False)
             is_package_lost = await verify_output_ping(result.stdout)
             if is_package_lost:
