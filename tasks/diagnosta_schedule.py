@@ -214,9 +214,7 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
                 host_padre = pd.DataFrame(session.execute(host_padre))
                 ping_loss_message = session.query(CassiaConfig).filter(
                     CassiaConfig.name == "ping_loss_message").first()
-                ping_loss_message = "Unavailable by ICMP ping"
-                if ping_loss_message:
-                    ping_loss_message = ping_loss_message.value
+                ping_loss_message = ping_loss_message.value if ping_loss_message else "Unavailable by ICMP ping"
                 if not host_padre.empty:
                     now_a = datetime.now(
                         pytz.timezone('America/Mexico_City'))
