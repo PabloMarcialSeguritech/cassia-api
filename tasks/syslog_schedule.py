@@ -264,12 +264,17 @@ async def trigger_alerts_lpr_close():
         lpr_id = "1"
         if lpr_config:
             lpr_id = lpr_config.value
+        ping_loss_message = session.query(CassiaConfig).filter(
+            CassiaConfig.name == "ping_loss_message").first()
+        ping_loss_message = "Unavailable by ICMP ping"
+        if ping_loss_message:
+            ping_loss_message = ping_loss_message.value
         a_cerrar = text(f"""SELECT * FROM 
                         cassia_arch_traffic_events
                         where closed_at is NULL
                         and tech_id='{lpr_id}'
                         and alert_type='lpr'
-                        and message!='Unavailable by ICMP ping'
+                        and message!='{ping_loss_message}'
                         and hostid in (
                         SELECT DISTINCT hostid FROM cassia_arch_traffic_lpr where readings>0)""")
         a_cerrar = pd.DataFrame(session.execute(a_cerrar)).replace(np.nan, '')

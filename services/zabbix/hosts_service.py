@@ -23,15 +23,19 @@ import re
 import time
 from pythonping import ping
 from services.zabbix import hosts_service_
+from infraestructure.zabbix import AlertsRepository
 
 settings = Settings()
 
 
 async def get_host_filter(municipalityId, dispId, subtype_id):
+
     if subtype_id == "0":
         subtype_id = ""
     if dispId == "0":
         dispId = ""
+    if dispId == "-1":
+        dispId = ''
 
     print(subtype_id)
 
@@ -150,6 +154,7 @@ async def get_host_filter(municipalityId, dispId, subtype_id):
     statement4 = text(
         f"call sp_hostAvailPingLoss('{municipalityId}','{dispId}','')")
     hostAvailables = session.execute(statement4)
+    print(statement4)
     data4 = pd.DataFrame(hostAvailables).replace(np.nan, "")
     """ dependientes = text(
         f"call sp_diagnostic_problemsD('{municipalityId}','{dispId}')")
@@ -157,7 +162,11 @@ async def get_host_filter(municipalityId, dispId, subtype_id):
         session.execute(dependientes)).replace(np.nan, '') """
     downs_filtro = await downs_count(municipalityId, dispId, subtype_id, session)
     if not data4.empty:
-        downs_totales = int(data4['Down'][0])
+        print(data4)
+        if data4['Down'][0] is None:
+            downs_totales = 0
+        else:
+            downs_totales = int(data4['Down'][0])
         origenes = len(downs_filtro)
         data4['Downs_origen'] = origenes
 
@@ -245,9 +254,15 @@ async def downs_count(municipalityId, dispId, subtype, session):
 
     problems = session.execute(statement)
     data = pd.DataFrame(problems).replace(np.nan, "")
+    ping_loss_message = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "ping_loss_message").first()
+    ping_loss_message = "Unavailable by ICMP ping"
+    if ping_loss_message:
+        ping_loss_message = ping_loss_message.value
     if not data.empty:
         data['tipo'] = [0 for i in range(len(data))]
-        data.loc[data['Problem'] == 'Unavailable by ICMP ping', 'tipo'] = 1
+        data.loc[data['Problem'] ==
+                 ping_loss_message, 'tipo'] = 1
         data['local'] = [0 for i in range(len(data))]
         data['dependents'] = [0 for i in range(len(data))]
         data['alert_type'] = ["" for i in range(len(data))]
@@ -315,7 +330,7 @@ where cate.closed_at is NULL and cate.hostid in :hostids """
                 severities = [1, 2, 3, 4, 5, 6]
             if 6 in severities:
                 downs = data_problems[data_problems['Problem']
-                                      == 'Unavailable by ICMP ping']
+                                      == ping_loss_message]
             data_problems = data_problems[data_problems['severity'].isin(
                 severities)]
             if 6 in severities:
@@ -332,7 +347,7 @@ where cate.closed_at is NULL and cate.hostid in :hostids """
         print(host.to_string())
         print(dependientes_filtro) """
     if not dependientes_filtro.empty:
-        indexes = data[data['Problem'] == 'Unavailable by ICMP ping']
+        indexes = data[data['Problem'] == ping_loss_message]
         indexes = indexes[indexes['hostid'].isin(
             dependientes_filtro['hostid'].to_list())]
         data.loc[data.index.isin(indexes.index.to_list()), 'tipo'] = 0
@@ -345,7 +360,7 @@ where cdp.closed_at is NULL""")
     if not sincronizados_totales.empty:
         if not data.empty:
             for ind in data.index:
-                if data['Problem'][ind] == 'Unavailable by ICMP ping':
+                if data['Problem'][ind] == ping_loss_message:
                     dependientes = sincronizados_totales[sincronizados_totales['hostid_origen']
                                                          == data['hostid'][ind]]
                     """ print(dependientes) """
@@ -356,18 +371,6 @@ where cdp.closed_at is NULL""")
                         subset=['depends_hostid'])
                     data.loc[data.index == ind,
                              'dependents'] = len(dependientes)
-
-    """ host = data[data['hostid'] == 16143]
-    print(host.to_string()) """
-
-    """ data.loc[(data['Problem'] ==
-    'Unavailable by ICMP ping' and data['host'])] """
-    """ print(data.to_string()) """
-
-    
-
-    """ print("aqui")
-        print(origen.to_string()) """
 
     if not data.empty:
         now = datetime.now(pytz.timezone('America/Mexico_City'))
@@ -463,32 +466,30 @@ SELECT from_unixtime(p.clock,'%d/%m/%Y %H:%i:%s' ) as Time,
 """)
     data = session.execute(statement)
     data = pd.DataFrame(data).replace(np.nan, "")
+    ping_loss_message = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "ping_loss_message").first()
+    ping_loss_message = "Unavailable by ICMP ping"
+    if ping_loss_message:
+        ping_loss_message = ping_loss_message.value
     if not data.empty:
         data['local'] = 0
         data['tipo'] = 0
-        data.loc[data['Problem'] == 'Unavailable by ICMP ping', 'tipo'] = 1
+        data.loc[data['Problem'] ==
+                 ping_loss_message, 'tipo'] = 1
         data['dependents'] = 0
         data['alert_type'] = ""
     else:
         data = pd.DataFrame(columns=['Time', 'severity', 'hostid', 'Host', 'latitude',
                             'longitude', 'ip', 'Problem', 'Estatus', 'r_eventid', 'Ack_message'])
     data_problems = text(
-        f"""(select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message  from cassia_arch_traffic_events_2 cate
+        f"""select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message  from cassia_arch_traffic_events_2 cate
 left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
 from cassia_event_acknowledges cea group by eventid ) as ceaa
 on  cate.cassia_arch_traffic_events_id=ceaa.eventid
 left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
 left join cassia_diagnostic_problems_2 cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id 
 where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at desc limit 20
-)UNION(
-select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message  from cassia_arch_traffic_events cate
-left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
-from cassia_event_acknowledges cea group by eventid ) as ceaa
-on  cate.cassia_arch_traffic_events_id=ceaa.eventid
-left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
-left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
-where cate.closed_at is NULL and cate.hostid ={host_id}
-and cate.alert_type !='diagnosta' order by cate.created_at desc limit 20)""")
+""")
     data_problems = pd.DataFrame(
         session.execute(data_problems)).replace(np.nan, '')
     dependientes_filtro = text(
@@ -535,12 +536,11 @@ and cate.alert_type !='diagnosta' order by cate.created_at desc limit 20)""")
             data.loc[data['eventid'].isin(
                 data_diagnosta['local_eventid'].to_list()), 'tipo'] = 1
     if not dependientes_filtro.empty:
-        indexes = data[data['Problem'] == 'Unavailable by ICMP ping']
+        indexes = data[data['Problem'] == ping_loss_message]
         indexes = indexes[indexes['hostid'].isin(
             dependientes_filtro['hostid'].to_list())]
         data.loc[data.index.isin(indexes.index.to_list()), 'tipo'] = 0
-        """ data.loc[(data['Problem'] ==
-                      'Unavailable by ICMP ping' and data['host'])] """
+        
     sincronizados_totales = text("""select * from cassia_diagnostic_problems_2 cdp 
 where cdp.closed_at is NULL""")
 
@@ -549,7 +549,7 @@ where cdp.closed_at is NULL""")
     if not sincronizados_totales.empty:
         if not data.empty:
             for ind in data.index:
-                if data['Problem'][ind] == 'Unavailable by ICMP ping':
+                if data['Problem'][ind] == ping_loss_message:
                     dependientes = sincronizados_totales[sincronizados_totales['hostid_origen']
                                                          == data['hostid'][ind]]
                     print(dependientes)
@@ -578,7 +578,11 @@ where cdp.closed_at is NULL""")
             lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
         data = data.sort_values(by='fecha', ascending=False)
 
-    print(data.to_string())
+    if not data.empty:
+        exceptions = await AlertsRepository.get_exceptions(
+            data['hostid'].to_list(), session)
+        data = pd.merge(data, exceptions, on='hostid',
+                        how='left').replace(np.nan, None)
     session.close()
     return success_response(data=data.to_dict(orient="records"))
 

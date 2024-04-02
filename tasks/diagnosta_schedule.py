@@ -212,13 +212,18 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
     where h.hostid={problematico[0]}
     """)
                 host_padre = pd.DataFrame(session.execute(host_padre))
+                ping_loss_message = session.query(CassiaConfig).filter(
+                    CassiaConfig.name == "ping_loss_message").first()
+                ping_loss_message = "Unavailable by ICMP ping"
+                if ping_loss_message:
+                    ping_loss_message = ping_loss_message.value
                 if not host_padre.empty:
                     now_a = datetime.now(
                         pytz.timezone('America/Mexico_City'))
                     problem_local = CassiaArchTrafficEvent2(
                         hostid=host_padre['hostid'][0],
                         severity=5,
-                        message='Unavailable by ICMP ping',
+                        message=ping_loss_message,
                         status='PROBLEM',
                         latitude=host_padre['latitude'][0],
                         longitude=host_padre['longitude'][0],
