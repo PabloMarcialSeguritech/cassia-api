@@ -234,9 +234,7 @@ async def trigger_alerts_close():
             rfid_id = rfid_config.value
         ping_loss_message = session.query(CassiaConfig).filter(
             CassiaConfig.name == "ping_loss_message").first()
-        ping_loss_message = "Unavailable by ICMP ping"
-        if ping_loss_message:
-            ping_loss_message = ping_loss_message.value
+        ping_loss_message = ping_loss_message.value if ping_loss_message else "Unavailable by ICMP ping"
         a_cerrar = text(f"""SELECT * FROM 
                         cassia_arch_traffic_events
                         where closed_at is NULL

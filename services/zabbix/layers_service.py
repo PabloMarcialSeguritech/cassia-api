@@ -216,9 +216,7 @@ async def downs_count(municipalityId, dispId, subtype, session):
     data = pd.DataFrame(problems).replace(np.nan, "")
     ping_loss_message = session.query(CassiaConfig).filter(
         CassiaConfig.name == "ping_loss_message").first()
-    ping_loss_message = "Unavailable by ICMP ping"
-    if ping_loss_message:
-        ping_loss_message = ping_loss_message.value
+    ping_loss_message = ping_loss_message.value if ping_loss_message else "Unavailable by ICMP ping"
     if not data.empty:
         data['tipo'] = [0 for i in range(len(data))]
         data.loc[data['Problem'] ==
