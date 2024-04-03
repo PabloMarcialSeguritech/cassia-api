@@ -537,6 +537,10 @@ where cdp.closed_at is NULL""")
         if not data.empty:
             exceptions = await AlertsRepository.get_exceptions(
                 data['hostid'].to_list(), session)
+            if not exceptions.empty:
+                exceptions['created_at'] = pd.to_datetime(
+                    exceptions['created_at'], format='%Y-%m-%d %H:%M:%S').dt.tz_localize(None)
+
             data = pd.merge(data, exceptions, on='hostid',
                             how='left').replace(np.nan, None)
             with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp_file:
@@ -544,6 +548,7 @@ where cdp.closed_at is NULL""")
                 with pd.ExcelWriter(xlsx_filename, engine="xlsxwriter") as writer:
                     data = data.sort_values(by='fecha', ascending=False)
                     data = data.drop(columns=['diferencia', 'fecha'])
+                    """ print(data.to_string()) """
                     data.to_excel(
                         writer, sheet_name='Data', index=False)
         else:
