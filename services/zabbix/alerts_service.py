@@ -161,6 +161,7 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
 
     if subtype == "0":
         subtype = ""
+
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     rfid_config = session.query(CassiaConfig).filter(
@@ -358,6 +359,8 @@ async def get_problems_filter_report(municipalityId, tech_host_type=0, subtype="
     with DB_Zabbix().Session() as session:
         if subtype == "0":
             subtype = ""
+        if tech_host_type == "-1":
+            tech_host_type = ''
         rfid_config = session.query(CassiaConfig).filter(
             CassiaConfig.name == "rfid_id").first()
         rfid_id = "9"
