@@ -17,6 +17,7 @@ async def analize_host(hostid_or_ip: str):
             response = await client.get(f"{diagnosta_api_url}/analisis/{hostid_or_ip}", timeout=120)
             response.raise_for_status()
             response = response.json()
+            print(response)
             desconectados_pd = pd.DataFrame(columns=['hostid',
                                                      'host',
                                                      'afiliacion',
@@ -77,12 +78,16 @@ async def analize_host(hostid_or_ip: str):
                                 session.execute(tech_names))
                             tech_names['dispId'] = tech_names['dispId'].replace(
                                 np.nan, 0).astype(int)
+                            """ desconectados_pd['device_id'] = desconectados_pd['device_id'].replace(
+                                np.nan, 0).astype(int) """
                             desconectados_pd['device_id'] = desconectados_pd['device_id'].replace(
-                                np.nan, 0).astype(int)
+                                np.nan, 0).replace("", 0).astype(int)
                             tech_names.rename(
                                 columns={'name': 'tech_name'}, inplace=True)
                             desconectados_pd = pd.merge(desconectados_pd, tech_names,
                                                         how='left', left_on='device_id', right_on='dispId').replace(np.nan, '')
+                            desconectados_pd['tech_name'] = desconectados_pd['tech_name'].replace(
+                                "", "NO CLASIFICADO")
 
             return success_response(data=desconectados_pd.to_dict(orient="records"))
     except httpx.HTTPError as exc:
