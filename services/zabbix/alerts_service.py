@@ -954,8 +954,11 @@ async def get_acks(eventid, is_cassia_event):
     session = db_zabbix.Session()
 
     if int(is_cassia_event):
+
         statement = text(
-            f"select eventid,clock  from cassia_event_acknowledges p where eventid ='{eventid}'")
+            f"select cassia_arch_traffic_events_id,created_at  from cassia_arch_traffic_events p where cassia_arch_traffic_events_id ='{eventid}'")
+        """ statement = text(
+            f"select eventid,clock  from cassia_event_acknowledges p where eventid ='{eventid}'") """
     else:
         statement = text(
             f"select eventid,clock  from events p where eventid ='{eventid}'")
@@ -978,20 +981,20 @@ async def get_acks(eventid, is_cassia_event):
     except:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Error in call of process sp_acknowledgeList",
+            detail="Error in call of process sp_acknowledgeList1",
         )
     finally:
         session.close()
 
     now = datetime.now(pytz.timezone(
         'America/Mexico_City')).replace(tzinfo=None)
-    clock_problem = problem.iloc[0]['clock']
-    print("clock_problem:", clock_problem)
 
     if not int(is_cassia_event):
+        clock_problem = problem.iloc[0]['clock']
         clock_problem = datetime.fromtimestamp(
             clock_problem, pytz.timezone('America/Mexico_City')).replace(tzinfo=None)
-
+    else:
+        clock_problem = problem.iloc[0]['created_at']
     diff = now-clock_problem
     acumulated_cassia = round(diff.days*24 + diff.seconds/3600, 4)
 

@@ -534,13 +534,16 @@ def get_lpr(municipality_id):
             lprs = pd.DataFrame(session.execute(lprs)).replace(np.nan, "")
         else:
             lprs = text(f"call sp_hostView('0','{lpr_id}','')")
+            print(lprs)
             lprs = pd.DataFrame(session.execute(lprs)).replace(np.nan, "")
+            print(lprs)
         if not lprs.empty:
             lprs = lprs[['latitude', 'longitude']]
             lprs = lprs[lprs['latitude'] != '--']
             lprs = lprs[lprs['longitude'] != '--']
             lprs = lprs.drop_duplicates(subset=['latitude', 'longitude'])
         data = lprs
+
         if municipality_id != "0":
             statement = text(f"""
 SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude FROM cassia_arch_traffic_lpr c 
