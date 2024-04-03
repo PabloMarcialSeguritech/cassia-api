@@ -531,6 +531,11 @@ where cdp.closed_at is NULL""")
                 lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
             data.drop_duplicates(
                 subset=['hostid', 'Problem'], inplace=True)
+        if not data.empty:
+            exceptions = await AlertsRepository.get_exceptions(
+                data['hostid'].to_list(), session)
+            data = pd.merge(data, exceptions, on='hostid',
+                            how='left').replace(np.nan, None)
             with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp_file:
                 xlsx_filename = temp_file.name
                 with pd.ExcelWriter(xlsx_filename, engine="xlsxwriter") as writer:
