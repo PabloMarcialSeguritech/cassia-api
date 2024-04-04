@@ -23,7 +23,7 @@ async def get_host_by_ip(municipality_id: str = '0', tech_id:  str = '0', brand_
 
 
 @reports_router.get(
-    '/availability/multiple',
+    '/availability/multiple_old',
     tags=["Cassia - Reports"],
     status_code=status.HTTP_200_OK,
     summary="Get availability report data multiple",
@@ -78,7 +78,7 @@ async def get_host_by_ip(device_ids: List[str] = Query('0'), init_date: datetime
 
 
 @reports_router.get(
-    '/availability/multiple_',
+    '/availability/multiple',
     tags=["Cassia - Reports"],
     status_code=status.HTTP_200_OK,
     summary="Get availability report data multiple",

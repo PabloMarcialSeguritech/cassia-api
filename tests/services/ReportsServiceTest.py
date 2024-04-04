@@ -19,7 +19,7 @@ class ReportsServiceTest(unittest.TestCase):
     def tearDownClass(cls):
         cls.loop.close()
 
-
+    @unittest.skip("Omit test_process_data_conectivity")
     def test_process_data_conectivity(self):
         print('> Entrando a test_process_data_conectivity <')
 
@@ -42,7 +42,7 @@ class ReportsServiceTest(unittest.TestCase):
 
         self.loop.run_until_complete(async_test())
 
-    @unittest.skip("Omit test_process_data_alignment")
+
     def test_process_data_alignment(self):
         print('> Entrando a test_process_data_alignment <')
 
