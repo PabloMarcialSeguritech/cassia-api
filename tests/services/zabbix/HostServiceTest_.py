@@ -159,7 +159,7 @@ class HostServiceTest2(unittest.TestCase):
         token = user_authentication_token('juan.marcial@seguritech.com', '12345678')
         async def async_test():
             current_session = await auth_service2.get_current_user_session(token)
-            ip='172.17.0.46'
+            ip='10.32.46.176'
             id_action=20
             response = await hosts_service_.run_action_(ip, id_action, current_session)
             print("response:", response.body)
@@ -172,7 +172,7 @@ class HostServiceTest2(unittest.TestCase):
         token = user_authentication_token('juan.marcial@seguritech.com', '12345678')
         async def async_test():
             current_session = await auth_service2.get_current_user_session(token)
-            ip='172.18.42.4'
+            ip='10.32.46.176'
             id_action=20
             response = await hosts_service_.run_action_(ip, id_action, current_session)
             print("response:", response.body)
