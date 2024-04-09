@@ -11,6 +11,7 @@ import re
 from utils.settings import Settings
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
+import services.zabbix.hosts_service_ as hosts_service_
 
 settings = Settings()
 hosts_router = APIRouter(prefix="/hosts")
@@ -30,7 +31,7 @@ tasks = {}
 async def get_hosts_filter(municipalityId: str = "", dispId: str = "", subtype_id: str = ""):
     return await hosts_service.get_host_filter(municipalityId, dispId, subtype_id)
 
-
+'''
 @hosts_router.get(
     '/{municipalityId}',
     tags=["Zabbix - Hosts"],
@@ -40,7 +41,7 @@ async def get_hosts_filter(municipalityId: str = "", dispId: str = "", subtype_i
 )
 def get_hosts_filter(municipalityId: str, dispId: str = "", subtype_id: str = ""):
     return hosts_service.get_host_filter(municipalityId, dispId, subtype_id)
-
+'''
 
 @hosts_router.get(
     "/relations/{municipalityId}",
@@ -420,3 +421,23 @@ def connect_ssh_blocking(direccion_ip, ssh_user, ssh_pass):
         # Manejar el error de conexión SSH aquí
         print(f"Error al conectar a la dirección IP {direccion_ip}: {str(e)}")
         return None  # Otra opción podría ser lanzar una excepción personalizada para manejar este caso
+
+@hosts_router.get('/detail/health_/{hostId}',
+                  tags=["Zabbix - Hosts - Detail"],
+                  status_code=status.HTTP_200_OK,
+                  summary="Get host metrics",
+                  dependencies=[Depends(auth_service2.get_current_user_session)])
+async def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596")):
+    response = await hosts_service_.get_host_metrics_(hostId)
+    return response
+
+@hosts_router.get(
+    '_/{municipalityId}',
+    tags=["Zabbix - Hosts"],
+    status_code=status.HTTP_200_OK,
+    summary="Get host by municipality ID, technology or device type, and subtype",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_hosts_filter(municipalityId: str = "", dispId: str = "", subtype_id: str = ""):
+    response = await hosts_service_.get_host_filter_(municipalityId, dispId, subtype_id)
+    return response
