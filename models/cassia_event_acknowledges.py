@@ -6,13 +6,13 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm import mapped_column
 from models.problem_record import ProblemRecord
 from typing import List
+from infraestructure.database_model import DB
 
 
-class CassiaEventAcknowledge(DB_Zabbix.Base):
+class CassiaEventAcknowledge(DB.Base):
     __tablename__ = "cassia_event_acknowledges"
     acknowledgeid = Column(Integer, primary_key=True, autoincrement=True)
-    userid = mapped_column(
-        ForeignKey("cassia_users.user_id"),  nullable=False)
+    userid = Column(Integer,  nullable=False)
     eventid = Column(Integer, nullable=False)
     clock = Column(DateTime, default=datetime.now(), nullable=True)
     message = Column(Text, nullable=False)

@@ -488,10 +488,7 @@ where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at
 """)
     data_problems = pd.DataFrame(
         session.execute(data_problems)).replace(np.nan, '')
-    dependientes_filtro = text(
-        f"call sp_diagnostic_problemsD('0','')")
-    dependientes_filtro = pd.DataFrame(
-        session.execute(dependientes_filtro)).replace(np.nan, '')
+
     if not data_problems.empty:
         """ data_problems['TimeRecovery'] = [
             '' for i in range(len(data_problems))] """
@@ -531,6 +528,10 @@ where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at
         if not data_diagnosta.empty:
             data.loc[data['eventid'].isin(
                 data_diagnosta['local_eventid'].to_list()), 'tipo'] = 1
+    dependientes_filtro = text(
+        f"call sp_diagnostic_problemsD('0','')")
+    dependientes_filtro = pd.DataFrame(
+        session.execute(dependientes_filtro)).replace(np.nan, '')
     if not dependientes_filtro.empty:
         indexes = data[data['Problem'] == ping_loss_message]
         indexes = indexes[indexes['hostid'].isin(
@@ -556,6 +557,7 @@ where cdp.closed_at is NULL""")
                         subset=['depends_hostid'])
                     data.loc[data.index == ind,
                              'dependents'] = len(dependientes)
+
     if not data.empty:
         now = datetime.now(pytz.timezone('America/Mexico_City'))
         data['fecha'] = pd.to_datetime(data['Time'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
@@ -581,6 +583,11 @@ where cdp.closed_at is NULL""")
                         how='left').replace(np.nan, None)
     session.close()
     return success_response(data=data.to_dict(orient="records"))
+
+
+async def get_host_alerts_(host_id):
+    alerts = await AlertsRepository.get_host_alerts(host_id)
+    return success_response(data=alerts.to_dict(orient="records"))
 
 
 async def get_host_arcos(host_id):
