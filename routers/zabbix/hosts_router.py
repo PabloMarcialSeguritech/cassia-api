@@ -31,6 +31,7 @@ tasks = {}
 async def get_hosts_filter(municipalityId: str = "", dispId: str = "", subtype_id: str = ""):
     return await hosts_service.get_host_filter(municipalityId, dispId, subtype_id)
 
+
 '''
 @hosts_router.get(
     '/{municipalityId}',
@@ -43,6 +44,7 @@ def get_hosts_filter(municipalityId: str, dispId: str = "", subtype_id: str = ""
     return hosts_service.get_host_filter(municipalityId, dispId, subtype_id)
 '''
 
+
 @hosts_router.get(
     "/relations/{municipalityId}",
     tags=["Zabbix - Hosts"],
@@ -54,7 +56,7 @@ def get_host_relations(municipalityId: str):
     return hosts_service.get_host_correlation_filter(municipalityId)
 
 
-@hosts_router.get('/detail/health/{hostId}',
+@hosts_router.get('/detail/health_old/{hostId}',
                   tags=["Zabbix - Hosts - Detail"],
                   status_code=status.HTTP_200_OK,
                   summary="Get host metrics",
@@ -302,7 +304,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
                     )
 
-                # Enviar el mensaje formateado
+                    # Enviar el mensaje formateado
                     await websocket.send_text(mensaje_formateado)
                 elif sistema_operativo[session_id] == "Linux":
                     # Usa exec_command para los comandos específicos
@@ -371,7 +373,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 async def detectar_sistema_operativo(shell):
-
     comando_linux = "uname -a"
     comando_windows = "ver"
 
@@ -422,7 +423,8 @@ def connect_ssh_blocking(direccion_ip, ssh_user, ssh_pass):
         print(f"Error al conectar a la dirección IP {direccion_ip}: {str(e)}")
         return None  # Otra opción podría ser lanzar una excepción personalizada para manejar este caso
 
-@hosts_router.get('/detail/health_/{hostId}',
+
+@hosts_router.get('/detail/health/{hostId}',
                   tags=["Zabbix - Hosts - Detail"],
                   status_code=status.HTTP_200_OK,
                   summary="Get host metrics",
@@ -430,6 +432,7 @@ def connect_ssh_blocking(direccion_ip, ssh_user, ssh_pass):
 async def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596")):
     response = await hosts_service_.get_host_metrics_(hostId)
     return response
+
 
 @hosts_router.get(
     '_/{municipalityId}',
