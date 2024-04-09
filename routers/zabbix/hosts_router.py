@@ -68,7 +68,7 @@ async def get_hosts_filter(hostId: int = Path(description="ID of Host", example=
                   summary="Get host alerts",
                   dependencies=[Depends(auth_service2.get_current_user_session)])
 async def get_hosts_filter(hostId: int = Path(description="ID of Host", example="10596")):
-    return await hosts_service.get_host_alerts(hostId)
+    return await hosts_service.get_host_alerts_(hostId)
 
 
 @hosts_router.get('/detail/arcos/{hostId}',
