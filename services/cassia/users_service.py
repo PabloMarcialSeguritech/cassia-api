@@ -223,13 +223,13 @@ async def create_user(user: user_schema.UserRegister):
         session.add(db_user)
         session.commit()
         session.refresh(db_user)
-    if user.authorizer:
-        authorizer = UserAuthorizer(
-            user_id=db_user.user_id
-        )
-        session.add(authorizer)
-        session.commit()
-        session.refresh(authorizer)
+
+    authorizer = UserAuthorizer(
+        user_id=db_user.user_id
+    )
+    session.add(authorizer)
+    session.commit()
+    session.refresh(authorizer)
     for role in roles:
         role_user = UserHasRole(
             user_id=db_user.user_id,

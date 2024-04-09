@@ -41,7 +41,7 @@ async def get_problems_filter(municipalityId: str, tech_host_type: str = "", sub
     return await alerts_service.get_problems_filter_report(municipalityId, tech_host_type, subtype, severities)
 
 
-@alerts_router.post(
+""" @alerts_router.post(
     '/problems/acknowledge/{eventid}',
     tags=["Zabbix - Problems(Alerts) - Acknowledge"],
     status_code=status.HTTP_200_OK,
@@ -62,7 +62,7 @@ async def get_problems_filter(eventid: str = "34975081", message: str = Form(max
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def get_problems_filter(eventid: str = "34975081", is_cassia_event: int = Query(0)):
-    return await alerts_service.get_acks(eventid, is_cassia_event)
+    return await alerts_service.get_acks(eventid, is_cassia_event) """
 
 
 @alerts_router.get(
@@ -271,7 +271,7 @@ async def download_file(message_id: str):
     return await alerts_service.download_file(message_id=message_id)
 
 
-@alerts_router.post(
+""" @alerts_router.post(
     '/problems/acknowledge_/{eventid}',
     tags=["Zabbix - Problems(Alerts) - Acknowledge"],
     status_code=status.HTTP_200_OK,
@@ -283,3 +283,4 @@ async def get_problems_filter_(eventid: str = "34975081", message: str = Form(ma
                                    auth_service2.get_current_user_session),
                                is_zabbix_event: bool = Form(...)):
     return await alerts_service.register_ack(eventid, message, current_user_session, close, is_zabbix_event)
+ """
