@@ -299,7 +299,6 @@ async def get_host_metrics_(host_id):
 
 
 async def get_host_filter_(municipalityId, dispId, subtype_id):
-
     if subtype_id == "0":
         subtype_id = ""
     if dispId == "0":
@@ -310,14 +309,13 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
 
-    switch_config = pd.DataFrame(await host_repository.get_switch_config())
-    print(1)
+    switch_config = pd.DataFrame(await host_repository.get_config_data_by_name('switch_id'))
     switch_id = "12"
     switch_troughtput = False
     if not switch_config.empty:
         switch_id = switch_config['value'].iloc[0]
     metric_switch_val = "Interface Bridge-Aggregation_: Bits"
-    metric_switch = pd.DataFrame(await host_repository.get_switch_throughput_config())
+    metric_switch = pd.DataFrame(await host_repository.get_config_data_by_name('switch_throughtput'))
     if not metric_switch.empty:
         metric_switch_val = metric_switch['value'].iloc[0]
     if subtype_id == metric_switch_val:
@@ -326,12 +324,7 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
         if dispId == switch_id:
             switch_troughtput = True
 
-    """ if subtype_id == "376276" or subtype_id == "375090":
-        subtype_host_filter = '376276,375090'
-    else:
-        subtype_host_filter = subtype_id """
-    """ arcos_band = False """
-    rfid_config = pd.DataFrame(await host_repository.get_rfid_config())
+    rfid_config = pd.DataFrame(await host_repository.get_config_data_by_name('rfid_id'))
     rfid_id = "9"
     if not rfid_config.empty:
         rfid_id = rfid_config['value'].iloc[0]
@@ -341,81 +334,43 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
         dispId_filter = "11,2"
     else:
         dispId_filter = dispId
-    statement1 = text(
-        f"call sp_hostView('{municipalityId}','{dispId}','{subtype_id}')")
-    if dispId == "11":
-        statement1 = text(
-            f"call sp_hostView('{municipalityId}','{dispId},2','')")
-    hosts = session.execute(statement1)
-    print("hosts:::", hosts)
 
     if dispId == "11":
-        hosts_ = await host_repository.get_host_view(municipalityId, f'{dispId},2', None)
+        hosts = await host_repository.get_host_view(municipalityId, f'{dispId},2', None)
 
     else:
-        hosts_ = await host_repository.get_host_view(municipalityId, f'{dispId}', subtype_id)
+        hosts = await host_repository.get_host_view(municipalityId, f'{dispId}', subtype_id)
 
-    print("hosts_::::", hosts_)
-    # print(problems)
     data = pd.DataFrame(hosts)
+
     data = data.replace(np.nan, "")
 
-    if len(data) > 1:
+    if not data.empty:
         hostids = tuple(data['hostid'].values.tolist())
     else:
         if len(data) == 1:
             hostids = f"({data['hostid'][0]})"
         else:
             hostids = "(0)"
-
-    statement2 = text(
-        f"""
-        SELECT hc.correlarionid,
-        hc.hostidP,
-        hc.hostidC,
-        (SELECT location_lat from host_inventory where hostid=hc.hostidP) as init_lat,
-        (SELECT location_lon from host_inventory where hostid=hc.hostidP) as init_lon,
-        (SELECT location_lat from host_inventory where hostid=hc.hostidC) as end_lat,
-        (SELECT location_lon from host_inventory where hostid=hc.hostidC) as end_lon
-        from host_correlation hc
-        where (SELECT location_lat from host_inventory where hostid=hc.hostidP) IS NOT NULL 
-        and
-        (
-        hc.hostidP in {hostids}
-        and hc.hostidC in {hostids})
-        """
-    )
-    corelations = session.execute(statement2)
-    statement3 = text(
-        f"CALL sp_problembySev('{municipalityId}','{dispId_filter}','{subtype_id}')")
-    problems_by_sev = session.execute(statement3)
-    data3 = pd.DataFrame(problems_by_sev).replace(np.nan, "")
+    corelations = pd.DataFrame(await host_repository.get_host_correlation(hostids))
+    data3 = pd.DataFrame(
+        await host_repository.get_problems_by_severity(municipalityId, dispId_filter, subtype_id)).replace(np.nan, "")
     if dispId == rfid_id:
         if municipalityId == '0':
-            alertas_rfid = session.query(CassiaArchTrafficEvent).filter(
-                CassiaArchTrafficEvent.closed_at == None,
-            ).all()
-
+            alertas_rfid = pd.DataFrame(await host_repository.get_arch_traffic_events_date_close_null())
         else:
-            statement = text("call sp_catCity()")
-            municipios = session.execute(statement)
-            municipios = pd.DataFrame(municipios).replace(np.nan, "")
-
+            municipios = pd.DataFrame(await host_repository.get_catalog_city()).replace(np.nan, "")
             municipio = municipios.loc[municipios['groupid'].astype(str) ==
                                        municipalityId]
             if not municipio.empty:
                 municipio = municipio['name'].item()
             else:
                 municipio = ''
-
-            alertas_rfid = session.query(CassiaArchTrafficEvent).filter(
-                CassiaArchTrafficEvent.closed_at == None,
-                CassiaArchTrafficEvent.municipality == municipio
-            ).all()
+            alertas_rfid = await host_repository.get_arch_traffic_events_date_close_null_municipality(municipio)
         alertas_rfid = pd.DataFrame([(
             r.severity,
         ) for r in alertas_rfid], columns=['severity'])
-        """ print(alertas_rfid.to_string()) """
+
         alertas_rfid = alertas_rfid.groupby(
             ['severity'])['severity'].count().rename_axis('Severities').reset_index()
         alertas_rfid.rename(
@@ -423,59 +378,41 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
         problems_count = pd.concat([data3, alertas_rfid], ignore_index=True)
         data3 = problems_count.groupby(
             ['severity']).sum().reset_index()
-
-    statement4 = text(
-        f"call sp_hostAvailPingLoss('{municipalityId}','{dispId}','')")
-    hostAvailables = session.execute(statement4)
-    print(statement4)
-    data4 = pd.DataFrame(hostAvailables).replace(np.nan, "")
-    """ dependientes = text(
-        f"call sp_diagnostic_problemsD('{municipalityId}','{dispId}')")
-    dependientes = pd.DataFrame(
-        session.execute(dependientes)).replace(np.nan, '') """
-    downs_filtro = await downs_count(municipalityId, dispId, subtype_id, session)
+    data4 = pd.DataFrame(await host_repository.get_host_available_ping_loss(municipalityId, dispId)).replace(np.nan, "")
+    downs_filtro = await downs_count(municipalityId, dispId, subtype_id)
     if not data4.empty:
-        print(data4)
-        if data4['Down'][0] is None:
-            downs_totales = 0
+        if 'Down' in data4.columns:  # Verifica si la columna 'Down' existe
+            down_value = data4['Down'].iloc[0]  # Obtener el valor de la primera fila
+            if down_value == '0':
+                downs_totales = 0
+            elif down_value:  # Verifica si el valor no es una cadena vacía
+                downs_totales = int(down_value)
+            else:
+                downs_totales = 0  # Si el valor es una cadena vacía, establece en 0
         else:
-            downs_totales = int(data4['Down'][0])
-        origenes = len(downs_filtro)
-        data4['Downs_origen'] = origenes
+            downs_totales = 0
+    else:
+        downs_totales = 0
 
-    data2 = pd.DataFrame(corelations)
-    data2 = data2.replace(np.nan, "")
+    origenes = len(downs_filtro)
+    data4['Downs_origen'] = origenes
+    data2 = corelations.replace(np.nan, "")
     # aditional data
-    subgroup_data = []
+    subgroup_data = pd.DataFrame([])
 
-    statement6 = ""
     if subtype_id != "":
-        statement6 = text(
-            f"CALL sp_MetricViewH('{municipalityId}','{dispId}','{subtype_id}')")
-    if switch_troughtput:
-        statement6 = text(
-            f"call sp_switchThroughtput('{municipalityId}','{switch_id}','{metric_switch_val}')")
-        """ print(statement6) """
-    if statement6 != "":
-        subgroup_data = session.execute(statement6)
-    data6 = pd.DataFrame(subgroup_data).replace(np.nan, "")
+        subgroup_data = pd.DataFrame(await host_repository.get_metric_view_h(municipalityId, dispId, subtype_id))
 
-    global_host_available = text(
-        f"call sp_hostAvailPingLoss('0','{dispId}','')")
-    global_host_available = pd.DataFrame(
-        session.execute(global_host_available))
-    dependientes_global = text(f"call sp_diagnostic_problemsD('0','{dispId}')")
-    dependientes_global = pd.DataFrame(
-        session.execute(dependientes_global)).replace(np.nan, '')
-    downs_global = await downs_count(0, dispId, '', session)
+    if switch_troughtput:
+        subgroup_data = pd.DataFrame(await host_repository.get_switch_through_put(municipalityId, switch_id, metric_switch_val))
+    data6 = subgroup_data.replace(np.nan, "")
+    global_host_available = pd.DataFrame(await host_repository.get_host_available_ping_loss('0', dispId)).replace(np.nan, "")
+    downs_global = await downs_count(0, dispId, '')
     if not global_host_available.empty:
         downs_totales = int(global_host_available['Down'][0])
         origenes = len(downs_global)
         global_host_available['Downs_origen'] = origenes
-        """ global_host_available['Downs_dependientes'] = dependientes_conteo """
-    """ print(global_host_available.to_string()) """
 
-    session.close()
     response = {"hosts": data.to_dict(
         orient="records"), "relations": data2.to_dict(orient="records"),
         "problems_by_severity": data3.to_dict(orient="records"),
@@ -487,49 +424,45 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
     return success_response(data=response)
 
 
-async def downs_count(municipalityId, dispId, subtype, session):
+async def downs_count(municipalityId, dispId, subtype):
+
     severities = "6"
     if subtype == "0":
         subtype = ""
 
-    rfid_config = session.query(CassiaConfig).filter(
-        CassiaConfig.name == "rfid_id").first()
+    rfid_config = pd.DataFrame(await host_repository.get_config_data_by_name('rfid_id'))
     rfid_id = "9"
-    if rfid_config:
-        rfid_id = rfid_config.value
-    lpr_config = session.query(CassiaConfig).filter(
-        CassiaConfig.name == "lpr_id").first()
+    if not rfid_config.empty:
+        rfid_id = rfid_config['value'].iloc[0]
+
+    lpr_config = pd.DataFrame(await host_repository.get_config_data_by_name('lpr_id'))
     lpr_id = "1"
-    if lpr_config:
-        lpr_id = lpr_config.value
+
+    if not lpr_config.empty:
+        lpr_id = lpr_config['value'].iloc[0]
+
     if subtype == "376276" or subtype == "375090":
         subtype = '376276,375090'
     """ if tech_host_type == "11":
         tech_host_type = "11,2" """
     """ if subtype != "" and tech_host_type == "":
         tech_host_type = "0" """
-    switch_config = session.query(CassiaConfig).filter(
-        CassiaConfig.name == "switch_id").first()
+    switch_config = pd.DataFrame(await host_repository.get_config_data_by_name('switch_id'))
     switch_id = "12"
-
-    if switch_config:
-        switch_id = switch_config.value
+    if not switch_config.empty:
+        switch_id = switch_config['value'].iloc[0]
 
     metric_switch_val = "Interface Bridge-Aggregation_: Bits"
-    metric_switch = session.query(CassiaConfig).filter(
-        CassiaConfig.name == "switch_throughtput").first()
-    if metric_switch:
-        metric_switch_val = metric_switch.value
+    metric_switch = pd.DataFrame(await host_repository.get_config_data_by_name('switch_throughtput'))
+    if not metric_switch.empty:
+        metric_switch_val = metric_switch['value'].iloc[0]
     if subtype == metric_switch_val:
         subtype = ""
-    statement = text(
-        f"call sp_viewProblem('{municipalityId}','{dispId}','{subtype}','')")
-
-    problems = session.execute(statement)
-    data = pd.DataFrame(problems).replace(np.nan, "")
-    ping_loss_message = session.query(CassiaConfig).filter(
-        CassiaConfig.name == "ping_loss_message").first()
-    ping_loss_message = ping_loss_message.value if ping_loss_message else "Unavailable by ICMP ping"
+    data = pd.DataFrame(await host_repository.get_view_problem_data(municipalityId, dispId, subtype)).replace(np.nan,
+                                                                                                              "")
+    ping_loss_message = pd.DataFrame(await host_repository.get_config_data_by_name("ping_loss_message"))
+    ping_loss_message = ping_loss_message['value'].iloc[
+        0] if not ping_loss_message.empty else "Unavailable by ICMP ping"
     if not data.empty:
         data['tipo'] = [0 for i in range(len(data))]
         data.loc[data['Problem'] ==
@@ -537,33 +470,11 @@ async def downs_count(municipalityId, dispId, subtype, session):
         data['local'] = [0 for i in range(len(data))]
         data['dependents'] = [0 for i in range(len(data))]
         data['alert_type'] = ["" for i in range(len(data))]
-
-    downs_origen = text(
-        f"""call sp_diagnostic_problems1('{municipalityId}','{dispId}')""")
-    downs_origen = pd.DataFrame(session.execute(downs_origen))
+    downs_origen = pd.DataFrame(await host_repository.get_diagnostic_problems(municipalityId, dispId))
     if not downs_origen.empty:
-        """ data['tipo'] = [0 for i in range(len(data))]
-        data.loc[data['hostid'].astype(int).isin(
-            downs_origen['hostid'].tolist()), 'tipo'] = 1
-        data['local'] = [0 for i in range(len(data))]
-        data.loc[data['hostid'].astype(int).isin(
-            downs_origen['hostid'].tolist()), 'local'] = 0
-        data['dependents'] = [0 for i in range(len(data))] """
-        data_problems = text(
-            """select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message from cassia_arch_traffic_events_2 cate
-left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
-from cassia_event_acknowledges cea group by eventid ) as ceaa
-on  cate.cassia_arch_traffic_events_id=ceaa.eventid
-left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
-left join cassia_diagnostic_problems_2 cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id 
-where cate.closed_at is NULL and cate.hostid in :hostids""")
-        """select cate.*,cdp.dependents  from cassia_arch_traffic_events cate
-left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
-where cate.closed_at is NULL and cate.hostid in :hostids """
-        """ print(data_problems) """
-        data_problems = pd.DataFrame(session.execute(
-            data_problems, {'hostids': downs_origen['hostid'].tolist()})).replace(np.nan, 0)
-
+        lista_hostid = downs_origen['hostid'].tolist()
+        cadena_hostid = "(" + ", ".join(str(item) for item in lista_hostid) + ")"
+        data_problems = pd.DataFrame(await host_repository.get_data_problems(cadena_hostid)).replace(np.nan, 0)
         if not data_problems.empty:
             """ data_problems['TimeRecovery'] = [
                 '' for i in range(len(data_problems))] """
@@ -610,10 +521,7 @@ where cate.closed_at is NULL and cate.hostid in :hostids """
 
             data = pd.concat([data_problems, data],
                              ignore_index=True).replace(np.nan, "")
-    dependientes_filtro = text(
-        f"call sp_diagnostic_problemsD('{municipalityId}','{dispId}')")
-    dependientes_filtro = pd.DataFrame(
-        session.execute(dependientes_filtro)).replace(np.nan, '')
+    dependientes_filtro = pd.DataFrame(await host_repository.get_diagnostic_problems_d(municipalityId, dispId)).replace(np.nan, '')
     """ host = dependientes_filtro[dependientes_filtro['hostid'] == 16143]
         print(host.to_string())
         print(dependientes_filtro) """
@@ -622,12 +530,7 @@ where cate.closed_at is NULL and cate.hostid in :hostids """
         indexes = indexes[indexes['hostid'].isin(
             dependientes_filtro['hostid'].to_list())]
         data.loc[data.index.isin(indexes.index.to_list()), 'tipo'] = 0
-
-    sincronizados_totales = text("""select * from cassia_diagnostic_problems_2 cdp 
-where cdp.closed_at is NULL""")
-
-    sincronizados_totales = pd.DataFrame(
-        session.execute(sincronizados_totales)).replace(np.nan, 0)
+    sincronizados_totales = pd.DataFrame(await host_repository.get_total_synchronized()).replace(np.nan, 0)
     if not sincronizados_totales.empty:
         if not data.empty:
             for ind in data.index:
@@ -641,22 +544,26 @@ where cdp.closed_at is NULL""")
                     dependientes = dependientes.drop_duplicates(
                         subset=['depends_hostid'])
                     data.loc[data.index == ind,
-                             'dependents'] = len(dependientes)
+                    'dependents'] = len(dependientes)
 
     if not data.empty:
         now = datetime.now(pytz.timezone('America/Mexico_City'))
         data['fecha'] = pd.to_datetime(data['Time'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
             pytz.timezone('America/Mexico_City'))
-        data['diferencia'] = now-data['fecha']
+        data['diferencia'] = now - data['fecha']
         data['dias'] = data['diferencia'].dt.days
         data['horas'] = data['diferencia'].dt.components.hours
         data['minutos'] = data['diferencia'].dt.components.minutes
         """ print(data['diferencia']) """
         data.loc[data['alert_type'].isin(
-            ['rfid', 'lpr']), 'Problem'] = data.loc[data['alert_type'].isin(['rfid', 'lpr']), ['dias', 'horas', 'minutos']].apply(lambda x:
-                                                                                                                                  f"Este host no ha tenido lecturas por más de {x['dias']} dias {x['horas']} hrs {x['minutos']} min" if x['dias'] > 0
-                                                                                                                                  else f"Este host no ha tenido lecturas por más de {x['horas']} hrs {x['minutos']} min" if x['horas'] > 0
-                                                                                                                                  else f"Este host no ha tenido lecturas por más de {x['minutos']} min", axis=1)
+            ['rfid', 'lpr']), 'Problem'] = data.loc[
+            data['alert_type'].isin(['rfid', 'lpr']), ['dias', 'horas', 'minutos']].apply(lambda x:
+                                                                                          f"Este host no ha tenido lecturas por más de {x['dias']} dias {x['horas']} hrs {x['minutos']} min" if
+                                                                                          x['dias'] > 0
+                                                                                          else f"Este host no ha tenido lecturas por más de {x['horas']} hrs {x['minutos']} min" if
+                                                                                          x['horas'] > 0
+                                                                                          else f"Este host no ha tenido lecturas por más de {x['minutos']} min",
+                                                                                          axis=1)
         data = data.drop(columns=['diferencia'])
         data['diferencia'] = data.apply(
             lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
@@ -671,4 +578,3 @@ where cdp.closed_at is NULL""")
         if not data.empty:
             data = data[data['tipo'] == 1]
     return data
-

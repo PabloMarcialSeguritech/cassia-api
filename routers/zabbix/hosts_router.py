@@ -22,7 +22,7 @@ tasks = {}
 
 
 @hosts_router.get(
-    '/{municipalityId}',
+    '_old/{municipalityId}',
     tags=["Zabbix - Hosts"],
     status_code=status.HTTP_200_OK,
     summary="Get host by municipality ID, technology or device type, and subtype",
@@ -435,7 +435,7 @@ async def get_hosts_filter(hostId: int = Path(description="ID of Host", example=
 
 
 @hosts_router.get(
-    '_/{municipalityId}',
+    '/{municipalityId}',
     tags=["Zabbix - Hosts"],
     status_code=status.HTTP_200_OK,
     summary="Get host by municipality ID, technology or device type, and subtype",
