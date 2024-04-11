@@ -1,7 +1,6 @@
 
 class DBQueries:
 
-
     def __init__(self):
         self.stored_name_get_connectivity_data_m = 'sp_connectivityM'
         self.stored_name_get_connectivity_data = 'sp_connectivity'
@@ -17,6 +16,13 @@ class DBQueries:
         self.stored_name_get_dependents_diagnostic_problems = "sp_diagnostic_problemsD"
         self.query_get_open_diagnosta_problems = "select * from cassia_diagnostic_problems_2 cdp where cdp.closed_at is NULL"
         self.query_get_total_slack_notifications_count = "select count(notification_id) as notificaciones from cassia_slack_notifications"
+        self.stored_name_get_alerts = "sp_viewProblem"
+        self.stored_name_city_catalog = "sp_catCity"
+        self.query_statement_get_cassia_events_acknowledges = """select cea.eventid , cea.message as message from (
+        select eventid,MAX(cea.acknowledgeid) acknowledgeid
+        from cassia_event_acknowledges cea group by eventid ) ceaa
+        left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid"""
+        self.stored_name_diagnostic_problems_origen_1 = 'sp_diagnostic_problems1'
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -100,3 +106,23 @@ FROM cassia_config where cassia_config.name='{name}'"""
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
         return self.query_statement_get_metrics_template
+
+    def builder_query_statement_get_global_cassia_events_by_tech(self, tech_id):
+        self.query_statement_get_global_cassia_events_by_tech = f"""
+        SELECT * FROM cassia_arch_traffic_events where closed_at is NULL and tech_id={tech_id}"""
+        return self.query_statement_get_global_cassia_events_by_tech
+
+    def builder_query_statement_get_cassia_events_by_tech_and_municipality(self, municipality, tech_id):
+        self.query_statement_get_cassia_events_by_tech_and_municipality = f"""
+        SELECT * FROM cassia_arch_traffic_events where closed_at is NULL and tech_id={tech_id} and municipality='{municipality}'"""
+        return self.query_statement_get_cassia_events_by_tech_and_municipality
+
+    def builder_query_statement_get_cassia_events_with_hosts_filter(self, hostids):
+        self.query_statement_get_cassia_events_with_hosts_filter = f"""select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message from cassia_arch_traffic_events_2 cate
+left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
+from cassia_event_acknowledges cea group by eventid ) as ceaa
+on  cate.cassia_arch_traffic_events_id=ceaa.eventid
+left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
+left join cassia_diagnostic_problems_2 cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id 
+where cate.closed_at is NULL and cate.hostid in ({hostids})"""
+        return self.query_statement_get_cassia_events_with_hosts_filter

@@ -24,6 +24,9 @@ from models.cassia_arch_traffic_events import CassiaArchTrafficEvent
 from models.cassia_arch_traffic_events_2 import CassiaArchTrafficEvent2
 from models.cassia_event_acknowledges import CassiaEventAcknowledge
 from infraestructure.zabbix import AlertsRepository
+from infraestructure.cassia import CassiaConfigRepository
+from infraestructure.cassia import CassiaDiagnostaRepository
+from infraestructure.cassia import CassiaEventRepository
 import os
 import ntpath
 import shutil
@@ -561,8 +564,30 @@ where cdp.closed_at is NULL""")
     return FileResponse(xlsx_filename, headers={"Content-Disposition": "attachment; filename=alertas.xlsx"}, media_type="application/vnd.ms-excel", filename="alertas.xlsx")
 
 
-""" Exception Agencies """
+async def get_problems_filter_(municipalityId, tech_host_type=0, subtype="", severities=""):
+    problems = await AlertsRepository.get_problems_filter(municipalityId, tech_host_type, subtype, severities)
+    return success_response(data=problems.to_dict(orient="records"))
 
+
+async def get_problems_filter_report_(municipalityId, tech_host_type=0, subtype="", severities=""):
+    problems = await AlertsRepository.get_problems_filter(municipalityId, tech_host_type, subtype, severities)
+    if not problems.empty:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp_file:
+            xlsx_filename = temp_file.name
+            with pd.ExcelWriter(xlsx_filename, engine="xlsxwriter") as writer:
+                problems = problems.sort_values(by='fecha', ascending=False)
+                problems = problems.drop(columns=['diferencia', 'fecha'])
+                """ print(problems.to_string()) """
+                problems.to_excel(
+                    writer, sheet_name='Data', index=False)
+    else:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp_file:
+            xlsx_filename = temp_file.name
+            with pd.ExcelWriter(xlsx_filename, engine="xlsxwriter") as writer:
+                problems.to_excel(
+                    writer, sheet_name='Data', index=False)
+
+    return FileResponse(xlsx_filename, headers={"Content-Disposition": "attachment; filename=alertas.xlsx"}, media_type="application/vnd.ms-excel", filename="alertas.xlsx")
 
 """ Exception Agencies """
 

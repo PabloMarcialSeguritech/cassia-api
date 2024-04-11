@@ -26,7 +26,19 @@ alerts_router = APIRouter()
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
-    return await alerts_service.get_problems_filter(municipalityId, tech_host_type, subtype, severities)
+    return await alerts_service.get_problems_filter_(municipalityId, tech_host_type, subtype, severities)
+
+
+""" @alerts_router.get(
+    '/problems2/{municipalityId}',
+    tags=["Zabbix - Problems(Alerts)"],
+    status_code=status.HTTP_200_OK,
+    summary="Get problems by municipality ID, device type and technology, and subtype",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
+    return await alerts_service.get_problems_filter_(municipalityId, tech_host_type, subtype, severities)
+ """
 
 
 @alerts_router.get(
@@ -37,9 +49,21 @@ async def get_problems_filter(municipalityId: str, tech_host_type: str = "", sub
     response_class=FileResponse,
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
-    return await alerts_service.get_problems_filter_report(municipalityId, tech_host_type, subtype, severities)
+async def get_problems_filter_download(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
+    return await alerts_service.get_problems_filter_report_(municipalityId, tech_host_type, subtype, severities)
 
+
+""" @alerts_router.get(
+    '/problems2/download/{municipalityId}',
+    tags=["Zabbix - Problems(Alerts)"],
+    status_code=status.HTTP_200_OK,
+    summary="Get problems by municipality ID, device type and technology, and subtype in Excel",
+    response_class=FileResponse,
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_problems_filter_download(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
+    return await alerts_service.get_problems_filter_report_(municipalityId, tech_host_type, subtype, severities)
+ """
 
 """ @alerts_router.post(
     '/problems/acknowledge/{eventid}',

@@ -57,3 +57,21 @@ async def get_open_problems_diagnosta() -> pd.DataFrame:
                             detail=f"Error en get_open_problems_diagnosta {e}")
     finally:
         await db_model.close_connection()
+
+
+async def get_downs_origen(municipalityId, tech_host_type) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        sp_get_downs_origen = DBQueries(
+        ).stored_name_diagnostic_problems_origen_1
+        await db_model.start_connection()
+
+        diagnosta_downs_origen_data = await db_model.run_stored_procedure(sp_get_downs_origen, (municipalityId, tech_host_type))
+        diagnosta_downs_origen_df = pd.DataFrame(
+            diagnosta_downs_origen_data).replace(np.nan, None)
+        return diagnosta_downs_origen_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_downs_origen {e}")
+    finally:
+        await db_model.close_connection()
