@@ -1,12 +1,12 @@
+import services.cassia.reports_service_ as reports_service_
 from datetime import datetime
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi import Depends, status, Query
 from services import auth_service2
 from typing import List
 import services.cassia.reports_service as reports_service
 from fastapi.responses import FileResponse
 reports_router = APIRouter(prefix="/reports")
-import services.cassia.reports_service_ as reports_service_
 
 
 @reports_router.get(
@@ -87,4 +87,17 @@ async def get_host_by_ip(device_ids: List[str] = Query('0'), init_date: datetime
 async def get_graphic_data_multiple_(municipality_id: List[str] = Query('0'), tech_id:  List[str] = Query('0'), brand_id: List[str] = Query(''), model_id:  List[str] = Query(''), init_date: datetime = "2023-09-15 12:15:00", end_date: datetime = "2023-09-15 22:16:00"):
     print(municipality_id)
     response = await reports_service_.get_graphic_data_multiple_(municipality_id, tech_id, brand_id, model_id, init_date, end_date)
+    return response
+
+
+@reports_router.get(
+    '/error-test',
+    tags=["Cassia - Reports"],
+    status_code=status.HTTP_200_OK,
+    summary="Get error 500",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_internal_error():
+    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Error personalizado")
     return response
