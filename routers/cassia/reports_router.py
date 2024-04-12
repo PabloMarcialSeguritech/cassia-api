@@ -100,4 +100,4 @@ async def get_graphic_data_multiple_(municipality_id: List[str] = Query('0'), te
 async def get_internal_error():
     raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                         detail="Error personalizado")
-    return response
+    return True
