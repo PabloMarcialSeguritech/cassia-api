@@ -1439,6 +1439,7 @@ def process_data_conectivity_devices(device_ids, init_date, end_date, session, p
     general = pd.DataFrame()
     promedios_general = []
     municipios = []
+    hostids = []
 
     for ind in range(len(device_ids)):
         """ print(municipality_id) """
@@ -1448,7 +1449,7 @@ def process_data_conectivity_devices(device_ids, init_date, end_date, session, p
         data = pd.DataFrame(session.execute(statement))
         """ print(data) """
         data_procesed = process_data(
-            data, end_date, init_date, f"Disponibilidad_{device_ids[ind]}")
+            data, end_date, init_date, f"{device_ids[ind]}")
         """ data_procesed = process_data_global(
             data, end_date, init_date, "Disponibilidad") """
         """ datas.append(data_procesed['data']) """
@@ -1460,6 +1461,7 @@ def process_data_conectivity_devices(device_ids, init_date, end_date, session, p
         tiempo.append(data_procesed['tiempo'])
         first.append(data_procesed['first'])
         last.append(data_procesed['last'])
+        hostids.append(device_ids[ind])
 
     merged_df = pd.DataFrame()
     promedios = list()
@@ -1469,7 +1471,7 @@ def process_data_conectivity_devices(device_ids, init_date, end_date, session, p
     print(no_vacios) """
     if len(vacios) > 0 and len(no_vacios) == 0:
         for vacio in vacios:
-            vacio['data'][f"Disponibilidad_{vacio['hostid']}"] = [0, 0]
+            vacio['data'][f"{vacio['hostid']}"] = [0, 0]
             vacio['data']["templateid"] = [0, 0]
             vacio['data']["itemid"] = [0, 0]
             vacio['data']['Tiempo'] = [init_date, end_date]
@@ -1504,17 +1506,19 @@ def process_data_conectivity_devices(device_ids, init_date, end_date, session, p
 
         metrics = {'metric_name': "Conectividad",
                    'indices': indices,
-                   'availability_average': [0 for vacios in range(len(vacios))],
+                   'availability_average2': [0 for vacios in range(len(vacios))],
                    'days': [0 for vacios in range(len(vacios))],
                    'device_count': [0 for vacios in range(len(vacios))],
                    'data_range': [0 for vacios in range(len(vacios))],
                    'time': [0 for vacios in range(len(vacios))],
                    'first_data': [0 for vacios in range(len(vacios))],
                    'last_data': [0 for vacios in range(len(vacios))],
-                   'dataset': merged_df.to_dict(orient="records"),
-                   'dataset2': general.to_dict(orient='records'),
-                   'availavility_average2': promedios_general,
-                   'municipality': municipios
+                   'dataset2': merged_df.to_dict(orient="records"),
+                   'dataset': general.to_dict(orient='records'),
+                   'availavility_average': promedios_general,
+                   'municipality': municipios,
+                   'hostids': hostids,
+
 
                    }
 
@@ -1572,17 +1576,18 @@ def process_data_conectivity_devices(device_ids, init_date, end_date, session, p
         print(indices) """
         metrics = {'metric_name': "Conectividad",
                    'indices': indices,
-                   'availability_average': promedios,
+                   'availability_average2': promedios,
                    'days': dias,
                    'device_count': dispositivos,
                    'data_range': data_range,
                    'time': tiempo,
                    'first_data': first,
                    'last_data': last,
-                   'dataset': merged_df.to_dict(orient="records"),
-                   'dataset2': general.to_dict(orient='records'),
-                   'availavility_average2': promedios_general,
-                   'municipality': municipios
+                   'dataset2': merged_df.to_dict(orient="records"),
+                   'dataset': general.to_dict(orient='records'),
+                   'availavility_average': promedios_general,
+                   'municipality': municipios,
+                   'hostids': hostids,
                    }
 
     if len(no_vacios) > 0 and len(vacios) == 0:
@@ -1621,17 +1626,18 @@ def process_data_conectivity_devices(device_ids, init_date, end_date, session, p
 
         metrics = {'metric_name': "Conectividad",
                    'indices': indices,
-                   'availability_average': promedios,
+                   'availability_average2': promedios,
                    'days': dias,
                    'device_count': dispositivos,
                    'data_range': data_range,
                    'time': tiempo,
                    'first_data': first,
                    'last_data': last,
-                   'dataset': merged_df.to_dict(orient="records"),
-                   'dataset2': general.to_dict(orient='records'),
-                   'availavility_average2': promedios_general,
-                   'municipality': municipios
+                   'dataset2': merged_df.to_dict(orient="records"),
+                   'dataset': general.to_dict(orient='records'),
+                   'availavility_average': promedios_general,
+                   'municipality': municipios,
+                   'hostids': hostids,
                    }
 
     return metrics
@@ -1658,6 +1664,7 @@ where nickname ='Alineación'""")
     general = pd.DataFrame()
     promedios_general = []
     municipios = []
+    hostids = []
 
     for ind in range(len(device_ids)):
 
@@ -1678,7 +1685,7 @@ and hi.device_id ={device_alineacion_id}""")
         data = pd.DataFrame(session.execute(statement))
 
         data_procesed = process_data(
-            data, end_date, init_date, f"Alineacion_{device_ids[ind]}")
+            data, end_date, init_date, f"{device_ids[ind]}")
         """ datas.append(data_procesed['data']) """
         datas.append(
             {'index': ind+1, 'data': data_procesed['data'], 'hostid': device_ids[ind]})
@@ -1688,6 +1695,7 @@ and hi.device_id ={device_alineacion_id}""")
         tiempo.append(data_procesed['tiempo'])
         first.append(data_procesed['first'])
         last.append(data_procesed['last'])
+        hostids.append(device_ids[ind])
 
     merged_df = pd.DataFrame()
     promedios = list()
@@ -1700,7 +1708,7 @@ and hi.device_id ={device_alineacion_id}""")
         print("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")
 
         for vacio in vacios:
-            vacio['data'][f"Alineacion_{vacio['hostid']}"] = [0, 0]
+            vacio['data'][f"{vacio['hostid']}"] = [0, 0]
             vacio['data']["templateid"] = [0, 0]
             vacio['data']["itemid"] = [0, 0]
             vacio['data']['Tiempo'] = [init_date, end_date]
@@ -1739,17 +1747,18 @@ and hi.device_id ={device_alineacion_id}""")
 
         metricas.append({'metric_name': "Alineacion",
                          'indices': indices,
-                        'availability_average': [0 for vacios in range(len(vacios))],
+                        'availability_average2': [0 for vacios in range(len(vacios))],
                          'days': [0 for vacios in range(len(vacios))],
                          'device_count': [0 for vacios in range(len(vacios))],
                          'data_range': [0 for vacios in range(len(vacios))],
                          'time': [0 for vacios in range(len(vacios))],
                          'first_data': [0 for vacios in range(len(vacios))],
                          'last_data': [0 for vacios in range(len(vacios))],
-                         'dataset': merged_df.to_dict(orient="records"),
-                         'dataset2': general.to_dict(orient='records'),
-                         'availavility_average2': promedios_general,
-                         'municipality': municipios
+                         'dataset2': merged_df.to_dict(orient="records"),
+                         'dataset': general.to_dict(orient='records'),
+                         'availavility_average': promedios_general,
+                         'municipality': municipios,
+                         'hostids': hostids
                          })
 
         """ response = {
@@ -1814,17 +1823,18 @@ and hi.device_id ={device_alineacion_id}""")
 
         metricas.append({'metric_name': "Alineacion",
                          'indices': indices,
-                        'availability_average': promedios,
+                        'availability_average2': promedios,
                          'days': dias,
                          'device_count': dispositivos,
                          'data_range': data_range,
                          'time': tiempo,
                          'first_data': first,
                          'last_data': last,
-                         'dataset': merged_df.to_dict(orient="records"),
-                         'dataset2': general.to_dict(orient='records'),
-                         'availavility_average2': promedios_general,
-                         'municipality': municipios
+                         'dataset2': merged_df.to_dict(orient="records"),
+                         'dataset': general.to_dict(orient='records'),
+                         'availavility_average': promedios_general,
+                         'municipality': municipios,
+                         'hostids': hostids
                          })
 
     if len(no_vacios) > 0 and len(vacios) == 0:
@@ -1865,7 +1875,7 @@ and hi.device_id ={device_alineacion_id}""")
 
         metricas.append({'metric_name': "Alineacion",
                         'indices': indices,
-                         'availability_average': promedios,
+                         'availability_average2': promedios,
 
                          'days': dias,
                          'device_count': dispositivos,
@@ -1873,10 +1883,11 @@ and hi.device_id ={device_alineacion_id}""")
                          'time': tiempo,
                          'first_data': first,
                          'last_data': last,
-                         'dataset': merged_df.to_dict(orient="records"),
-                         'dataset2': general.to_dict(orient='records'),
-                         'availavility_average2': promedios_general,
-                         'municipality': municipios
+                         'dataset2': merged_df.to_dict(orient="records"),
+                         'dataset': general.to_dict(orient='records'),
+                         'availavility_average': promedios_general,
+                         'municipality': municipios,
+                         'hostids': hostids
                          })
 
 
