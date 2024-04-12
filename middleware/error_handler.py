@@ -12,4 +12,4 @@ class ErrorHandler(BaseHTTPMiddleware):
             return await call_next(request)
         except Exception as e:
             print(e)
-            return JSONResponse(status_code=500, content={'error': str(e), })
+            return JSONResponse(status_code=500, content={'detail': str(e), })
