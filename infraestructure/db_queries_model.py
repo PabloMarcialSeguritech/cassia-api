@@ -34,6 +34,11 @@ class DBQueries:
         from cassia_event_acknowledges cea group by eventid ) ceaa
         left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid"""
         self.stored_name_diagnostic_problems_origen_1 = 'sp_diagnostic_problems1'
+        self.stored_name_get_connectivity_data_by_device = "sp_connectivityHost"
+        self.query_statement_get_device_alineacion = """select DISTINCT device_id from metrics_template mt 
+        inner join metric_group mg on mg.group_id =mt.group_id 
+        where nickname ='Alineación'"""
+        self.stored_name_get_aligment_report_data_by_device = "sp_alignmentReport_Host"
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -174,3 +179,11 @@ left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgei
 left join cassia_diagnostic_problems_2 cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id 
 where cate.closed_at is NULL and cate.hostid in ({hostids})"""
         return self.query_statement_get_cassia_events_with_hosts_filter
+
+    def builder_query_statement_get_pertenencia_host_metric(self, hostid, metricid):
+        self.query_statement_get_pertenencia_host_metric = f"""select * from hosts h
+        inner join host_inventory hi 
+        on h.hostid =hi.hostid 
+        where hi.hostid ={hostid}
+        and hi.device_id ={metricid}"""
+        return self.query_statement_get_pertenencia_host_metric
