@@ -90,6 +90,17 @@ async def get_problems_filter(eventid: str = "34975081", is_cassia_event: int = 
 
 
 @alerts_router.get(
+    '/problems/acknowledge-antiguo/{eventid}',
+    tags=["Zabbix - Problems(Alerts) - Acknowledge"],
+    status_code=status.HTTP_200_OK,
+    summary="Get acknowledges of one event, Ex: 34975081",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_problems_filter(eventid: str = "34975081", is_cassia_event: int = Query(0)):
+    return await alerts_service.get_acks(eventid, is_cassia_event)
+
+
+@alerts_router.get(
     '/problems/tickets/{eventid}',
     tags=["Zabbix - Problems(Alerts) - Acknowledge - Tickets"],
     status_code=status.HTTP_200_OK,

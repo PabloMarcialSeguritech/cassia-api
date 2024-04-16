@@ -18,7 +18,7 @@ async def get_acknowledges(eventid, is_zabbix_event) -> pd.DataFrame:
         await db_model.start_connection()
         acknowledges_data = await db_model.run_stored_procedure(sp_get_acknowledges, (eventid, is_zabbix_event))
         acknowledges = pd.DataFrame(acknowledges_data).replace(np.nan, None)
-
+        acknowledges['tickets'] = ['' for ack in range(len(acknowledges))]
         return acknowledges
     except Exception as e:
         print(f"Excepcion en get_acknowledges: {e}")
