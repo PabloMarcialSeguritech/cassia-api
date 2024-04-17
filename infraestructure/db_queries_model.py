@@ -187,3 +187,19 @@ where cate.closed_at is NULL and cate.hostid in ({hostids})"""
         where hi.hostid ={hostid}
         and hi.device_id ={metricid}"""
         return self.query_statement_get_pertenencia_host_metric
+
+    def builder_query_statement_get_ci_element_by_id(self, element_id):
+        self.query_statement_get_ci_element_by_id = f"SELECT * FROM cassia_ci_element where element_id={element_id} limit 1"
+        return self.query_statement_get_ci_element_by_id
+
+    def builder_query_statement_get_ci_element_docs_by_id(self, element_id):
+        self.query_statement_get_ci_element_docs_by_id = f"SELECT * FROM cassia_ci_documents1 where element_id={element_id}"
+        return self.query_statement_get_ci_element_docs_by_id
+
+    def builder_query_statement_get_ci_element_doc_by_id(self, doc_id):
+        self.query_statement_get_ci_element_doc_by_id = f"SELECT * FROM cassia_ci_documents1 where doc_id={doc_id} limit 1"
+        return self.query_statement_get_ci_element_doc_by_id
+
+    def builder_query_statement_delete_ci_element_doc_by_id(self, doc_id):
+        self.query_statement_delete_ci_element_doc_by_id = f"DELETE FROM cassia_ci_documents1 where doc_id={doc_id}"
+        return self.query_statement_delete_ci_element_doc_by_id
