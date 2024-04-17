@@ -6,7 +6,8 @@ from schemas import cassia_ci_history_schema
 from schemas import cassia_ci_element_schema
 import numpy as np
 from utils.traits import success_response
-from fastapi import HTTPException, status
+from utils.traits import failure_response
+from fastapi import HTTPException, status, UploadFile, File
 from models.cassia_ci_element import CassiaCIElement
 from models.cassia_ci_relations import CassiaCIRelation
 from models.cassia_ci_history import CassiaCIHistory
@@ -19,6 +20,8 @@ from fastapi.responses import FileResponse
 import os
 import ntpath
 import shutil
+import starlette
+from infraestructure.cassia import cassia_ci_repository
 settings = Settings()
 abreviatura_estado = settings.abreviatura_estado
 
@@ -328,6 +331,16 @@ async def get_ci_element_docs(element_id):
     return success_response(data=docs)
 
 
+async def get_ci_element_docs_(element_id):
+    element = await cassia_ci_repository.get_ci_element(element_id)
+    if element.empty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="El elemento de configuracion(CI) no existe.")
+    docs = await cassia_ci_repository.get_ci_element_docs(element_id)
+
+    return success_response(data=docs.to_dict(orient='records'))
+
+
 async def upload_ci_element_docs(element_id, files):
     type_files = [file.content_type for file in files]
     if not check_pdf(type_files):
@@ -368,6 +381,25 @@ async def upload_ci_element_docs(element_id, files):
     return success_response(message="Archivos subidos correctamente")
 
 
+async def upload_ci_element_docs_(element_id, files):
+    element = await cassia_ci_repository.get_ci_element(element_id)
+    if element.empty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="El elemento de configuracion(CI) no existe")
+    for item in files:
+        if type(item) == starlette.datastructures.UploadFile:
+            if not check_pdf([item.content_type]):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Los archivos pueden ser solo tipo PDF")
+    for item in files:
+        if type(item) == starlette.datastructures.UploadFile:
+            await cassia_ci_repository.save_document(element['element_id'][0], item, True)
+        elif type(item) == str:
+            await cassia_ci_repository.save_document(element['element_id'][0], item, False)
+
+    return success_response(message="Archivos guardados correctamente")
+
+
 async def download_ci_element_doc(doc_id: str):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
@@ -392,6 +424,30 @@ async def download_ci_element_doc(doc_id: str):
     )
 
 
+async def download_ci_element_doc_(doc_id: str):
+    ci_document = await cassia_ci_repository.get_ci_element_doc_by_id(doc_id)
+    if ci_document.empty:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No existe el documento",
+        )
+    if int(ci_document['is_link'][0]) == 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El documento es de tipo enlace",
+        )
+    doc_path = ci_document['path'][0]
+    if os.path.exists(doc_path):
+        filename = ci_document['filename'][0]
+        return FileResponse(path=doc_path, filename=filename)
+
+    return success_response(
+        message="File not found",
+        success=False,
+        status_code=status.HTTP_404_NOT_FOUND
+    )
+
+
 async def delete_ci_element_doc(doc_id):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
@@ -408,6 +464,20 @@ async def delete_ci_element_doc(doc_id):
     session.delete(ci_document)
     session.commit()
     return success_response(message='Documento eliminado correctamente')
+
+
+async def delete_ci_element_doc_(doc_id):
+    ci_document = await cassia_ci_repository.get_ci_element_doc_by_id(doc_id)
+
+    if ci_document.empty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El documento no existe",
+        )
+    result = await cassia_ci_repository.delete_document(ci_document)
+    if result:
+        return success_response(message='Documento eliminado correctamente')
+    return success_response(message='Error al eliminar el documento')
 
 
 async def get_ci_element_history(element_id):
