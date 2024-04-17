@@ -3,7 +3,7 @@ from fastapi import Depends, status, Form, Body, File
 from services import auth_service2
 from schemas import cassia_ci_history_schema
 from schemas import cassia_ci_element_schema
-from typing import List, Optional
+from typing import List, Optional, Union
 import services.cassia.cis_service as cis_service
 from schemas import cassia_ci_mail
 cis_router = APIRouter(prefix="/ci_elements")
@@ -138,6 +138,17 @@ async def get_ci_element_docs(element_id: str):
     return await cis_service.get_ci_element_docs(element_id)
 
 
+@cis_router.get(
+    '/docs/v2/{element_id}',
+    tags=["Cassia - CI's Elements - Docs - V2"],
+    status_code=status.HTTP_200_OK,
+    summary="Get CIs element docs by id",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_ci_element_docs(element_id: str):
+    return await cis_service.get_ci_element_docs_(element_id)
+
+
 @cis_router.post(
     '/docs/{element_id}',
     tags=["Cassia - CI's Elements - Docs"],
@@ -147,6 +158,17 @@ async def get_ci_element_docs(element_id: str):
 )
 async def get_ci_element_relations(element_id: str, files: List[UploadFile]):
     return await cis_service.upload_ci_element_docs(element_id, files)
+
+
+@cis_router.post(
+    '/docs/v2/{element_id}',
+    tags=["Cassia - CI's Elements - Docs - V2"],
+    status_code=status.HTTP_200_OK,
+    summary="Upload files to a CIs element ",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_ci_element_relations(element_id: str, files: List[Union[UploadFile, str]]):
+    return await cis_service.upload_ci_element_docs_(element_id, files)
 
 
 @cis_router.get(
@@ -160,6 +182,17 @@ async def download_ci_element_doc(doc_id: str):
     return await cis_service.download_ci_element_doc(doc_id)
 
 
+@cis_router.get(
+    '/docs/download/v2/{doc_id}',
+    tags=["Cassia - CI's Elements - Docs - V2"],
+    status_code=status.HTTP_200_OK,
+    summary="Download CIs element doc by id",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def download_ci_element_doc(doc_id: str):
+    return await cis_service.download_ci_element_doc_(doc_id)
+
+
 @cis_router.delete(
     '/docs/{doc_id}',
     tags=["Cassia - CI's Elements - Docs"],
@@ -169,6 +202,17 @@ async def download_ci_element_doc(doc_id: str):
 )
 async def delete_ci_element_doc(doc_id: str):
     return await cis_service.delete_ci_element_doc(doc_id)
+
+
+@cis_router.delete(
+    '/docs/v2/{doc_id}',
+    tags=["Cassia - CI's Elements - Docs - V2"],
+    status_code=status.HTTP_200_OK,
+    summary="Delete CIs element doc by id",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def delete_ci_element_doc(doc_id: str):
+    return await cis_service.delete_ci_element_doc_(doc_id)
 
 
 @cis_router.get(
