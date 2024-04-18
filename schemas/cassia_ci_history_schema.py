@@ -35,6 +35,7 @@ class CiHistoryBase(BaseModel):
     """ created_at: datetime """
     closed_at: Optional[datetime]
     status: Optional[Literal['No iniciado', 'Cerrada', 'Cancelada']]
+    ticket: Optional[str]
 
 
 class CiHistory(CiHistoryBase):
