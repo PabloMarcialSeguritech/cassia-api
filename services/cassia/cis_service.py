@@ -70,17 +70,58 @@ async def get_ci_elements():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     query = text(f"""
-    select cce.element_id,cce.folio,cce.ip,h.name,cce.technology ,cce.device_name,
-cce.description,cce.referencia,his.hardware_brand,his.hardware_model,his.software_version,his.hardware_no_serie,
-cce.location, cce.criticality, cce.status, cce.status_conf, cct.tech_name from cassia_ci_element cce
-left join hosts h on h.hostid =cce.host_id
-left join cassia_ci_tech cct on cct.tech_id=cce.tech_id
-left join (
-SELECT cch.element_id, cch.hardware_brand,cch.hardware_model,cch.software_version,cch.hardware_no_serie from cassia_ci_history cch
-where cch.status="Cerrada" and cch.deleted_at is NULL
-order by closed_at desc limit 1
-) his on cce.element_id=his.element_id
-WHERE deleted_at is NULL
+    SELECT 
+    cce.element_id,
+    cce.folio,
+    cce.ip,
+    h.name,
+    cce.technology,
+    cce.device_name,
+    cce.description,
+    cce.referencia,
+    his.hardware_brand,
+    his.hardware_model,
+    his.software_version,
+    his.hardware_no_serie,
+    cce.location,
+    cce.criticality,
+    cce.status,
+    cce.status_conf,
+    cct.tech_name 
+FROM 
+    cassia_ci_element cce
+LEFT JOIN 
+    hosts h ON h.hostid = cce.host_id
+LEFT JOIN 
+    cassia_ci_tech cct ON cct.tech_id = cce.tech_id
+LEFT JOIN 
+    (
+        SELECT 
+            cch.element_id,
+            cch.hardware_brand,
+            cch.hardware_model,
+            cch.software_version,
+            cch.hardware_no_serie 
+        FROM 
+            (
+                SELECT 
+                    element_id,
+                    hardware_brand,
+                    hardware_model,
+                    software_version,
+                    hardware_no_serie,
+                    ROW_NUMBER() OVER (PARTITION BY element_id ORDER BY closed_at DESC) AS rn
+                FROM 
+                    cassia_ci_history
+                WHERE 
+                    status = "Cerrada" 
+                    AND deleted_at IS NULL
+            ) cch
+        WHERE 
+            rn = 1
+    ) his ON cce.element_id = his.element_id
+WHERE 
+    cce.deleted_at IS NULL
     """)
     results = pd.DataFrame(session.execute(query)).replace(np.nan, "")
 
