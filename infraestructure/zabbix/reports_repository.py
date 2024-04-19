@@ -207,3 +207,525 @@ async def get_alignment_by_device(hostid, init_date, end_date):
         )
     finally:
         await db_connection.close_connection()
+
+
+async def get_device_type_catalog():
+    db_connection = db.DB()
+    try:
+        sp_name_catalog_devices = db_queries_model.DBQueries().stored_name_catalog_devices_types
+        await db_connection.start_connection()
+
+        database_response = await db_connection.run_stored_procedure(sp_name_catalog_devices,
+                                                                     (0,))
+        data_df = pd.DataFrame(database_response)
+        return data_df
+
+    except Exception as e:
+        print(f"Excepcion en get_device_type_catalog {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion en get_device_type_catalog {e}"
+        )
+    finally:
+        await db_connection.close_connection()
+
+
+async def get_device_brand_catalog():
+    db_connection = db.DB()
+    try:
+        sp_name_catalog_devices_brand = db_queries_model.DBQueries(
+        ).stored_name_catalog_devices_brands
+        await db_connection.start_connection()
+        database_response = await db_connection.run_stored_procedure(sp_name_catalog_devices_brand,
+                                                                     (''))
+        data_df = pd.DataFrame(database_response)
+        return data_df
+
+    except Exception as e:
+        print(f"Excepcion en get_device_type_catalog {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion en get_device_type_catalog {e}"
+        )
+    finally:
+        await db_connection.close_connection()
+
+
+async def process_data_async(data, end_date, init_date, metric_name):
+    if not data.empty:
+
+        number = data['itemid'].nunique()
+        data = data.groupby(['time']).agg(
+            {'Avg_min': 'mean', 'num': 'mean'}).reset_index()
+        data['Avg_min'] = data['Avg_min'].apply(lambda x: x*100)
+        data = data[['time', 'num', 'Avg_min']]
+        diff = end_date-init_date
+        hours = diff.days*24 + diff.seconds//3600
+        data_range = "horas"
+        first = data['time'][0]
+        last = data['time'][len(data)-1]
+
+        if hours > 14400:
+            data = data.groupby(
+                [pd.to_datetime(data['time']).dt.floor('8640H').rename("date").dt.strftime('%Y')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True)
+            data_range = "años"
+        if hours >= 7200 and hours <= 14400:
+            data = data.groupby(
+                [pd.to_datetime(data['time']).dt.floor('720H').rename("date").dt.strftime('%Y-%m')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True)
+            data_range = "meses"
+        if hours > 3696 and hours < 7200:
+            data = data.groupby(
+                [pd.to_datetime(data['time']).dt.floor('360H').rename("date").dt.strftime('%Y-%m-%d')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True)
+            data_range = "quincenas"
+        if hours > 1680 and hours <= 3696:
+            data = data.groupby(
+                [pd.to_datetime(data['time']).dt.floor('168H').rename("date").dt.strftime('%Y-%m-%d')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True)
+            data_range = "semanas"
+        if hours > 240 and hours <= 1680:
+            data = data.groupby(
+                [pd.to_datetime(data['time']).dt.floor('24H').rename("date").dt.strftime('%Y-%m-%d')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True)
+            data_range = "dias"
+        if hours > 120 and hours <= 240:
+            data = data.groupby(
+                [pd.to_datetime(data['time']).dt.floor('12H').rename("date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True)
+            data_range = "medios dias"
+        if hours >= 1 and hours <= 3:
+
+            data = data.groupby(
+                [pd.to_datetime(data['time']).dt.floor('15min').rename("date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True)
+            data_range = "minutos"
+        if hours >= 0 and hours <= 1:
+            data = data.groupby(
+                [pd.to_datetime(data['time']).dt.floor('1min').rename("date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True)
+            data_range = "minutos"
+
+        tiempo = f"{len(data)} {data_range}"
+        dias = round(hours / 24, 6)
+        availability_avg = data.loc[:, 'Avg_min'].mean()
+        data.rename(columns={'Avg_min': metric_name,
+                             'time': 'Tiempo'}, inplace=True)
+        response = {
+            'data': data,
+            'number': number,
+            'dias': dias,
+            'data_range': data_range,
+            'tiempo': tiempo,
+            'first': first,
+            'last': last
+        }
+    else:
+        data = pd.DataFrame(
+            columns=['templateid', 'itemid', 'time', 'num', 'Avg_min'])
+        data.rename(columns={'Avg_min': metric_name,
+                             'time': 'Tiempo'}, inplace=True)
+        data = data.replace(np.nan, 0)
+        response = {
+            'data': data,
+            'number': 0,
+            'dias': 0,
+            'data_range': 0,
+            'tiempo': 0,
+            'first': 0,
+            'last': 0
+        }
+    return response
+
+
+async def process_conectvidad(vacios, no_vacios, init_date, end_date, proms, general, promedios_general, municipios, hostids, dias, dispositivos, data_range, tiempo, first, last, promedios):
+
+    if len(vacios) > 0 and len(no_vacios) == 0:
+        for vacio in vacios:
+            vacio['data'][f"{vacio['hostid']}"] = [0, 0]
+            vacio['data']["templateid"] = [0, 0]
+            vacio['data']["itemid"] = [0, 0]
+            vacio['data']['Tiempo'] = [init_date, end_date]
+            vacio['data']['num'] = [0, 0]
+
+        merged_df = vacios[0]['data']
+        ind1 = vacios[0]['index']
+
+        promedios.append(
+            {'index': ind1, 'data': merged_df.iloc[:, [4]].mean().values[0].round(2)})
+
+        proms.append({'index': ind1, 'data': [
+            merged_df.iloc[:, [4]].mean().values[0].round(2)]})
+        """ if len(vacios) <= 1:
+            merged_df.rename(
+                columns={'Disponibilidad': 'Disponibilidad_1', 'num': 'num_1'}, inplace=True) """
+
+        for df in vacios[1:]:
+            ind2 = df['index']
+            merged_df = pd.merge(merged_df, df['data'], on='Tiempo',
+                                 how='left', suffixes=[f'_{ind1}', f'_{ind2}'])
+
+            promedios.append(
+                {'index': ind2, 'data': df['data'].iloc[:, [4]].mean().values[0].round(2)})
+            proms.append(
+                {'index': df['index'], 'data': [df['data'].iloc[:, [4]].mean().values[0].round(2)]})
+            ind1 = ind2
+
+        promedios = sorted(promedios, key=lambda l: l['index'])
+        promedios = promedios[1:]
+        indices = [promedio['index'] for promedio in promedios]
+        promedios = [promedio['data'] for promedio in promedios]
+        merged_df = merged_df.replace(np.nan, 0).drop(
+            columns=['Avg_min', 'num_0'])
+        metrics = {'metric_name': "Conectividad",
+                   'indices': indices,
+                   'availability_average': [0 for vacios in range(len(vacios))],
+                   'days': [0 for vacios in range(len(vacios))],
+                   'device_count': [0 for vacios in range(len(vacios))],
+                   'data_range': [0 for vacios in range(len(vacios))],
+                   'time': [0 for vacios in range(len(vacios))],
+                   'first_data': [0 for vacios in range(len(vacios))],
+                   'last_data': [0 for vacios in range(len(vacios))],
+                   'dataset': merged_df.to_dict(orient="records"),
+                   'dataset2': general.to_dict(orient='records'),
+                   'availavility_average2': promedios_general,
+                   'municipality': municipios,
+                   'hostids': hostids}
+
+    if len(no_vacios) > 0 and len(vacios) > 0:
+
+        no_vacios = sorted(
+            no_vacios, key=lambda x: len(x['data']), reverse=True)
+        mayor = no_vacios[0]['data']
+
+        for vacio in vacios:
+            vacio['data'] = await procesar_vacio_device(
+                vacio['data'], mayor, vacio['hostid'])
+        merged_df = no_vacios[0]['data']
+        """ ind = 1 """
+        ind1 = no_vacios[0]['index']
+        promedios.append(
+            {'index': ind1, 'data': merged_df.iloc[:, [2]].mean().values[0].round(2)})
+        proms.append({'index': ind1, 'data': [
+            merged_df.iloc[:, 2].mean().values[0].round(2)]})
+        for df in no_vacios[1:]:
+            ind2 = df['index']
+            merged_df = pd.merge(merged_df, df['data'], on='Tiempo',
+                                 how='left', suffixes=[f'_{ind1}', f'_{ind2}']).replace(np.nan, 0)
+            """ merged_df = pd.merge(merged_df, df['data'], on='Tiempo',
+                                 how='left', suffixes=[f'_{ind1}', f'_{ind2}']).rename(columns={'Disponibilidad': f'Disponibilidad_{ind2}'}).replace(np.nan, 0)
+             """
+            promedios.append(
+                {'index': ind2, 'data': df['data'].iloc[:, [2]].mean().values[0].round(2)})
+            proms.append(
+                {'index': df['index'], 'data': [df['data'].iloc[:, [2]].mean().values[0].round(2)]})
+            ind1 = ind2
+        for df in vacios:
+            ind2 = df['index']
+            merged_df = pd.merge(merged_df, df['data'], on='Tiempo',
+                                 how='left', suffixes=[f'_{ind1}', f'_{ind2}'])
+            """ merged_df = pd.merge(merged_df, df['data'], on='Tiempo',
+                                 how='inner', suffixes=[f'_{ind1}', f'_{ind2}']).rename(columns={'Disponibilidad': f'Disponibilidad_{ind2}'}) """
+            promedios.append(
+                {'index': ind2, 'data': df['data'].iloc[:, [4]].mean().values[0].round(2)})
+            proms.append(
+                {'index': df['index'], 'data': [df['data'].iloc[:, [4]].mean().values[0].round(2)]})
+            ind1 = ind2
+        if len(vacios)+len(no_vacios) <= 1:
+            """ merged_df.rename(
+                columns={'Disponibilidad': 'Disponibilidad_1', 'num': 'num_1'}, inplace=True) """
+        """ print("qaui") """
+        promedios = sorted(promedios, key=lambda l: l['index'])
+        promedios = promedios[1:]
+        indices = [promedio['index'] for promedio in promedios]
+        promedios = [promedio['data'] for promedio in promedios]
+        merged_df = merged_df.replace(np.nan, 0).drop(
+            columns=['Avg_min', 'num_0'])
+        """ print(promedios)
+
+        print(indices) """
+        metrics = {'metric_name': "Conectividad",
+                   'indices': indices,
+                   'availability_average': promedios,
+                   'days': dias,
+                   'device_count': dispositivos,
+                   'data_range': data_range,
+                   'time': tiempo,
+                   'first_data': first,
+                   'last_data': last,
+                   'dataset': merged_df.to_dict(orient="records"),
+                   'dataset2': general.to_dict(orient='records'),
+                   'availavility_average2': promedios_general,
+                   'municipality': municipios,
+                   'hostids': hostids,
+                   }
+
+    if len(no_vacios) > 0 and len(vacios) == 0:
+        """ print(no_vacios) """
+        no_vacios = sorted(
+            no_vacios, key=lambda x: len(x['data']), reverse=True)
+
+        mayor = no_vacios[0]['data']
+
+        """  print(no_vacios) """
+        merged_df = no_vacios[0]['data']
+        ind1 = no_vacios[0]['index']
+
+        promedios.append(
+            {'index': ind1, 'data': merged_df.iloc[:, [2]].mean().values[0].round(2)})
+        proms.append({'index': ind1, 'data': [
+            merged_df.iloc[:, [2]].mean().values[0].round(2)]})
+        for df in no_vacios[1:]:
+            ind2 = df['index']
+
+            merged_df = pd.merge(merged_df, df['data'], on='Tiempo',
+                                 how='left', suffixes=[f'_{ind1}', f'_{ind2}']).replace(np.nan, 0)
+            """ merged_df = pd.merge(merged_df, df['data'], on='Tiempo',
+                                 how='left', suffixes=[f'_{ind1}', f'_{ind2}']).rename(columns={'Disponibilidad': f'Disponibilidad_{ind2}'}).replace(np.nan, 0) """
+
+            promedios.append(
+                {'index': ind2, 'data': df['data'].iloc[:, [2]].mean().values[0].round(2)})
+            proms.append(
+                {'index': df['index'], 'data': [df['data'].iloc[:, [2]].mean().values[0].round(2)]})
+            ind1 = ind2
+        if len(no_vacios) <= 1:
+            """ merged_df.rename(
+                columns={'Disponibilidad': 'Disponibilidad_1', 'num': 'num_1'}, inplace=True) """
+        """ print(proms) """
+        promedios = sorted(promedios, key=lambda l: l['index'])
+        promedios = promedios[1:]
+        indices = [promedio['index'] for promedio in promedios]
+        promedios = [promedio['data'] for promedio in promedios]
+        merged_df = merged_df.replace(np.nan, 0).drop(
+            columns=['Avg_min', 'num_0'])
+        metrics = {'metric_name': "Conectividad",
+                   'indices': indices,
+                   'availability_average': promedios,
+                   'days': dias,
+                   'device_count': dispositivos,
+                   'data_range': data_range,
+                   'time': tiempo,
+                   'first_data': first,
+                   'last_data': last,
+                   'dataset': merged_df.to_dict(orient="records"),
+                   'dataset2': general.to_dict(orient='records'),
+                   'availavility_average2': promedios_general,
+                   'municipality': municipios,
+                   'hostids': hostids,
+                   }
+    return metrics
+
+
+async def procesar_vacio_device(vacio, mayor, hostid):
+
+    vacio['Tiempo'] = [mayor['Tiempo'][ind] for ind in mayor.index]
+    vacio['num'] = [0 for ind in range(len(mayor))]
+    vacio[f'Disponibilidad_{hostid}'] = [0 for ind in range(len(mayor))]
+    vacio = vacio.replace(np.nan, 0)
+
+    return vacio
+
+
+async def process_alineacion(vacios, no_vacios, init_date, end_date, proms, general, promedios_general, municipios, hostids, dias, dispositivos, data_range, tiempo, first, last, metricas, promedios):
+    if len(vacios) > 0 and len(no_vacios) == 0:
+
+        for vacio in vacios:
+            vacio['data'][f"{vacio['hostid']}"] = [0, 0]
+            vacio['data']["templateid"] = [0, 0]
+            vacio['data']["itemid"] = [0, 0]
+            vacio['data']['Tiempo'] = [init_date, end_date]
+            vacio['data']['num'] = [0, 0]
+
+        merged_df = vacios[0]['data']
+
+        ind1 = vacios[0]['index']
+        promedios.append(
+            {'index': ind1, 'data': merged_df.iloc[:, [4]].mean().values[0].round(2)})
+        proms.append({'index': ind1, 'data': [
+            merged_df.iloc[:, [4]].mean().values[0].round(2)]})
+        """ if len(vacios) <= 1:
+            merged_df.rename(
+                columns={'Disponibilidad': 'Disponibilidad_1', 'num': 'num_1'}, inplace=True) """
+
+        for df in vacios[1:]:
+            ind2 = df['index']
+            merged_df = pd.merge(merged_df, df['data'], on='Tiempo',
+                                 how='left', suffixes=[f'_{ind1}', f'_{ind2}'])
+
+            promedios.append(
+                {'index': ind2, 'data': df['data'].iloc[:, [4]].mean().values[0].round(2)})
+            proms.append(
+                {'index': df['index'], 'data': [df['data'].iloc[:, [4]].mean().values[0].round(2)]})
+            ind1 = ind2
+
+        promedios = sorted(promedios, key=lambda l: l['index'])
+        promedios = promedios[1:]
+        indices = [promedio['index'] for promedio in promedios]
+        promedios = [promedio['data'] for promedio in promedios]
+        merged_df = merged_df.replace(np.nan, 0).drop(
+            columns=['Avg_min', 'num_0'])
+
+        metricas.append({'metric_name': "Alineacion",
+                         'indices': indices,
+                        'availability_average': [0 for vacios in range(len(vacios))],
+                         'days': [0 for vacios in range(len(vacios))],
+                         'device_count': [0 for vacios in range(len(vacios))],
+                         'data_range': [0 for vacios in range(len(vacios))],
+                         'time': [0 for vacios in range(len(vacios))],
+                         'first_data': [0 for vacios in range(len(vacios))],
+                         'last_data': [0 for vacios in range(len(vacios))],
+                         'dataset': merged_df.to_dict(orient="records"),
+                         'dataset2': general.to_dict(orient='records'),
+                         'availavility_average2': promedios_general,
+                         'municipality': municipios,
+                         'hostids': hostids
+                         })
+
+    if len(no_vacios) > 0 and len(vacios) > 0:
+
+        no_vacios = sorted(
+            no_vacios, key=lambda x: len(x['data']), reverse=True)
+
+        mayor = no_vacios[0]['data']
+
+        for vacio in vacios:
+            vacio['data'] = await procesar_vacio_alineacion_device(
+                vacio['data'], mayor, vacio['hostid'])
+
+        merged_df = no_vacios[0]['data']
+
+        ind1 = no_vacios[0]['index']
+        promedios.append(
+            {'index': ind1, 'data': merged_df.iloc[:, [2]].mean().values[0].round(2)})
+        proms_index = await get_index(proms, 'index', ind1)
+        proms[proms_index]['data'].append(
+            merged_df.iloc[:, [2]].mean().values[0].round(2))
+        for df in no_vacios[1:]:
+            ind2 = df['index']
+            merged_df = pd.merge(merged_df, df['data'], on='Tiempo',
+                                 how='left', suffixes=[f'_{ind1}', f'_{ind2}'])
+            """ merged_df = pd.merge(merged_df, df['data'], on='Tiempo',
+                                 how='left', suffixes=[f'_{ind1}', f'_{ind2}']).rename(columns={'Disponibilidad': f'Disponibilidad_{ind2}'}) """
+            promedios.append(
+                {'index': ind2, 'data': df['data'].iloc[:, [2]].mean().values[0].round(2)})
+            proms_index = await get_index(proms, 'index', df['index'])
+            proms[proms_index]['data'].append(
+                df['data'].iloc[:, [2]].mean().values[0].round(2))
+            ind1 = ind2
+        for df in vacios:
+            ind2 = df['index']
+            merged_df = pd.merge(merged_df, df['data'], on='Tiempo',
+                                 how='left', suffixes=[f'_{ind1}', f'_{ind2}'])
+            """ merged_df = pd.merge(merged_df, df['data'], on='Tiempo',
+                                 how='left', suffixes=[f'_{ind1}', f'_{ind2}']).rename(columns={'Disponibilidad': f'Disponibilidad_{ind2}'}) """
+            promedios.append(
+                {'index': ind2, 'data': df['data'].iloc[:, [4]].mean().values[0].round(2)})
+            proms_index = await get_index(proms, 'index', df['index'])
+            proms[proms_index]['data'].append(
+                df['data'].iloc[:, [4]].mean().values[0].round(2))
+            ind1 = ind2
+        if len(vacios)+len(no_vacios) <= 1:
+            """ merged_df.rename(
+                columns={'Disponibilidad': 'Disponibilidad_1', 'num': 'num_1'}, inplace=True) """
+        promedios = sorted(promedios, key=lambda l: l['index'])
+        promedios = promedios[1:]
+        indices = [promedio['index'] for promedio in promedios]
+        promedios = [promedio['data'] for promedio in promedios]
+        merged_df = merged_df.replace(np.nan, 0).drop(
+            columns=['Avg_min', 'num_0'])
+        metricas.append({'metric_name': "Alineacion",
+                         'indices': indices,
+                        'availability_average': promedios,
+                         'days': dias,
+                         'device_count': dispositivos,
+                         'data_range': data_range,
+                         'time': tiempo,
+                         'first_data': first,
+                         'last_data': last,
+                         'dataset': merged_df.to_dict(orient="records"),
+                         'dataset2': general.to_dict(orient='records'),
+                         'availavility_average2': promedios_general,
+                         'municipality': municipios,
+                         'hostids': hostids
+                         })
+
+    if len(no_vacios) > 0 and len(vacios) == 0:
+
+        no_vacios = sorted(
+            no_vacios, key=lambda x: len(x['data']), reverse=True)
+
+        mayor = no_vacios[0]['data']
+
+        merged_df = no_vacios[0]['data']
+        ind1 = no_vacios[0]['index']
+
+        promedios.append(
+            {'index': ind1, 'data': merged_df.iloc[:, [2]].mean().values[0].round(2)})
+        proms_index = await get_index(proms, 'index', ind1)
+
+        proms[proms_index]['data'].append(
+            merged_df.iloc[:, [2]].mean().values[0].round(2))
+        for df in no_vacios[1:]:
+
+            ind2 = df['index']
+
+            merged_df = pd.merge(merged_df, df['data'], on='Tiempo',
+                                 how='left', suffixes=[f'_{ind1}', f'_{ind2}'])
+            """ merged_df = pd.merge(merged_df, df['data'], on='Tiempo',
+                                 how='inner', suffixes=[f'_{ind1}', f'_{ind2}']).rename(columns={'Disponibilidad': f'Disponibilidad_{ind2}'}) """
+
+            promedios.append(
+                {'index': ind2, 'data': df['data'].iloc[:, [2]].mean().values[0].round(2)})
+            proms_index = await get_index(proms, 'index', df['index'])
+            proms[proms_index]['data'].append(
+                df['data'].iloc[:, [2]].mean().values[0].round(2))
+            ind1 = ind2
+        if len(no_vacios) <= 1:
+            """ merged_df.rename(
+                columns={'Disponibilidad': 'Disponibilidad_1', 'num': 'num_1'}, inplace=True) """
+        promedios = sorted(promedios, key=lambda l: l['index'])
+        promedios = promedios[1:]
+        indices = [promedio['index'] for promedio in promedios]
+        promedios = [promedio['data'] for promedio in promedios]
+
+        merged_df = merged_df.replace(np.nan, 0).drop(
+            columns=['Avg_min', 'num_0'])
+        metricas.append({'metric_name': "Alineacion",
+                        'indices': indices,
+                         'availability_average': promedios,
+                         'days': dias,
+                         'device_count': dispositivos,
+                         'data_range': data_range,
+                         'time': tiempo,
+                         'first_data': first,
+                         'last_data': last,
+                         'dataset': merged_df.to_dict(orient="records"),
+                         'dataset2': general.to_dict(orient='records'),
+                         'availavility_average2': promedios_general,
+                         'municipality': municipios,
+                         'hostids': hostids
+                         })
+
+
+async def procesar_vacio_alineacion_device(vacio, mayor, hostid):
+    vacio['Tiempo'] = [mayor['Tiempo'][ind] for ind in mayor.index]
+    """ print(vacio, "Si es este") """
+    vacio['num'] = [0 for ind in range(len(mayor))]
+    vacio[f'Alineacion_{hostid}'] = [0 for ind in range(len(mayor))]
+    vacio["templateid"] = [0 for ind in range(len(mayor))]
+    vacio["itemid"] = [0 for ind in range(len(mayor))]
+    vacio = vacio.replace(np.nan, 0)
+    return vacio
+
+
+async def get_index(lst, key, value):
+    return next((index for (index, d) in enumerate(lst) if d[key] == value), None)
