@@ -92,3 +92,10 @@ class HostServiceTest(unittest.TestCase):
 
         self.loop.run_until_complete(async_test())
 
+    def test_decrypt(self):
+        print("> Entrando test_decrypt <")
+        usr = hosts_service.decrypt("gAAAAABlng4ilw3Qquxn01ObVFvaeHblTBtjnSvd583sJxwIUqT0JBPwdtoz4zJa3Ba0sXBsoeTkJQc5qcbXIxGfp7YaLcnObA==",settings.ssh_key_gen)
+        print("usr:", usr)
+        passwd = hosts_service.decrypt("gAAAAABlng4iVemaayFosx5KwZOBBhyk2VQkI8nsJdSxoPVCURYgYLyBEVlFHBixeUZ0RmnfJEqt7K_M2IjmEW2kk_kReHH34A==", settings.ssh_key_gen)
+        print("pwd:", passwd)
+

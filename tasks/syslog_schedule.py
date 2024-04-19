@@ -17,6 +17,7 @@ syslog_schedule = Grouper()
 SETTINGS = Settings()
 syslog = SETTINGS.cassia_syslog
 traffic_syslog = SETTINGS.cassia_traffic_syslog
+traffic_syslog_close = SETTINGS.cassia_traffic_syslog_close
 
 
 @syslog_schedule.cond('syslog')
@@ -27,6 +28,11 @@ def is_syslog():
 @syslog_schedule.cond('traffic_syslog')
 def is_traffic_syslog():
     return traffic_syslog
+
+
+@syslog_schedule.cond('traffic_syslog_close')
+def is_traffic_syslog_close():
+    return traffic_syslog_close
 
 
 @syslog_schedule.task(("every 30 seconds & syslog"), execution="thread")
@@ -250,91 +256,30 @@ where hi.device_id=1""")
             session.commit()
 
 
-@syslog_schedule.task(("every 60 seconds & traffic_syslog"), execution="thread")
+@syslog_schedule.task(("every 60 seconds & traffic_syslog_close"), execution="thread")
 async def trigger_alerts_lpr_close():
     with DB_Zabbix().Session() as session:
-        db_zabbix = DB_Zabbix()
-        session = db_zabbix.Session()
-        lpr_id = session.query(CassiaConfig).filter(
+        lpr_config = session.query(CassiaConfig).filter(
             CassiaConfig.name == "lpr_id").first()
-        lpr_id = "1" if not lpr_id else lpr_id.value
-        statement = text(f"""
-        select date from cassia_arch_traffic_lpr order by date desc limit 1 
-    """)
-        last_date = pd.DataFrame(session.execute(statement))
-
-        if not last_date.empty:
-            last_date = last_date['date'].iloc[0]
-        else:
-            last_date = datetime.now(pytz.timezone(
-                'America/Mexico_City'))
-        rangos = [60, 45, 30, 20]
-        alerts_defined = []
-        alertas = pd.DataFrame()
-        lprs = text(f"""SELECT h.hostid ,h.host as name,hi.location_lat as latitude,hi.location_lon as longitude,
-i.ip, cm.name as municipality FROM hosts h 
-INNER JOIN host_inventory hi  on h.hostid=hi.hostid 
-inner join interface i on h.hostid =i.hostid
-INNER JOIN hosts_groups hg on h.hostid= hg.hostid 
-inner join cat_municipality cm on hg.groupid =cm.groupid 
-where hi.device_id=1""")
-        lprs = pd.DataFrame(session.execute(lprs)).replace(np.nan, "")
-
-        for rango in rangos:
-            statement = text(f"""
-               select date from cassia_arch_traffic_lpr order by date asc limit 1 
-           """)
-            first_date = pd.DataFrame(session.execute(statement))
-
-            if not first_date.empty:
-                first_date = first_date['date'].iloc[0]
-            else:
-                first_date = datetime.now(pytz.timezone(
-                    'America/Mexico_City'))
-            minutes = (last_date-first_date).total_seconds()/60.0
-            if minutes >= rango:
-                date = last_date - timedelta(minutes=rango)
-
-                statement2 = text(f"""
-                   SELECT hostid FROM cassia_arch_traffic_lpr where date between
-                   '{date}' and '{last_date}'   
-               """)
-                result = pd.DataFrame(session.execute(statement2))
-                result = result.drop_duplicates(subset=['hostid'])
-                hosts = []
-                if not result.empty:
-                    hosts = result['hostid'].to_list()
-                result_alert = lprs[~lprs['hostid'].isin(hosts)]
-                result_alert = result_alert[~result_alert['hostid'].isin(
-                    alerts_defined)]
-                alerts_defined = alerts_defined + \
-                    result_alert['hostid'].values.tolist()
-
-                result_alert['alerta'] = [
-                    f"Este host no ha tenido lecturas por más de " for i in range(len(result_alert))]
-                result_alert['severidad'] = [1 if rango == 20 else 2 if rango ==
-                                             30 else 3 if rango == 45 else 4 for i in range(len(result_alert))]
-
-                alertas = pd.concat([alertas, result_alert], ignore_index=True)
-        """ print(alertas.to_string()) """
-        abiertos = text(f"""SELECT cassia_arch_traffic_events_id,hostid FROM 
+        lpr_id = "1"
+        if lpr_config:
+            lpr_id = lpr_config.value
+        ping_loss_message = session.query(CassiaConfig).filter(
+            CassiaConfig.name == "ping_loss_message").first()
+        ping_loss_message = ping_loss_message.value if ping_loss_message else "Unavailable by ICMP ping"
+        a_cerrar = text(f"""SELECT * FROM 
                         cassia_arch_traffic_events
                         where closed_at is NULL
                         and tech_id='{lpr_id}'
                         and alert_type='lpr'
-                        and message!='Unavailable by ICMP ping'
-                        """)
-        abiertos = pd.DataFrame(session.execute(abiertos))
-        """ print(abiertos)
-        print(alertas) """
-        """ print(abiertos.to_string()) """
-        if not abiertos.empty:
-            a_cerrar = abiertos[~abiertos['hostid'].isin(
-                alertas['hostid'].values.tolist())]
-
-            ids = ','.join(['0']+[str(v)
-                           for v in a_cerrar['cassia_arch_traffic_events_id'].values.tolist()])
-
+                        and message!='{ping_loss_message}'
+                        and hostid in (
+                        SELECT DISTINCT hostid FROM cassia_arch_traffic_lpr where readings>0)""")
+        a_cerrar = pd.DataFrame(session.execute(a_cerrar)).replace(np.nan, '')
+        ids = [0]
+        if not a_cerrar.empty:
+            ids = a_cerrar['cassia_arch_traffic_events_id'].astype(
+                'int').to_list()
             statement = text(f"""
             UPDATE cassia_arch_traffic_events
             set closed_at='{datetime.now(pytz.timezone(
@@ -343,9 +288,8 @@ where hi.device_id=1""")
                 'America/Mexico_City'))}',
             status='Cerrada automaticamente'
             where cassia_arch_traffic_events_id
-            in ({ids})
-            and message!='Unavailable by ICMP ping'
-            and alert_type='lpr'
+            in :ids
             """)
-            session.execute(statement)
+
+            session.execute(statement, params={'ids': ids})
             session.commit()

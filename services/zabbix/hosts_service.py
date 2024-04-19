@@ -22,15 +22,20 @@ import json
 import re
 import time
 from pythonping import ping
+from services.zabbix import hosts_service_
+from infraestructure.zabbix import AlertsRepository
 
 settings = Settings()
 
 
-def get_host_filter(municipalityId, dispId, subtype_id):
+async def get_host_filter(municipalityId, dispId, subtype_id):
+
     if subtype_id == "0":
         subtype_id = ""
     if dispId == "0":
         dispId = ""
+    if dispId == "-1":
+        dispId = ''
 
     print(subtype_id)
 
@@ -137,7 +142,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         alertas_rfid = pd.DataFrame([(
             r.severity,
         ) for r in alertas_rfid], columns=['severity'])
-        print(alertas_rfid.to_string())
+        """ print(alertas_rfid.to_string()) """
         alertas_rfid = alertas_rfid.groupby(
             ['severity'])['severity'].count().rename_axis('Severities').reset_index()
         alertas_rfid.rename(
@@ -149,7 +154,22 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     statement4 = text(
         f"call sp_hostAvailPingLoss('{municipalityId}','{dispId}','')")
     hostAvailables = session.execute(statement4)
+    print(statement4)
     data4 = pd.DataFrame(hostAvailables).replace(np.nan, "")
+    """ dependientes = text(
+        f"call sp_diagnostic_problemsD('{municipalityId}','{dispId}')")
+    dependientes = pd.DataFrame(
+        session.execute(dependientes)).replace(np.nan, '') """
+    downs_filtro = await downs_count(municipalityId, dispId, subtype_id, session)
+    if not data4.empty:
+        print(data4)
+        if data4['Down'][0] is None:
+            downs_totales = 0
+        else:
+            downs_totales = int(data4['Down'][0])
+        origenes = len(downs_filtro)
+        data4['Downs_origen'] = origenes
+
     data2 = pd.DataFrame(corelations)
     data2 = data2.replace(np.nan, "")
     # aditional data
@@ -162,7 +182,7 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     if switch_troughtput:
         statement6 = text(
             f"call sp_switchThroughtput('{municipalityId}','{switch_id}','{metric_switch_val}')")
-        print(statement6)
+        """ print(statement6) """
     if statement6 != "":
         subgroup_data = session.execute(statement6)
     data6 = pd.DataFrame(subgroup_data).replace(np.nan, "")
@@ -171,6 +191,17 @@ def get_host_filter(municipalityId, dispId, subtype_id):
         f"call sp_hostAvailPingLoss('0','{dispId}','')")
     global_host_available = pd.DataFrame(
         session.execute(global_host_available))
+    dependientes_global = text(f"call sp_diagnostic_problemsD('0','{dispId}')")
+    dependientes_global = pd.DataFrame(
+        session.execute(dependientes_global)).replace(np.nan, '')
+    downs_global = await downs_count(0, dispId, '', session)
+    if not global_host_available.empty:
+        downs_totales = int(global_host_available['Down'][0])
+        origenes = len(downs_global)
+        global_host_available['Downs_origen'] = origenes
+        """ global_host_available['Downs_dependientes'] = dependientes_conteo """
+    """ print(global_host_available.to_string()) """
+
     session.close()
     response = {"hosts": data.to_dict(
         orient="records"), "relations": data2.to_dict(orient="records"),
@@ -181,6 +212,192 @@ def get_host_filter(municipalityId, dispId, subtype_id):
     }
     # print(response)
     return success_response(data=response)
+
+
+async def downs_count(municipalityId, dispId, subtype, session):
+    severities = "6"
+    if subtype == "0":
+        subtype = ""
+
+    rfid_config = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "rfid_id").first()
+    rfid_id = "9"
+    if rfid_config:
+        rfid_id = rfid_config.value
+    lpr_config = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "lpr_id").first()
+    lpr_id = "1"
+    if lpr_config:
+        lpr_id = lpr_config.value
+    if subtype == "376276" or subtype == "375090":
+        subtype = '376276,375090'
+    """ if tech_host_type == "11":
+        tech_host_type = "11,2" """
+    """ if subtype != "" and tech_host_type == "":
+        tech_host_type = "0" """
+    switch_config = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "switch_id").first()
+    switch_id = "12"
+
+    if switch_config:
+        switch_id = switch_config.value
+
+    metric_switch_val = "Interface Bridge-Aggregation_: Bits"
+    metric_switch = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "switch_throughtput").first()
+    if metric_switch:
+        metric_switch_val = metric_switch.value
+    if subtype == metric_switch_val:
+        subtype = ""
+    statement = text(
+        f"call sp_viewProblem('{municipalityId}','{dispId}','{subtype}','')")
+
+    problems = session.execute(statement)
+    data = pd.DataFrame(problems).replace(np.nan, "")
+    ping_loss_message = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "ping_loss_message").first()
+    ping_loss_message = ping_loss_message.value if ping_loss_message else "Unavailable by ICMP ping"
+    if not data.empty:
+        data['tipo'] = [0 for i in range(len(data))]
+        data.loc[data['Problem'] ==
+                 ping_loss_message, 'tipo'] = 1
+        data['local'] = [0 for i in range(len(data))]
+        data['dependents'] = [0 for i in range(len(data))]
+        data['alert_type'] = ["" for i in range(len(data))]
+
+    downs_origen = text(
+        f"""call sp_diagnostic_problems1('{municipalityId}','{dispId}')""")
+    downs_origen = pd.DataFrame(session.execute(downs_origen))
+    if not downs_origen.empty:
+        """ data['tipo'] = [0 for i in range(len(data))]
+        data.loc[data['hostid'].astype(int).isin(
+            downs_origen['hostid'].tolist()), 'tipo'] = 1
+        data['local'] = [0 for i in range(len(data))]
+        data.loc[data['hostid'].astype(int).isin(
+            downs_origen['hostid'].tolist()), 'local'] = 0
+        data['dependents'] = [0 for i in range(len(data))] """
+        data_problems = text(
+            """select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message from cassia_arch_traffic_events_2 cate
+left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
+from cassia_event_acknowledges cea group by eventid ) as ceaa
+on  cate.cassia_arch_traffic_events_id=ceaa.eventid
+left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
+left join cassia_diagnostic_problems_2 cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id 
+where cate.closed_at is NULL and cate.hostid in :hostids""")
+        """select cate.*,cdp.dependents  from cassia_arch_traffic_events cate
+left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
+where cate.closed_at is NULL and cate.hostid in :hostids """
+        """ print(data_problems) """
+        data_problems = pd.DataFrame(session.execute(
+            data_problems, {'hostids': downs_origen['hostid'].tolist()})).replace(np.nan, 0)
+
+        if not data_problems.empty:
+            """ data_problems['TimeRecovery'] = [
+                '' for i in range(len(data_problems))] """
+            data_problems['r_eventid'] = [
+                '' for i in range(len(data_problems))]
+            data_problems['Ack'] = [0 for i in range(len(data_problems))]
+            """ data_problems['Ack_message'] = [
+                '' for i in range(len(data_problems))] """
+            data_problems['manual_close'] = [
+                0 for i in range(len(data_problems))]
+            data_problems['dependents'] = [
+                0 for i in range(len(data_problems))]
+            data_problems['local'] = [
+                1 for i in range(len(data_problems))]
+            data_problems['tipo'] = [
+                1 for i in range(len(data_problems))]
+            data_problems.drop(columns={'updated_at', 'tech_id'}, inplace=True)
+            data_problems['created_at'] = pd.to_datetime(
+                data_problems['created_at'])
+            data_problems["created_at"] = data_problems['created_at'].dt.strftime(
+                '%d/%m/%Y %H:%M:%S')
+            data_problems.rename(columns={
+                'created_at': 'Time',
+                'closed_at': 'TimeRecovery',
+                'hostname': 'Host',
+                'message': 'Problem',
+                'status': 'Estatus',
+                'cassia_arch_traffic_events_id': 'eventid',
+            }, inplace=True)
+
+            if severities != "":
+                severities = severities.split(',')
+                severities = [int(severity) for severity in severities]
+            else:
+                severities = [1, 2, 3, 4, 5, 6]
+            if 6 in severities:
+                downs = data_problems[data_problems['Problem']
+                                      == ping_loss_message]
+            data_problems = data_problems[data_problems['severity'].isin(
+                severities)]
+            if 6 in severities:
+                data_problems = pd.concat([data_problems, downs],
+                                          ignore_index=True).replace(np.nan, "")
+
+            data = pd.concat([data_problems, data],
+                             ignore_index=True).replace(np.nan, "")
+    dependientes_filtro = text(
+        f"call sp_diagnostic_problemsD('{municipalityId}','{dispId}')")
+    dependientes_filtro = pd.DataFrame(
+        session.execute(dependientes_filtro)).replace(np.nan, '')
+    """ host = dependientes_filtro[dependientes_filtro['hostid'] == 16143]
+        print(host.to_string())
+        print(dependientes_filtro) """
+    if not dependientes_filtro.empty:
+        indexes = data[data['Problem'] == ping_loss_message]
+        indexes = indexes[indexes['hostid'].isin(
+            dependientes_filtro['hostid'].to_list())]
+        data.loc[data.index.isin(indexes.index.to_list()), 'tipo'] = 0
+
+    sincronizados_totales = text("""select * from cassia_diagnostic_problems_2 cdp 
+where cdp.closed_at is NULL""")
+
+    sincronizados_totales = pd.DataFrame(
+        session.execute(sincronizados_totales)).replace(np.nan, 0)
+    if not sincronizados_totales.empty:
+        if not data.empty:
+            for ind in data.index:
+                if data['Problem'][ind] == ping_loss_message:
+                    dependientes = sincronizados_totales[sincronizados_totales['hostid_origen']
+                                                         == data['hostid'][ind]]
+                    """ print(dependientes) """
+                    dependientes['depends_hostid'] = dependientes['depends_hostid'].astype(
+                        'int')
+                    dependientes = dependientes[dependientes['depends_hostid'] != 0]
+                    dependientes = dependientes.drop_duplicates(
+                        subset=['depends_hostid'])
+                    data.loc[data.index == ind,
+                             'dependents'] = len(dependientes)
+
+    if not data.empty:
+        now = datetime.now(pytz.timezone('America/Mexico_City'))
+        data['fecha'] = pd.to_datetime(data['Time'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
+            pytz.timezone('America/Mexico_City'))
+        data['diferencia'] = now-data['fecha']
+        data['dias'] = data['diferencia'].dt.days
+        data['horas'] = data['diferencia'].dt.components.hours
+        data['minutos'] = data['diferencia'].dt.components.minutes
+        """ print(data['diferencia']) """
+        data.loc[data['alert_type'].isin(
+            ['rfid', 'lpr']), 'Problem'] = data.loc[data['alert_type'].isin(['rfid', 'lpr']), ['dias', 'horas', 'minutos']].apply(lambda x:
+                                                                                                                                  f"Este host no ha tenido lecturas por más de {x['dias']} dias {x['horas']} hrs {x['minutos']} min" if x['dias'] > 0
+                                                                                                                                  else f"Este host no ha tenido lecturas por más de {x['horas']} hrs {x['minutos']} min" if x['horas'] > 0
+                                                                                                                                  else f"Este host no ha tenido lecturas por más de {x['minutos']} min", axis=1)
+        data = data.drop(columns=['diferencia'])
+        data['diferencia'] = data.apply(
+            lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
+        data.drop_duplicates(
+            subset=['hostid', 'Problem'], inplace=True)
+        """ print(data.to_string()) """
+
+        """ data['Problem'] = data.apply(lambda x: x['diferencia'] if x['alert_type'] in [
+                                     'rfid', 'lpr'] else x['Problem']) """
+    if not data.empty:
+        data = data[data['Estatus'] == 'PROBLEM']
+        if not data.empty:
+            data = data[data['tipo'] == 1]
+    return data
 
 
 def get_host_correlation_filter(host_group_id):
@@ -247,31 +464,47 @@ SELECT from_unixtime(p.clock,'%d/%m/%Y %H:%i:%s' ) as Time,
 """)
     data = session.execute(statement)
     data = pd.DataFrame(data).replace(np.nan, "")
-    data['local'] = 0
-    data['tipo'] = 0
-    data['dependents'] = 0
-    data['alert_type'] = ""
+    ping_loss_message = session.query(CassiaConfig).filter(
+        CassiaConfig.name == "ping_loss_message").first()
+    ping_loss_message = ping_loss_message.value if ping_loss_message else "Unavailable by ICMP ping"
+    if not data.empty:
+        data['local'] = 0
+        data['tipo'] = 0
+        data.loc[data['Problem'] ==
+                 ping_loss_message, 'tipo'] = 1
+        data['dependents'] = 0
+        data['alert_type'] = ""
+    else:
+        data = pd.DataFrame(columns=['Time', 'severity', 'hostid', 'Host', 'latitude',
+                            'longitude', 'ip', 'Problem', 'Estatus', 'r_eventid', 'Ack_message'])
     data_problems = text(
-        f"""
-        select cate.*,cdp.dependents  from cassia_arch_traffic_events cate
-left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
-where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at desc limit 20""")
+        f"""select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message  from cassia_arch_traffic_events_2 cate
+left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
+from cassia_event_acknowledges cea group by eventid ) as ceaa
+on  cate.cassia_arch_traffic_events_id=ceaa.eventid
+left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
+left join cassia_diagnostic_problems_2 cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id 
+where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at desc limit 20
+""")
     data_problems = pd.DataFrame(
         session.execute(data_problems)).replace(np.nan, '')
+
     if not data_problems.empty:
         """ data_problems['TimeRecovery'] = [
             '' for i in range(len(data_problems))] """
         data_problems['r_eventid'] = [
             '' for i in range(len(data_problems))]
         data_problems['Ack'] = [0 for i in range(len(data_problems))]
-        data_problems['Ack_message'] = [
-            '' for i in range(len(data_problems))]
+        """ data_problems['Ack_message'] = [
+            '' for i in range(len(data_problems))] """
         data_problems['manual_close'] = [
+            0 for i in range(len(data_problems))]
+        data_problems['dependents'] = [
             0 for i in range(len(data_problems))]
         data_problems['local'] = [
             1 for i in range(len(data_problems))]
         data_diagnosta = text(
-            f"select eventid from cassia_diagnostic_problems where hostid={host_id}")
+            f"select local_eventid from cassia_diagnostic_problems_2 where hostid={host_id}")
         data_diagnosta = pd.DataFrame(
             session.execute(data_diagnosta)).replace(np.nan, '')
         data_problems['tipo'] = [
@@ -294,7 +527,37 @@ where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at
                          ignore_index=True).replace(np.nan, "")
         if not data_diagnosta.empty:
             data.loc[data['eventid'].isin(
-                data_diagnosta['eventid'].to_list()), 'tipo'] = 1
+                data_diagnosta['local_eventid'].to_list()), 'tipo'] = 1
+    dependientes_filtro = text(
+        f"call sp_diagnostic_problemsD('0','')")
+    dependientes_filtro = pd.DataFrame(
+        session.execute(dependientes_filtro)).replace(np.nan, '')
+    if not dependientes_filtro.empty:
+        indexes = data[data['Problem'] == ping_loss_message]
+        indexes = indexes[indexes['hostid'].isin(
+            dependientes_filtro['hostid'].to_list())]
+        data.loc[data.index.isin(indexes.index.to_list()), 'tipo'] = 0
+
+    sincronizados_totales = text("""select * from cassia_diagnostic_problems_2 cdp 
+where cdp.closed_at is NULL""")
+
+    sincronizados_totales = pd.DataFrame(
+        session.execute(sincronizados_totales)).replace(np.nan, 0)
+    if not sincronizados_totales.empty:
+        if not data.empty:
+            for ind in data.index:
+                if data['Problem'][ind] == ping_loss_message:
+                    dependientes = sincronizados_totales[sincronizados_totales['hostid_origen']
+                                                         == data['hostid'][ind]]
+                    print(dependientes)
+                    dependientes['depends_hostid'] = dependientes['depends_hostid'].astype(
+                        'int')
+                    dependientes = dependientes[dependientes['depends_hostid'] != 0]
+                    dependientes = dependientes.drop_duplicates(
+                        subset=['depends_hostid'])
+                    data.loc[data.index == ind,
+                             'dependents'] = len(dependientes)
+
     if not data.empty:
         now = datetime.now(pytz.timezone('America/Mexico_City'))
         data['fecha'] = pd.to_datetime(data['Time'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
@@ -313,9 +576,18 @@ where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at
             lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
         data = data.sort_values(by='fecha', ascending=False)
 
-    print(data.to_string())
+    if not data.empty:
+        exceptions = await AlertsRepository.get_exceptions(
+            data['hostid'].to_list(), session)
+        data = pd.merge(data, exceptions, on='hostid',
+                        how='left').replace(np.nan, None)
     session.close()
     return success_response(data=data.to_dict(orient="records"))
+
+
+async def get_host_alerts_(host_id):
+    alerts = await AlertsRepository.get_host_alerts(host_id)
+    return success_response(data=alerts.to_dict(orient="records"))
 
 
 async def get_host_arcos(host_id):
@@ -420,46 +692,7 @@ async def prepare_action(ip, id_action, user_session):
             ping_id = 0
 
     if id_action == ping_id:
-        response = await get_configuration()
-        try:
-            # Utiliza el método json() de tu objeto JSONResponse
-            data = json.loads(response.body)
-            # Verifica que la respuesta sea valida y contiene el campo 'data'
-            if 'data' in data and isinstance(data['data'], list):
-                # Itera sobre la lista de diccionarios en 'data'
-                for config in data['data']:
-                    # Busca el diccionario con el nombre 'ping_by_proxy'
-                    if config.get('name') == 'ping_by_proxy':
-                        # Obtiene el valor asociado con 'ping_by_proxy'
-                        value = config.get('value')
-                        if value:
-                            dict_credentials_list = get_credentials_for_proxy(
-                                ip)
-                        else:
-                            dict_credentials_list = get_credentials(ip)
-                        if dict_credentials_list is None or not dict_credentials_list:
-                            log = {'action_id': ping_id,
-                                   'clock': datetime.now(pytz.timezone('America/Mexico_City')),
-                                   'session_id': user_session.session_id.hex,
-                                   'interface_id': None,
-                                   'result': 0,
-                                   'comments': f"Credenciales no encontradas para la ip {ip}"}
-                            with DB_Zabbix().Session() as session:
-                                log_register = CassiaActionLog(
-                                    **log
-                                )
-                                session.add(log_register)
-                                session.commit()
-                            return failure_response(message="El proxy no esta configurado o las credenciales "
-                                                            "configuradas son incorrectas")
-                        else:
-                            dict_credentials = dict_credentials_list[0]
-                            return run_action(dict_credentials['ip'], 'ping -c 4 ' + ip,
-                                              dict_credentials_list, 0, ping_id, user_session)
-
-        except json.JSONDecodeError:
-            print("Error decoding JSON response")
-
+        return await hosts_service_.run_action_(ip, id_action, '')
     else:
         db_zabbix = DB_Zabbix()
         session = db_zabbix.Session()

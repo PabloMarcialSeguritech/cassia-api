@@ -31,3 +31,5 @@ class CassiaCIHistory(DB_Zabbix.Base):
         "cassia_users_sessions.session_id"), nullable=False)
     status = Column(String(length=30), unique=False,
                     nullable=False, default="No iniciado")
+    ticket = Column(String(length=50), unique=False,
+                    nullable=True)

@@ -15,11 +15,17 @@ rfid_schedule = Grouper()
 # Creating some tasks
 SETTINGS = settings.Settings()
 traffic = SETTINGS.cassia_traffic
+traffic_close = SETTINGS.cassia_traffic_close
 
 
 @rfid_schedule.cond('traffic')
 def is_traffic():
     return traffic
+
+
+@rfid_schedule.cond('traffic_close')
+def is_traffic_close():
+    return traffic_close
 
 
 @rfid_schedule.task(("every 30 seconds & traffic"), execution="thread")
@@ -40,13 +46,13 @@ async def get_rfid_data():
     print(len(rfid_devices)) """
 
     statement = text(f"""
-    SELECT m.Nombre as Municipio, a.Nombre as Arco, r.Descripcion,
+SELECT m.Nombre as Municipio, a.Nombre as Arco, r.Descripcion,
 r.Estado, a2.UltimaLectura,
 cl.lecturas as Lecturas,
 a.Longitud,a.Latitud,
 r.Ip 
 FROM RFID r
-INNER JOIN Arco a ON (a.IdArco =a.IdArco )
+INNER JOIN Arco a ON (a.IdArco =r.IdArco )
 INNER JOIN Municipio m ON (a.IdMunicipio =M.IdMunicipio)
 LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
 LEFT JOIN (select lr.IdRFID,lr.IdAntena,
@@ -54,7 +60,6 @@ COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
 where lr.Fecha between dateadd(second,-30,getdate()) and getdate()
 group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
 order by a.Longitud,a.Latitud
-
 """)
 
     try:
@@ -219,89 +224,42 @@ async def trigger_alerts():
     session.close()
 
 
-@rfid_schedule.task(("every 60 seconds & traffic"), execution="thread")
+@rfid_schedule.task(("every 60 seconds & traffic_close"), execution="thread")
 async def trigger_alerts_close():
-    db_zabbix = DB_Zabbix()
-    session = db_zabbix.Session()
-    rfid_config = session.query(CassiaConfig).filter(
-        CassiaConfig.name == "rfid_id").first()
-    rfid_id = "9"
-    if rfid_config:
-        rfid_id = rfid_config.value
-    statement = text(f"""
-    select date from cassia_arch_traffic order by date desc limit 1 
-""")
-    last_date = pd.DataFrame(session.execute(statement))
-
-    if not last_date.empty:
-        last_date = last_date['date'].iloc[0]
-    else:
-        last_date = datetime.now(pytz.timezone(
-            'America/Mexico_City'))
-    rangos = [60, 45, 30, 20]
-    alerts_defined = []
-    alertas = pd.DataFrame()
-    for rango in rangos:
-        statement = text(f"""
-            select date from cassia_arch_traffic order by date asc limit 1 
-        """)
-        first_date = pd.DataFrame(session.execute(statement))
-
-        if not first_date.empty:
-            first_date = first_date['date'].iloc[0]
-        else:
-            first_date = datetime.now(pytz.timezone(
-                'America/Mexico_City'))
-        minutes = (last_date-first_date).total_seconds()/60.0
-        if minutes >= rango:
-            date = last_date - timedelta(minutes=rango)
+    with DB_Zabbix().Session() as session:
+        rfid_config = session.query(CassiaConfig).filter(
+            CassiaConfig.name == "rfid_id").first()
+        rfid_id = "9"
+        if rfid_config:
+            rfid_id = rfid_config.value
+        ping_loss_message = session.query(CassiaConfig).filter(
+            CassiaConfig.name == "ping_loss_message").first()
+        ping_loss_message = ping_loss_message.value if ping_loss_message else "Unavailable by ICMP ping"
+        a_cerrar = text(f"""SELECT * FROM 
+                        cassia_arch_traffic_events
+                        where closed_at is NULL
+                        and tech_id='{rfid_id}'
+                        and alert_type='rfid'
+                        and message!='{ping_loss_message}'
+                        and hostid in (
+                        SELECT DISTINCT hostid FROM cassia_arch_traffic where readings>0)""")
+        a_cerrar = pd.DataFrame(session.execute(a_cerrar)).replace(np.nan, '')
+        ids = [0]
+        if not a_cerrar.empty:
+            ids = a_cerrar['cassia_arch_traffic_events_id'].astype(
+                'int').to_list()
             statement = text(f"""
-                SELECT hostid,readings FROM cassia_arch_traffic where date between
-                '{date}' and '{last_date}'   
+            UPDATE cassia_arch_traffic_events
+            set closed_at='{datetime.now(pytz.timezone(
+                'America/Mexico_City'))}',
+            updated_at='{datetime.now(pytz.timezone(
+                'America/Mexico_City'))}',
+            status='Cerrada automaticamente'
+            where cassia_arch_traffic_events_id
+            in :ids
             """)
-            result = pd.DataFrame(session.execute(statement))
-            result = result.groupby(['hostid']).sum().reset_index()
-            result = result[result['readings'] < 1]
-            result = result[~result['hostid'].isin(alerts_defined)]
+            print(statement)
+            print(ids)
 
-            alerts_defined = alerts_defined+result['hostid'].values.tolist()
-            result['alerta'] = [
-                f"Este host no ha tenido lecturas por más de " for i in range(len(result))]
-            result['severidad'] = [1 if rango == 20 else 2 if rango ==
-                                   30 else 3 if rango == 45 else 4 for i in range(len(result))]
-
-            alertas = pd.concat([alertas, result])
-    """ print(alertas.to_string()) """
-    abiertos = text(f"""SELECT cassia_arch_traffic_events_id,hostid FROM 
-                    cassia_arch_traffic_events
-                    where closed_at is NULL
-                    and tech_id='{rfid_id}'
-                    and alert_type='rfid'
-                    and message!='Unavailable by ICMP ping'
-                    """)
-    abiertos = pd.DataFrame(session.execute(abiertos))
-    """ print(abiertos.to_string()) """
-    if not abiertos.empty:
-        a_cerrar = abiertos[~abiertos['hostid'].isin(
-            alertas['hostid'].values.tolist())]
-        """ print(a_cerrar.to_string()) """
-        ids = ','.join(['0']+[str(v)
-                       for v in a_cerrar['cassia_arch_traffic_events_id'].values.tolist()])
-
-        statement = text(f"""
-        UPDATE cassia_arch_traffic_events
-        set closed_at='{datetime.now(pytz.timezone(
-            'America/Mexico_City'))}',
-        updated_at='{datetime.now(pytz.timezone(
-            'America/Mexico_City'))}',
-        status='Cerrada automaticamente'
-        where cassia_arch_traffic_events_id
-        in ({ids})
-        and message!='Unavailable by ICMP ping'
-        and alert_type='rfid'
-        """)
-
-        session.execute(statement)
-        session.commit()
-
-    session.close()
+            session.execute(statement, params={'ids': ids})
+            session.commit()

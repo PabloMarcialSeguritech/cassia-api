@@ -5,7 +5,7 @@ from sqlalchemy.orm import mapped_column
 from sqlalchemy import ForeignKey
 
 
-class ProblemRecordHistory(DB_Zabbix().Base):
+class ProblemRecordHistory(DB_Zabbix.Base):
     __tablename__ = "problem_records_history"
     problemsHistory_id = Column(Integer, primary_key=True, autoincrement=True)
     problemrecord_id = mapped_column(

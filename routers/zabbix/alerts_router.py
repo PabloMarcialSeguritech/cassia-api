@@ -11,7 +11,7 @@ from services import auth_service2
 from fastapi import Body
 from models.user_model import User
 from models.cassia_user_session import CassiaUserSession
-from fastapi import File, UploadFile, Form
+from fastapi import File, UploadFile, Form, Query
 from fastapi.responses import FileResponse
 from typing import Optional
 
@@ -25,8 +25,20 @@ alerts_router = APIRouter()
     summary="Get problems by municipality ID, device type and technology, and subtype",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
-    return alerts_service.get_problems_filter(municipalityId, tech_host_type, subtype, severities)
+async def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
+    return await alerts_service.get_problems_filter_(municipalityId, tech_host_type, subtype, severities)
+
+
+""" @alerts_router.get(
+    '/problems2/{municipalityId}',
+    tags=["Zabbix - Problems(Alerts)"],
+    status_code=status.HTTP_200_OK,
+    summary="Get problems by municipality ID, device type and technology, and subtype",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
+    return await alerts_service.get_problems_filter_(municipalityId, tech_host_type, subtype, severities)
+ """
 
 
 @alerts_router.get(
@@ -37,11 +49,23 @@ def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: 
     response_class=FileResponse,
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
-    return alerts_service.get_problems_filter_report(municipalityId, tech_host_type, subtype, severities)
+async def get_problems_filter_download(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
+    return await alerts_service.get_problems_filter_report_(municipalityId, tech_host_type, subtype, severities)
 
 
-@alerts_router.post(
+""" @alerts_router.get(
+    '/problems2/download/{municipalityId}',
+    tags=["Zabbix - Problems(Alerts)"],
+    status_code=status.HTTP_200_OK,
+    summary="Get problems by municipality ID, device type and technology, and subtype in Excel",
+    response_class=FileResponse,
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_problems_filter_download(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
+    return await alerts_service.get_problems_filter_report_(municipalityId, tech_host_type, subtype, severities)
+ """
+
+""" @alerts_router.post(
     '/problems/acknowledge/{eventid}',
     tags=["Zabbix - Problems(Alerts) - Acknowledge"],
     status_code=status.HTTP_200_OK,
@@ -61,8 +85,19 @@ async def get_problems_filter(eventid: str = "34975081", message: str = Form(max
     summary="Get acknowledges of one event, Ex: 34975081",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_problems_filter(eventid: str = "34975081"):
-    return await alerts_service.get_acks(eventid)
+async def get_problems_filter(eventid: str = "34975081", is_cassia_event: int = Query(0)):
+    return await alerts_service.get_acks(eventid, is_cassia_event) """
+
+
+@alerts_router.get(
+    '/problems/acknowledge-antiguo/{eventid}',
+    tags=["Zabbix - Problems(Alerts) - Acknowledge"],
+    status_code=status.HTTP_200_OK,
+    summary="Get acknowledges of one event, Ex: 34975081",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_problems_filter(eventid: str = "34975081", is_cassia_event: int = Query(0)):
+    return await alerts_service.get_acks(eventid, is_cassia_event)
 
 
 @alerts_router.get(
@@ -119,8 +154,8 @@ def get_problems_filter(municipalityId: str, tech: str = "", hostType: str = "")
     summary="Get all exception agencies",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def get_agencies():
-    return alerts_service.get_exception_agencies()
+async def get_agencies():
+    return await alerts_service.get_exception_agencies()
 
 
 @alerts_router.post(
@@ -168,7 +203,7 @@ def create_agency(exception_agency_id):
     summary="Get all Exceptions",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_agencies():
+async def get_exceptions():
     return await alerts_service.get_exceptions()
 
 
@@ -242,7 +277,8 @@ def create_agency(exception_agency_id):
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def create_message(problemid: int, message: Optional[str] = Form(None),
-                         current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session),
+                         current_user_session: CassiaUserSession = Depends(
+                             auth_service2.get_current_user_session),
                          file: UploadFile | None = None):
     return await alerts_service.create_message(problemid=problemid, current_user_id=current_user_session.user_id,
                                                message=message, file=file)
@@ -270,7 +306,7 @@ async def download_file(message_id: str):
     return await alerts_service.download_file(message_id=message_id)
 
 
-@alerts_router.post(
+""" @alerts_router.post(
     '/problems/acknowledge_/{eventid}',
     tags=["Zabbix - Problems(Alerts) - Acknowledge"],
     status_code=status.HTTP_200_OK,
@@ -278,6 +314,8 @@ async def download_file(message_id: str):
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def get_problems_filter_(eventid: str = "34975081", message: str = Form(max_length=2048), close: bool = Form(...),
-                              current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session),
-                              is_zabbix_event: bool = Form(...)):
+                               current_user_session: CassiaUserSession = Depends(
+                                   auth_service2.get_current_user_session),
+                               is_zabbix_event: bool = Form(...)):
     return await alerts_service.register_ack(eventid, message, current_user_session, close, is_zabbix_event)
+ """

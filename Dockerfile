@@ -8,7 +8,7 @@ WORKDIR /code
 COPY Pipfile Pipfile.lock /code/
 
 # Install dependencies
-RUN pip install pipenv && pipenv install --system --dev
+RUN pip install pipenv && apt-get update && apt-get install -y iputils-ping && pipenv install --system --dev
 
 
 COPY . /code/

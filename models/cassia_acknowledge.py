@@ -6,11 +6,11 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm import mapped_column
 from models.problem_record import ProblemRecord
 from typing import List
+from infraestructure.database_model import DB
 
 
-class CassiaAcknowledge(DB_Zabbix.Base):
+class CassiaAcknowledge(DB.Base):
     __tablename__ = "cassia_acknowledge"
     c_acknowledge_id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = mapped_column(
-        ForeignKey("cassia_users.user_id"),  nullable=False)
+    user_id = Column(Integer,  nullable=False)
     acknowledge_id = Column(Integer,  nullable=False)

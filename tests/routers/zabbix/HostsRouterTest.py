@@ -30,3 +30,16 @@ class HostsRouterTest(unittest.TestCase):
         )
         json_obj_reboot = response_reboot.json()
         self.assertIn(valor_esperado, json_obj_reboot['data']['reboot'], "No fue posible reiniciar el servidor")
+
+    def test_run_action_ping(self):
+        print('> Entrando a test_run_action_ping <')
+        headers = user_authentication_headers("juan.marcial@seguritech.com", "12345678")
+        ip = '172.18.42.4'
+        id_action = 20
+        valor_esperado = "true"
+        response = client.post(
+            f"/api/v1/zabbix/hosts/action/{ip}/{id_action}",
+            headers=headers
+        )
+        json_obj = response.json()
+        print("json_obj:", json_obj)

@@ -8,7 +8,7 @@ from sqlalchemy import ForeignKey
 import enum
 
 
-class ProblemRecord(DB_Zabbix().Base):
+class ProblemRecord(DB_Zabbix.Base):
     __tablename__ = "problem_records"
     problemrecord_id = Column(Integer, primary_key=True, autoincrement=True)
     hostid = Column(Integer)

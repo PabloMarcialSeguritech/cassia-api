@@ -6,7 +6,8 @@ from schemas import cassia_ci_history_schema
 from schemas import cassia_ci_element_schema
 import numpy as np
 from utils.traits import success_response
-from fastapi import HTTPException, status
+from utils.traits import failure_response
+from fastapi import HTTPException, status, UploadFile, File
 from models.cassia_ci_element import CassiaCIElement
 from models.cassia_ci_relations import CassiaCIRelation
 from models.cassia_ci_history import CassiaCIHistory
@@ -19,6 +20,8 @@ from fastapi.responses import FileResponse
 import os
 import ntpath
 import shutil
+import starlette
+from infraestructure.cassia import cassia_ci_repository
 settings = Settings()
 abreviatura_estado = settings.abreviatura_estado
 
@@ -39,9 +42,9 @@ async def get_host_by_ip(ip: str):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     query = text(f"""
-    SELECT hostid ,name FROM hosts h 
-    where hostid in (select DISTINCT hostid from interface i 
-    where ip = '{ip}')    
+    SELECT hostid ,name FROM hosts h
+    where hostid in (select DISTINCT hostid from interface i
+    where ip = '{ip}')
     """)
     hosts = pd.DataFrame(session.execute(query)).replace(np.nan, "")
     query = text(f"""call sp_cassiaCILocation('{ip}')""")
@@ -67,17 +70,58 @@ async def get_ci_elements():
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     query = text(f"""
-    select cce.element_id,cce.folio,cce.ip,h.name,cce.technology ,cce.device_name,
-cce.description,cce.referencia,his.hardware_brand,his.hardware_model,his.software_version,
-cce.location, cce.criticality, cce.status, cce.status_conf, cct.tech_name from cassia_ci_element cce 
-left join hosts h on h.hostid =cce.host_id 
-left join cassia_ci_tech cct on cct.tech_id=cce.tech_id
-left join (
-SELECT cch.element_id, cch.hardware_brand,cch.hardware_model,cch.software_version from cassia_ci_history cch
-where cch.status="Cerrada" and cch.deleted_at is NULL
-order by closed_at desc limit 1
-) his on cce.element_id=his.element_id
-WHERE deleted_at is NULL
+    SELECT 
+    cce.element_id,
+    cce.folio,
+    cce.ip,
+    h.name,
+    cce.technology,
+    cce.device_name,
+    cce.description,
+    cce.referencia,
+    his.hardware_brand,
+    his.hardware_model,
+    his.software_version,
+    his.hardware_no_serie,
+    cce.location,
+    cce.criticality,
+    cce.status,
+    cce.status_conf,
+    cct.tech_name 
+FROM 
+    cassia_ci_element cce
+LEFT JOIN 
+    hosts h ON h.hostid = cce.host_id
+LEFT JOIN 
+    cassia_ci_tech cct ON cct.tech_id = cce.tech_id
+LEFT JOIN 
+    (
+        SELECT 
+            cch.element_id,
+            cch.hardware_brand,
+            cch.hardware_model,
+            cch.software_version,
+            cch.hardware_no_serie 
+        FROM 
+            (
+                SELECT 
+                    element_id,
+                    hardware_brand,
+                    hardware_model,
+                    software_version,
+                    hardware_no_serie,
+                    ROW_NUMBER() OVER (PARTITION BY element_id ORDER BY closed_at DESC) AS rn
+                FROM 
+                    cassia_ci_history
+                WHERE 
+                    status = "Cerrada" 
+                    AND deleted_at IS NULL
+            ) cch
+        WHERE 
+            rn = 1
+    ) his ON cce.element_id = his.element_id
+WHERE 
+    cce.deleted_at IS NULL
     """)
     results = pd.DataFrame(session.execute(query)).replace(np.nan, "")
 
@@ -88,8 +132,8 @@ WHERE deleted_at is NULL
 async def get_ci_element(element_id):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
-    statement = text(f"""select cce.*,cct.tech_name, h.name from cassia_ci_element cce 
-left join hosts h on h.hostid =cce.host_id 
+    statement = text(f"""select cce.*,cct.tech_name, h.name from cassia_ci_element cce
+left join hosts h on h.hostid =cce.host_id
 left join cassia_ci_tech cct on cct.tech_id=cce.tech_id
 where cce.element_id='{element_id}' and cce.deleted_at is NULL""")
     element = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
@@ -221,9 +265,9 @@ async def get_ci_element_relations(element_id):
     query = text(f"""
     select cr.cassia_ci_relation_id,cr.folio,cr.depends_on_ci,cr.cassia_ci_element_id
 from cassia_ci_relations cr WHERE cr.depends_on_ci='{element_id}'
-and cr.cassia_ci_element_id in (SELECT c.element_id from 
+and cr.cassia_ci_element_id in (SELECT c.element_id from
 cassia_ci_element c left join cassia_ci_relations ccr
-on c.element_id= ccr.cassia_ci_element_id 
+on c.element_id= ccr.cassia_ci_element_id
 where c.deleted_at is NULL
 )""")
     results = pd.DataFrame(session.execute(query)).replace(np.nan, "")
@@ -328,6 +372,16 @@ async def get_ci_element_docs(element_id):
     return success_response(data=docs)
 
 
+async def get_ci_element_docs_(element_id):
+    element = await cassia_ci_repository.get_ci_element(element_id)
+    if element.empty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="El elemento de configuracion(CI) no existe.")
+    docs = await cassia_ci_repository.get_ci_element_docs(element_id)
+
+    return success_response(data=docs.to_dict(orient='records'))
+
+
 async def upload_ci_element_docs(element_id, files):
     type_files = [file.content_type for file in files]
     if not check_pdf(type_files):
@@ -368,6 +422,25 @@ async def upload_ci_element_docs(element_id, files):
     return success_response(message="Archivos subidos correctamente")
 
 
+async def upload_ci_element_docs_(element_id, files, file_names):
+    element = await cassia_ci_repository.get_ci_element(element_id)
+    if element.empty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="El elemento de configuracion(CI) no existe")
+    for item in files:
+        if type(item) == starlette.datastructures.UploadFile:
+            if not check_pdf([item.content_type]):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Los archivos pueden ser solo tipo PDF")
+    for i in range(len(files)):
+        if type(files[i]) == starlette.datastructures.UploadFile:
+            await cassia_ci_repository.save_document(element['element_id'][0], files[i], True, file_names[i])
+        elif type(files[i]) == str:
+            await cassia_ci_repository.save_document(element['element_id'][0], files[i], False, file_names[i])
+
+    return success_response(message="Archivos guardados correctamente")
+
+
 async def download_ci_element_doc(doc_id: str):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
@@ -384,6 +457,30 @@ async def download_ci_element_doc(doc_id: str):
     if os.path.exists(ci_document.path):
         filename = ci_document.filename
         return FileResponse(path=ci_document.path, filename=filename)
+
+    return success_response(
+        message="File not found",
+        success=False,
+        status_code=status.HTTP_404_NOT_FOUND
+    )
+
+
+async def download_ci_element_doc_(doc_id: str):
+    ci_document = await cassia_ci_repository.get_ci_element_doc_by_id(doc_id)
+    if ci_document.empty:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No existe el documento",
+        )
+    if int(ci_document['is_link'][0]) == 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El documento es de tipo enlace",
+        )
+    doc_path = ci_document['path'][0]
+    if os.path.exists(doc_path):
+        filename = ci_document['filename'][0]
+        return FileResponse(path=doc_path, filename=filename)
 
     return success_response(
         message="File not found",
@@ -410,6 +507,20 @@ async def delete_ci_element_doc(doc_id):
     return success_response(message='Documento eliminado correctamente')
 
 
+async def delete_ci_element_doc_(doc_id):
+    ci_document = await cassia_ci_repository.get_ci_element_doc_by_id(doc_id)
+
+    if ci_document.empty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El documento no existe",
+        )
+    result = await cassia_ci_repository.delete_document(ci_document)
+    if result:
+        return success_response(message='Documento eliminado correctamente')
+    return success_response(message='Error al eliminar el documento')
+
+
 async def get_ci_element_history(element_id):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
@@ -417,8 +528,8 @@ async def get_ci_element_history(element_id):
     query = text(f"""
     select cce.element_id,cce.folio,cce.ip,h.name,cce.technology ,cce.device_name,
 cce.description,his.hardware_brand,his.hardware_model,his.software_version,
-cce.location, cce.criticality, cce.status, cce.status_conf,cce.referencia,cce.tech_id, cct.tech_name from cassia_ci_element cce 
-left join hosts h on h.hostid =cce.host_id 
+cce.location, cce.criticality, cce.status, cce.status_conf,cce.referencia,cce.tech_id, cct.tech_name from cassia_ci_element cce
+left join hosts h on h.hostid =cce.host_id
 left join cassia_ci_tech cct on cct.tech_id=cce.tech_id
 left join (
 SELECT cch.element_id, cch.hardware_brand,cch.hardware_model,cch.software_version from cassia_ci_history cch
@@ -448,8 +559,8 @@ and cce.element_id={element_id}
 async def get_ci_element_history_detail(history_id):
     with DB_Zabbix().Session() as session:
         query = text(f"""select cch.*,cm.comments as request_comments, cm.action_comments as authorization_comments from cassia_ci_history cch
-left join (select cms.mail_id,cms.cassia_conf_id,cms.comments,cms.action_comments from cassia_mail cms where cms.cassia_conf_id={history_id} order by cms.mail_id desc limit 1) 
-cm on cm.cassia_conf_id = cch.conf_id 
+left join (select cms.mail_id,cms.cassia_conf_id,cms.comments,cms.action_comments from cassia_mail cms where cms.cassia_conf_id={history_id} order by cms.mail_id desc limit 1)
+cm on cm.cassia_conf_id = cch.conf_id
 where cch.deleted_at is Null and
 cch.conf_id={history_id}""")
         history = pd.DataFrame(session.execute(query)).replace(np.nan, "")
@@ -483,6 +594,8 @@ async def create_ci_history_record(ci_element_history_data: cassia_ci_history_sc
         software_version=ci_element_history_data.software_version,
         responsible_name=ci_element_history_data.responsible_name,
         session_id=current_session.session_id.hex,
+        ticket=ci_element_history_data.ticket
+
     )
 
     element.status_conf = 'Sin cerrar'
@@ -524,6 +637,7 @@ async def update_ci_history_record(ci_element_history_id, ci_element_history_dat
             ci_element_history.software_version = ci_element_history_data.software_version
             ci_element_history.responsible_name = ci_element_history_data.responsible_name
             ci_element_history.auth_name = ci_element_history_data.auth_name
+            ci_element_history.ticket = ci_element_history_data.ticket
             """ ci_element_history.created_at = ci_element_history_data.created_at """
             """ ci_element_history.closed_at = ci_element_history_data.closed_at """
             ci_element_history.session_id = current_session.session_id.hex
@@ -709,11 +823,11 @@ async def get_authorization_requests(current_session):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="No tienes permiso para autorizar una solicitud")
     statement = text("""select h.host,cce.folio,cce.element_id as ci_id,cch.conf_id as configuration_id, cm.mail_id,re.name as user_request,cm.request_date,pr.name as process_name,cm.comments  from cassia_mail cm left join
-cassia_users re on re.user_id =cm.request_user_id 
-left join cassia_ci_process pr on pr.process_id = cm.process_id 
-left join cassia_ci_history cch on cch.conf_id = cm.cassia_conf_id 
-left join cassia_ci_element cce  on cce.element_id =cch.element_id 
-left join hosts h on h.hostid = cce.host_id 
+cassia_users re on re.user_id =cm.request_user_id
+left join cassia_ci_process pr on pr.process_id = cm.process_id
+left join cassia_ci_history cch on cch.conf_id = cm.cassia_conf_id
+left join cassia_ci_element cce  on cce.element_id =cch.element_id
+left join hosts h on h.hostid = cce.host_id
                      where action IS NULL""")
     requests = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
     if not requests.empty:

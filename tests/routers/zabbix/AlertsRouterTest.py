@@ -55,3 +55,31 @@ class AlertsRouterTest(unittest.TestCase):
         json_obj = response_reboot.json()
         print("json_obj:", json_obj)
         self.assertIn(texto_esperado, json_obj['message'])
+
+    def test_get_acknowledge_cassia(self):
+        print('> Entrando a test_get_acknowledge_cassia <')
+        headers = user_authentication_headers("juan.marcial@seguritech.com", "12345678")
+        eventid = 82964
+        is_cassia_event=1
+        response_reboot = client.get(
+                f"/api/v1/zabbix/problems/acknowledge/{eventid}?is_cassia_event={is_cassia_event}",
+                headers=headers
+        )
+        json_obj = response_reboot.json()
+        print("json_obj:", json_obj)
+        self.assertIsNotNone(json_obj['data'], "Se espera que no sea None")
+
+    def test_get_acknowledge_zabbix(self):
+        print('> Entrando a test_get_acknowledge_zabbix <')
+        headers = user_authentication_headers("juan.marcial@seguritech.com", "12345678")
+        eventid = 10913623
+        is_cassia_event=0
+        response_reboot = client.get(
+                f"/api/v1/zabbix/problems/acknowledge/{eventid}?is_cassia_event={is_cassia_event}",
+                headers=headers
+        )
+        json_obj = response_reboot.json()
+        self.assertIsNotNone(json_obj['data'], "Se espera que no sea None")
+
+
+

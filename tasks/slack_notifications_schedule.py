@@ -50,9 +50,12 @@ async def send_messages():
             f"call sp_viewProblem('0','','','{slack_problem_severities}')")
 
         problems = pd.DataFrame(session.execute(statement))
+        ping_loss_message = session.query(CassiaConfig).filter(
+            CassiaConfig.name == "ping_loss_message").first()
+        ping_loss_message = ping_loss_message.value if ping_loss_message else "Unavailable by ICMP ping"
         if not problems.empty:
             problems = problems[(problems['Problem']
-                                == 'Unavailable by ICMP ping') | (problems['Problem'] == "ICMP: Unavailable by ICMP ping")]
+                                == ping_loss_message) | (problems['Problem'] == ping_loss_message)]
 
         mensajes = text(
             "select eventid from cassia_slack_notifications where local=1")

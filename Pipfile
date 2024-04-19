@@ -28,6 +28,8 @@ openpyxl = "*"
 xlsxwriter = "*"
 pymssql = {version = "<2.2.9"}
 slack-sdk = "*"
+aiomysql = "*"
+asyncssh = "*"
 
 [dev-packages]
 

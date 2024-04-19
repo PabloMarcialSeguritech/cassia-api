@@ -40,8 +40,8 @@ async def get_towers():
     summary="Get host with status down by municipality ID, technology or device type, and subtype",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def get_hosts_filter(municipalityId: str = "0", dispId: str = "", subtype_id: str = ""):
-    return layers_service.get_downs_layer(municipalityId, dispId, subtype_id)
+async def get_hosts_filter(municipalityId: str = "0", dispId: str = "", subtype_id: str = ""):
+    return await layers_service.get_downs_layer(municipalityId, dispId, subtype_id)
 
 
 @layers_router.get(
@@ -84,5 +84,5 @@ async def get_switches_connectivity(municipality_id="0"):
     summary="Get host with status down by municipality ID, technology or device type, and subtype",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-def get_hosts_filter(municipalityId: str = "0", dispId: str = "", subtype_id: str = ""):
-    return layers_service.get_downs_origin_layer(municipalityId, dispId, subtype_id)
+async def get_hosts_filter(municipalityId: str = "0", dispId: str = "", subtype_id: str = ""):
+    return await layers_service.get_downs_origin_layer(municipalityId, dispId, subtype_id)
