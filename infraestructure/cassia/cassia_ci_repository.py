@@ -67,9 +67,9 @@ async def get_ci_element_doc_by_id(doc_id):
         await db_model.close_connection()
 
 
-async def save_document(element_id, item, is_file):
-    filename = ""
-    path = ""
+async def save_document(element_id, item, is_file, file_name):
+    filename = "" if is_file else file_name
+    path = "" if is_file else item
     if is_file:
         upload_dir = os.path.join(
             os.getcwd(), f"uploads/cis/{element_id}")
@@ -86,10 +86,6 @@ async def save_document(element_id, item, is_file):
             shutil.copyfileobj(item.file, buffer)
         path = file_dest
         filename = item.filename
-
-    else:
-        filename = item
-        path = item
 
     db_model = DB()
     try:
