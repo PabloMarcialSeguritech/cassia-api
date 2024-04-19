@@ -167,8 +167,8 @@ async def get_ci_element_relations(element_id: str, files: List[UploadFile]):
     summary="Upload files to a CIs element ",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_ci_element_relations(element_id: str, files: List[Union[UploadFile, str]]):
-    return await cis_service.upload_ci_element_docs_(element_id, files)
+async def get_ci_element_relations(element_id: str, files: List[Union[UploadFile, str]], file_names: list):
+    return await cis_service.upload_ci_element_docs_(element_id, files, file_names)
 
 
 @cis_router.get(
