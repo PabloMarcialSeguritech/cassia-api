@@ -39,6 +39,8 @@ class DBQueries:
         inner join metric_group mg on mg.group_id =mt.group_id 
         where nickname ='Alineación'"""
         self.stored_name_get_aligment_report_data_by_device = "sp_alignmentReport_Host"
+        self.stored_name_catalog_devices_types = 'sp_catDevice'
+        self.stored_name_catalog_devices_brands = 'sp_catBrand'
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""

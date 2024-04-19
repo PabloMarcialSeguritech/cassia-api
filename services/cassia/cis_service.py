@@ -71,12 +71,12 @@ async def get_ci_elements():
     session = db_zabbix.Session()
     query = text(f"""
     select cce.element_id,cce.folio,cce.ip,h.name,cce.technology ,cce.device_name,
-cce.description,cce.referencia,his.hardware_brand,his.hardware_model,his.software_version,
+cce.description,cce.referencia,his.hardware_brand,his.hardware_model,his.software_version,his.hardware_no_serie,
 cce.location, cce.criticality, cce.status, cce.status_conf, cct.tech_name from cassia_ci_element cce 
 left join hosts h on h.hostid =cce.host_id 
 left join cassia_ci_tech cct on cct.tech_id=cce.tech_id
 left join (
-SELECT cch.element_id, cch.hardware_brand,cch.hardware_model,cch.software_version from cassia_ci_history cch
+SELECT cch.element_id, cch.hardware_brand,cch.hardware_model,cch.software_version,cch.hardware_no_serie from cassia_ci_history cch
 where cch.status="Cerrada" and cch.deleted_at is NULL
 order by closed_at desc limit 1
 ) his on cce.element_id=his.element_id
