@@ -5,6 +5,7 @@ from models.cassia_arch_traffic_events import CassiaArchTrafficEvent
 from models.cassia_arch_traffic_events_2 import CassiaArchTrafficEvent2
 from models.cassia_arch_traffic_events_3 import CassiaArchTrafficEvent3
 from models.cassia_diagnostic_problems_3 import CassiaDiagnosticProblems3
+from models.cassia_diagnostic_problems_3_table import CassiaDiagnosticProblems3Table
 from rocketry import Grouper
 from utils.settings import Settings
 from utils.db import DB_Zabbix, DB_Syslog
@@ -92,7 +93,7 @@ async def process_problems():
 
 def get_df_down_totales(downs: pd.DataFrame, cassia_events: pd.DataFrame):
     downs['local'] = 0
-    downs_totales = downs
+    downs_totales = downs.copy()
 
     downs_totales.loc[downs_totales['hostid'].isin(
         cassia_events['hostid'].to_list()), 'local'] = 1
@@ -170,15 +171,10 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
     analizado = res_host['dispositivo_analizado']
     problematico = res_host['dispositivo_problematico']
     if not problematico:
-        """ print("null") """
         return a_sincronizar
     if len(problematico):
-        """ print(res_host)
-        print(problematico)
-        print("AAAAAAAAAAAAAAAAAAA") """
-        """ print(problematico) """
+
         if not problematico[9]:
-            """ print("BBBBBBBBB") """
             sincronizado = a_sincronizar.loc[a_sincronizar['hostid']
                                              == problematico[0]]
 
@@ -234,8 +230,6 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
                         alert_type='diagnosta')
                     session.add(problem_local)
                     session.commit()
-                    """ print(
-                        f"PROBLEM ORIGEN {problem_local.cassia_arch_traffic_events_id}") """
 
                     dependientes_caidos = 0
                     if "desconectados_dependientes" in res_host:
@@ -263,6 +257,8 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
                                                           id_dependiente,
                                                           'Sincronizado',
                                                           None, 0, id_dependiente, 0, None]
+                                    now = datetime.now(
+                                        pytz.timezone('America/Mexico_City'))
                                     sync_register = CassiaDiagnosticProblems3(
                                         hostid_origen=a_sincronizar_data[0],
                                         depends_hostid=a_sincronizar_data[1],
@@ -271,7 +267,8 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
                                         local=a_sincronizar_data[4],
                                         hostid=a_sincronizar_data[5],
                                         dependents=a_sincronizar_data[6],
-                                        local_eventid=a_sincronizar_data[7]
+                                        local_eventid=a_sincronizar_data[7],
+                                        created_at=now
                                     )
                                     session.add(sync_register)
                                     session.commit()
@@ -290,6 +287,8 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
                                           None,
                                           'Sincronizado',
                                           None, 1, problem_local.hostid, dependientes_caidos, problem_local.cassia_arch_traffic_events_id]
+                    now = datetime.now(
+                        pytz.timezone('America/Mexico_City'))
                     sync_register = CassiaDiagnosticProblems3(
                         hostid_origen=a_sincronizar_data[0],
                         depends_hostid=a_sincronizar_data[1],
@@ -298,7 +297,8 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
                         local=a_sincronizar_data[4],
                         hostid=a_sincronizar_data[5],
                         dependents=a_sincronizar_data[6],
-                        local_eventid=a_sincronizar_data[7]
+                        local_eventid=a_sincronizar_data[7],
+                        created_at=now
                     )
                     session.add(sync_register)
                     session.commit()
@@ -335,6 +335,8 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
                                                       id_dependiente,
                                                       'Sincronizado',
                                                       None, 0, id_dependiente, 0, None]
+                                now = datetime.now(
+                                    pytz.timezone('America/Mexico_City'))
                                 sync_register = CassiaDiagnosticProblems3(
                                     hostid_origen=a_sincronizar_data[0],
                                     depends_hostid=a_sincronizar_data[1],
@@ -343,12 +345,11 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
                                     local=a_sincronizar_data[4],
                                     hostid=a_sincronizar_data[5],
                                     dependents=a_sincronizar_data[6],
-                                    local_eventid=a_sincronizar_data[7]
+                                    local_eventid=a_sincronizar_data[7],
+                                    created_at=now
                                 )
                                 session.add(sync_register)
                                 session.commit()
-                                """ print(
-                                    f"SINCRONIZACION {sync_register.diagnostic_problem_id}") """
                                 if a_sincronizar.empty:
                                     a_sincronizar.loc[len(
                                         a_sincronizar)+1] = a_sincronizar_data
@@ -362,6 +363,8 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
                                           None,
                                           'Sincronizado',
                                           None, 0, problematico[0], dependientes_caidos, None]
+                    now = datetime.now(
+                        pytz.timezone('America/Mexico_City'))
                     sync_register = CassiaDiagnosticProblems3(
                         hostid_origen=a_sincronizar_data[0],
                         depends_hostid=a_sincronizar_data[1],
@@ -370,12 +373,12 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
                         local=a_sincronizar_data[4],
                         hostid=a_sincronizar_data[5],
                         dependents=a_sincronizar_data[6],
-                        local_eventid=a_sincronizar_data[7]
+                        local_eventid=a_sincronizar_data[7],
+                        created_at=now
                     )
                     session.add(sync_register)
                     session.commit()
-                    """ print(
-                        f"SINCRONIZACION PADRE {sync_register.diagnostic_problem_id}") """
+
                     if a_sincronizar.empty:
                         a_sincronizar.loc[len(
                             a_sincronizar)+1] = a_sincronizar_data
@@ -414,7 +417,8 @@ async def close_problems():
         set closed_at=:date,
         status=:status
         where diagnostic_problem_id in :ids""")
-        """ print(statement) """
+        print(statement)
+
         session.execute(statement, params={
                         'date': now, 'status': 'Cerrado', 'ids': ids})
         statement = text(f"""
@@ -489,6 +493,7 @@ async def close_problems():
         session.execute(statement, params={'now': now, 'status': 'RESOLVED',
                         'ids': ids})
         session.commit()
+        """ OTRO PROCESO """
         downs = get_downs(session)
         sincronizados = get_sincronizados(session)
         if not sincronizados.empty:
@@ -532,7 +537,6 @@ async def close_problems():
             session.execute(statement, params={'now': now, 'status': 'RESOLVED',
                                                'ids': eventos_a_cerrar})
             session.commit()
-
         downs = get_downs(session)
         sincronizados = get_sincronizados(session)
         if not sincronizados.empty:
@@ -554,7 +558,7 @@ async def close_problems():
         if not sincronizados_zabbix.empty:
             sincronizados_zabbix.sort_values(
                 by=['hostid', 'created_at'], inplace=True)
-            """ print(sincronizados_zabbix.to_string()) """
+
             for ind in sincronizados_zabbix.index:
 
                 if hostid != sincronizados_zabbix['hostid'][ind]:
@@ -562,9 +566,7 @@ async def close_problems():
                     continue
                 a_cerrar_sincronizados.append(
                     sincronizados_zabbix['diagnostic_problem_id'][ind])
-                """ eventos_a_cerrar.append(
-                    sincronizados_locales['local_eventid'][ind]) """
-            """ print(a_cerrar_sincronizados) """
+
             statement = text(f"""
         UPDATE cassia_diagnostic_problems_2
         set closed_at= :now,
