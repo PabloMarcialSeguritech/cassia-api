@@ -92,7 +92,8 @@ async def get_action_type(id_action):
 
 async def get_action(id_action):
     with DB_Zabbix().Session() as session:
-        action = session.query(CassiaActionModel).filter(CassiaActionModel.action_id == id_action).first()
+        action = session.query(CassiaActionModel).filter(
+            CassiaActionModel.action_id == id_action).first()
     session.close()
     return action
 
@@ -171,7 +172,8 @@ async def get_db_connection():
     try:
         connection = await aiomysql.connect(
             host=settings.db_zabbix_host,
-            port=int(settings.db_zabbix_port),  # Asegúrate de que el puerto sea un entero
+            # Asegúrate de que el puerto sea un entero
+            port=int(settings.db_zabbix_port),
             db=settings.db_zabbix_name,
             user=settings.db_zabbix_user,
             password=settings.db_zabbix_pass,
@@ -192,7 +194,8 @@ async def run_stored_procedure_async(connection, sp_name, sp_params):
             while more_results:
                 results = await cursor.fetchall()
                 if cursor.description is not None:  # Verificar si hay resultados antes de obtener los nombres de las columnas
-                    column_names = [column[0] for column in cursor.description]  # Obtener los nombres de las columnas
+                    # Obtener los nombres de las columnas
+                    column_names = [column[0] for column in cursor.description]
                     result_dicts = [dict(zip(column_names, row)) for row in
                                     results]  # Convertir los resultados a diccionarios
                     result_sets.extend(result_dicts)
@@ -212,12 +215,16 @@ async def get_credentials_for_proxy_async(ip):
             return
         response_data_base = await run_stored_procedure_async(connection, 'sp_proxy_credential', (ip,))
         if response_data_base:
-            credentials = pd.DataFrame(response_data_base).replace(np.nan, "").to_dict(orient="records")
+            credentials = pd.DataFrame(response_data_base).replace(
+                np.nan, "").to_dict(orient="records")
             ip_proxy = credentials[0]['ip']
-            user_proxy = decrypt(credentials[0]['usr'], settings.ssh_key_gen).decode()
-            password_proxy = decrypt(credentials[0]['psswrd'], settings.ssh_key_gen).decode()
+            user_proxy = decrypt(
+                credentials[0]['usr'], settings.ssh_key_gen).decode()
+            password_proxy = decrypt(
+                credentials[0]['psswrd'], settings.ssh_key_gen).decode()
         else:
-            raise ValueError("El proxy no esta configurado o las credenciales configuradas son incorrectas")
+            raise ValueError(
+                "El proxy no esta configurado o las credenciales configuradas son incorrectas")
     finally:
         connection.close()
 
@@ -261,7 +268,8 @@ async def async_ping(ip, ssh_host, ssh_user, ssh_pass):
     try:
         tasks = {
             asyncio.create_task(async_ping_by_local(ip)),
-            asyncio.create_task(async_ping_by_proxy(ip, ssh_host, ssh_user, ssh_pass))
+            asyncio.create_task(async_ping_by_proxy(
+                ip, ssh_host, ssh_user, ssh_pass))
         }
         while tasks:
             # Espera hasta que al menos una tarea se complete
@@ -367,9 +375,10 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
             else:
                 municipio = ''
             alertas_rfid = await host_repository.get_arch_traffic_events_date_close_null_municipality(municipio)
-        alertas_rfid = pd.DataFrame([(
+
+        """ alertas_rfid = pd.DataFrame([(
             r.severity,
-        ) for r in alertas_rfid], columns=['severity'])
+        ) for r in alertas_rfid], columns=['severity']) """
 
         alertas_rfid = alertas_rfid.groupby(
             ['severity'])['severity'].count().rename_axis('Severities').reset_index()
@@ -382,7 +391,8 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
     downs_filtro = await downs_count(municipalityId, dispId, subtype_id)
     if not data4.empty:
         if 'Down' in data4.columns:  # Verifica si la columna 'Down' existe
-            down_value = data4['Down'].iloc[0]  # Obtener el valor de la primera fila
+            # Obtener el valor de la primera fila
+            down_value = data4['Down'].iloc[0]
             if down_value == '0':
                 downs_totales = 0
             elif down_value:  # Verifica si el valor no es una cadena vacía
@@ -473,7 +483,8 @@ async def downs_count(municipalityId, dispId, subtype):
     downs_origen = pd.DataFrame(await host_repository.get_diagnostic_problems(municipalityId, dispId))
     if not downs_origen.empty:
         lista_hostid = downs_origen['hostid'].tolist()
-        cadena_hostid = "(" + ", ".join(str(item) for item in lista_hostid) + ")"
+        cadena_hostid = "(" + ", ".join(str(item)
+                                        for item in lista_hostid) + ")"
         data_problems = pd.DataFrame(await host_repository.get_data_problems(cadena_hostid)).replace(np.nan, 0)
         if not data_problems.empty:
             """ data_problems['TimeRecovery'] = [
@@ -544,7 +555,7 @@ async def downs_count(municipalityId, dispId, subtype):
                     dependientes = dependientes.drop_duplicates(
                         subset=['depends_hostid'])
                     data.loc[data.index == ind,
-                    'dependents'] = len(dependientes)
+                             'dependents'] = len(dependientes)
 
     if not data.empty:
         now = datetime.now(pytz.timezone('America/Mexico_City'))
