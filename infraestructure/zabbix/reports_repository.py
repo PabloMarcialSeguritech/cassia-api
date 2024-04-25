@@ -139,6 +139,9 @@ async def get_connectivity_by_device(hostid, init_date, end_date):
         database_response = await db_connection.run_stored_procedure(db_queries.stored_name_get_connectivity_data_by_device,
                                                                      stored_procedure_params)
         data_df = pd.DataFrame(database_response)
+        if data_df.empty:
+            data_df = pd.DataFrame(
+                columns=['templateid', 'itemid', 'time', 'num', 'Avg_min'])
         return data_df
 
     except Exception as e:
@@ -266,53 +269,32 @@ async def process_data_async(data, end_date, init_date, metric_name):
         last = data['time'][len(data)-1]
 
         if hours > 14400:
-            data = data.groupby(
-                [pd.to_datetime(data['time']).dt.floor('8640H').rename("date").dt.strftime('%Y')])[['num', 'Avg_min']].mean().round(6).reset_index()
-            data = data[['date', 'num', 'Avg_min']]
-            data.rename(columns={'date': 'time'}, inplace=True)
+            data = await process_dates(data, init_date, end_date, '8640H', '%Y')
             data_range = "años"
         if hours >= 7200 and hours <= 14400:
-            data = data.groupby(
-                [pd.to_datetime(data['time']).dt.floor('720H').rename("date").dt.strftime('%Y-%m')])[['num', 'Avg_min']].mean().round(6).reset_index()
-            data = data[['date', 'num', 'Avg_min']]
-            data.rename(columns={'date': 'time'}, inplace=True)
+            data = await process_dates(data, init_date, end_date, '720H', '%Y-%m-%d')
             data_range = "meses"
         if hours > 3696 and hours < 7200:
-            data = data.groupby(
-                [pd.to_datetime(data['time']).dt.floor('360H').rename("date").dt.strftime('%Y-%m-%d')])[['num', 'Avg_min']].mean().round(6).reset_index()
-            data = data[['date', 'num', 'Avg_min']]
-            data.rename(columns={'date': 'time'}, inplace=True)
+            data = await process_dates(data, init_date, end_date, '360H', '%Y-%m-%d')
             data_range = "quincenas"
+
         if hours > 1680 and hours <= 3696:
-            data = data.groupby(
-                [pd.to_datetime(data['time']).dt.floor('168H').rename("date").dt.strftime('%Y-%m-%d')])[['num', 'Avg_min']].mean().round(6).reset_index()
-            data = data[['date', 'num', 'Avg_min']]
-            data.rename(columns={'date': 'time'}, inplace=True)
+            data = await process_dates(data, init_date, end_date, '168H', '%Y-%m-%d')
             data_range = "semanas"
+
         if hours > 240 and hours <= 1680:
-            data = data.groupby(
-                [pd.to_datetime(data['time']).dt.floor('24H').rename("date").dt.strftime('%Y-%m-%d')])[['num', 'Avg_min']].mean().round(6).reset_index()
-            data = data[['date', 'num', 'Avg_min']]
-            data.rename(columns={'date': 'time'}, inplace=True)
+            data = await process_dates(data, init_date, end_date, '24H', '%Y-%m-%d')
             data_range = "dias"
+
         if hours > 120 and hours <= 240:
-            data = data.groupby(
-                [pd.to_datetime(data['time']).dt.floor('12H').rename("date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
-            data = data[['date', 'num', 'Avg_min']]
-            data.rename(columns={'date': 'time'}, inplace=True)
+            data = await process_dates(data, init_date, end_date, '12H', '%Y-%m-%d %H:%M:%S')
             data_range = "medios dias"
         if hours >= 1 and hours <= 3:
-
-            data = data.groupby(
-                [pd.to_datetime(data['time']).dt.floor('15min').rename("date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
-            data = data[['date', 'num', 'Avg_min']]
-            data.rename(columns={'date': 'time'}, inplace=True)
+            data = await process_dates(data, init_date, end_date, '15min', '%Y-%m-%d %H:%M:%S')
             data_range = "minutos"
+
         if hours >= 0 and hours <= 1:
-            data = data.groupby(
-                [pd.to_datetime(data['time']).dt.floor('1min').rename("date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
-            data = data[['date', 'num', 'Avg_min']]
-            data.rename(columns={'date': 'time'}, inplace=True)
+            data = await process_dates(data, init_date, end_date, '1min', '%Y-%m-%d %H:%M:%S')
             data_range = "minutos"
 
         tiempo = f"{len(data)} {data_range}"
@@ -345,6 +327,10 @@ async def process_data_async(data, end_date, init_date, metric_name):
             'last': 0
         }
     return response
+
+
+def find_nearest_date(date, reference_dates):
+    return min(reference_dates, key=lambda x: abs(x - date))
 
 
 async def process_conectvidad(vacios, no_vacios, init_date, end_date, proms, general, promedios_general, municipios, hostids, dias, dispositivos, data_range, tiempo, first, last, promedios):
@@ -411,12 +397,13 @@ async def process_conectvidad(vacios, no_vacios, init_date, end_date, proms, gen
             vacio['data'] = await procesar_vacio_device(
                 vacio['data'], mayor, vacio['hostid'])
         merged_df = no_vacios[0]['data']
+        print(merged_df)
         """ ind = 1 """
         ind1 = no_vacios[0]['index']
         promedios.append(
             {'index': ind1, 'data': merged_df.iloc[:, [2]].mean().values[0].round(2)})
         proms.append({'index': ind1, 'data': [
-            merged_df.iloc[:, 2].mean().values[0].round(2)]})
+            merged_df.iloc[:, [2]].mean().values[0].round(2)]})
         for df in no_vacios[1:]:
             ind2 = df['index']
             merged_df = pd.merge(merged_df, df['data'], on='Tiempo',
@@ -729,3 +716,18 @@ async def procesar_vacio_alineacion_device(vacio, mayor, hostid):
 
 async def get_index(lst, key, value):
     return next((index for (index, d) in enumerate(lst) if d[key] == value), None)
+
+
+async def process_dates(data, init_date, end_date, freq, date_format):
+    fechas = pd.date_range(start=init_date, end=end_date, freq=freq)
+    mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
+    mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo'])
+    data = data.groupby(
+        [pd.to_datetime(data['time']).dt.floor(freq).rename("date").dt.strftime(date_format)])[['num', 'Avg_min']].mean().round(6).reset_index()
+    data['date'] = pd.to_datetime(data['date'])
+    data['date'] = data['date'].apply(
+        find_nearest_date, args=(mayor['Tiempo'],))
+    data['date'] = pd.to_datetime(data['date']).dt.strftime(date_format)
+    data = data[['date', 'num', 'Avg_min']]
+    data.rename(columns={'date': 'time'}, inplace=True)
+    return data

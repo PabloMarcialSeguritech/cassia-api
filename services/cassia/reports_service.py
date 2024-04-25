@@ -1755,9 +1755,10 @@ async def process_data_conectivity_devices_async(device_ids, init_date, end_date
 
         data = await reports_repository.get_connectivity_by_device(
             device_ids[ind], init_date, end_date)
+
         data_procesed = await reports_repository.process_data_async(
             data, end_date, init_date, f"{device_ids[ind]}")
-
+        print(data_procesed)
         datas.append(
             {'index': ind+1, 'data': data_procesed['data'], 'hostid': device_ids[ind]})
         dispositivos.append(data_procesed['number'])
@@ -1788,20 +1789,23 @@ async def crear_mayor_async(init_date, last_date):
         fechas = pd.date_range(start=init_date, end=last_date, freq='8640H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
         data_range = "años"
-
+        print("A")
     if hours >= 7200 and hours <= 14400:
         fechas = pd.date_range(start=init_date, end=last_date, freq='720H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
         data_range = "meses"
-
+        print("B")
     if hours > 3696 and hours < 7200:
         fechas = pd.date_range(start=init_date, end=last_date, freq='360H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
         data_range = "quincenas"
+        print("C")
     if hours > 1680 and hours <= 3696:
         fechas = pd.date_range(start=init_date, end=last_date, freq='168H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
         data_range = "semanas"
+        print("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
+        print(mayor.to_string())
     if hours > 240 and hours <= 1680:
         fechas = pd.date_range(start=init_date, end=last_date, freq='24H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
