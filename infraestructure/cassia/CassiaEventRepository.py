@@ -29,8 +29,9 @@ async def get_global_alerts_by_tech(tech_id, tipo):
     try:
         sp_name_get_cassia_events_by_tech = DBQueries(
         ).builder_query_statement_get_global_cassia_events_by_tech(tech_id)
+        print(sp_name_get_cassia_events_by_tech)
         await db_model.start_connection()
-        cassia_alerts_data = await db_model.run_query(tech_id)
+        cassia_alerts_data = await db_model.run_query(sp_name_get_cassia_events_by_tech)
         cassia_alerts_df = pd.DataFrame(
             cassia_alerts_data).replace(np.nan, None)
         if not cassia_alerts_df.empty:
