@@ -70,7 +70,8 @@ async def get_host_correlation(host_ids):
 async def get_problems_by_severity(municipalityId, dispId_filter, subtype_id):
     db_connection = db.DB()
     db_queries = db_queries_model.DBQueries()
-    stored_procedure_params = (f'{municipalityId}', f'{dispId_filter}', f'{subtype_id}',)
+    stored_procedure_params = (
+        f'{municipalityId}', f'{dispId_filter}', f'{subtype_id}',)
     try:
         await db_connection.start_connection()
         database_response = await db_connection.run_stored_procedure(db_queries.stored_name_problems_severity,
@@ -121,7 +122,7 @@ async def get_catalog_city():
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="The lenght of the arrays must be the same"
+            detail=f"Error en get_catalog_city {e}"
         )
     finally:
         await db_connection.close_connection()
@@ -193,7 +194,8 @@ async def get_view_problem_data(municipalityId, dispId, subtype):
     db_connection = db.DB()
     db_queries = db_queries_model.DBQueries()
     severity = ''
-    stored_procedure_params = (f'{municipalityId}', f'{dispId}', f'{subtype}', f'{severity}',)
+    stored_procedure_params = (
+        f'{municipalityId}', f'{dispId}', f'{subtype}', f'{severity}',)
     try:
         await db_connection.start_connection()
         database_response = await db_connection.run_stored_procedure(
@@ -293,7 +295,8 @@ async def get_total_synchronized():
 async def get_metric_view_h(municipality_id, disp_id, subtype_id):
     db_connection = db.DB()
     db_queries = db_queries_model.DBQueries()
-    stored_procedure_params = (f'{municipality_id}', f'{disp_id}', f'{subtype_id}',)
+    stored_procedure_params = (
+        f'{municipality_id}', f'{disp_id}', f'{subtype_id}',)
     try:
         await db_connection.start_connection()
         database_response = await db_connection.run_stored_procedure(db_queries.stored_name_get_metric_view_h_data,
@@ -313,7 +316,8 @@ async def get_metric_view_h(municipality_id, disp_id, subtype_id):
 async def get_switch_through_put(municipality_id, switch_id, metric_switch_val):
     db_connection = db.DB()
     db_queries = db_queries_model.DBQueries()
-    stored_procedure_params = (f'{municipality_id}', f'{switch_id}', f'{metric_switch_val}',)
+    stored_procedure_params = (
+        f'{municipality_id}', f'{switch_id}', f'{metric_switch_val}',)
     try:
         await db_connection.start_connection()
         database_response = await db_connection.run_stored_procedure(db_queries.stored_name_get_switch_through_put_data,

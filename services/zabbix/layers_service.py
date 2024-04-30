@@ -7,6 +7,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import HTTPException
 from fastapi import status
 from utils.traits import success_response
+from utils.traits import success_response_with_alert
 from models.cassia_config import CassiaConfig
 import numpy as np
 from datetime import datetime
@@ -506,7 +507,11 @@ group by c.latitude, c.longitude
             'latitude', 'longitude'], right_on=['latitude', 'longitude']).replace(np.nan, 0)
     else:
         data['max_severity'] = [0 for al in range(len(data))]
-    return success_response(data=data.to_dict(orient="records"))
+    no_ceros = data[data['Lecturas'] != 0]
+
+    if no_ceros.empty:
+        return success_response_with_alert(data=data.to_dict(orient="records"), alert="Error al conectar a la base de datos de arcos carreteros, favor de contactar a soporte.")
+    return success_response_with_alert(data=data.to_dict(orient="records"))
 
 
 def get_lpr(municipality_id):
@@ -589,7 +594,11 @@ group by c.latitude, c.longitude
 
     else:
         data['max_severity'] = [0 for al in range(len(data))]
-    return success_response(data=data.to_dict(orient="records"))
+    no_ceros = data[data['Lecturas'] != 0]
+
+    if no_ceros.empty:
+        return success_response_with_alert(data=data.to_dict(orient="records"), alert="Error al conectar a la base de datos de syslog, favor de contactar a soporte.")
+    return success_response_with_alert(data=data.to_dict(orient="records"))
 
 
 async def get_switches_connectivity(municipality_id):

@@ -126,6 +126,8 @@ async def get_traffic_syslog_data():
         lpr_id = session.query(CassiaConfig).filter(
             CassiaConfig.name == "lpr_id").first()
         lpr_id = "1" if not lpr_id else lpr_id.value
+        now = datetime.now(pytz.timezone(
+            'America/Mexico_City'))
         statement = text(f"""
 SELECT count(h.hostid) as readings ,h.hostid ,h.host as name,hi.location_lat as latitude,hi.location_lon as longitude,
 i.ip, cm.name as municipality FROM hosts h 
@@ -135,7 +137,7 @@ inner join cassia_lpr_events cle on i.ip=cle.ip
 INNER JOIN hosts_groups hg on h.hostid= hg.hostid 
 inner join cat_municipality cm on hg.groupid =cm.groupid 
 where hi.device_id={lpr_id} and cle.SysLogTag ='PlateReader(Verbose)'
-and devicedReportedTime between DATE_ADD(now(),INTERVAL -300 SECOND) and DATE_ADD(now(),INTERVAL -270 SECOND)
+and devicedReportedTime between DATE_ADD('{now}',INTERVAL -300 SECOND) and DATE_ADD('{now}',INTERVAL -270 SECOND)
 group by h.host ,i.ip,cle.ip, cm.name ,h.hostid 
 order by count(h.hostid) desc""")
         data = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
@@ -184,7 +186,7 @@ INNER JOIN host_inventory hi  on h.hostid=hi.hostid
 inner join interface i on h.hostid =i.hostid
 INNER JOIN hosts_groups hg on h.hostid= hg.hostid 
 inner join cat_municipality cm on hg.groupid =cm.groupid 
-where hi.device_id=1""")
+where hi.device_id={lpr_id}""")
         lprs = pd.DataFrame(session.execute(lprs)).replace(np.nan, "")
 
         for rango in rangos:

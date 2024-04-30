@@ -18,6 +18,17 @@ def success_response(message: str = "success", success: bool = True, data: any =
     return JSONResponse(content=jsonable_encoder(response), status_code=status_code)
 
 
+def success_response_with_alert(message: str = "success", success: bool = True, data: any = "", status_code: int = 200, alert=None):
+    response = {
+        'message': message,
+        'success': success,
+        'data': data,
+        'status_code': status_code,
+        'alert': alert
+    }
+    return JSONResponse(content=jsonable_encoder(response), status_code=status_code)
+
+
 def as_form(cls: Type[BaseModel]):
     new_parameters = []
 

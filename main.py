@@ -24,7 +24,6 @@ async def main():
         app_fastapi, host="0.0.0.0", workers=4, loop="asyncio", reload=True, port=8002))
     api = asyncio.create_task(server.serve())
     sched = asyncio.create_task(app_rocketry.serve())
-
     await asyncio.wait([sched, api])
 
 if __name__ == "__main__":
