@@ -41,6 +41,8 @@ class DBQueries:
         self.stored_name_get_aligment_report_data_by_device = "sp_alignmentReport_Host"
         self.stored_name_catalog_devices_types = 'sp_catDevice'
         self.stored_name_catalog_devices_brands = 'sp_catBrand'
+        self.stored_name_catalog_metric = "sp_catMetric"
+        self.stored_name_catalog_models = "sp_catModel"
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -163,8 +165,7 @@ FROM cassia_config where cassia_config.name='{name}'"""
         return self.query_statement_get_data_problems_by_list_ids
 
     def builder_query_statement_get_global_cassia_events_by_tech(self, tech_id):
-        self.query_statement_get_global_cassia_events_by_tech = f"""
-        SELECT * FROM cassia_arch_traffic_events where closed_at is NULL and tech_id={tech_id}"""
+        self.query_statement_get_global_cassia_events_by_tech = f"""SELECT * FROM cassia_arch_traffic_events where closed_at is NULL and tech_id='{tech_id}'"""
         return self.query_statement_get_global_cassia_events_by_tech
 
     def builder_query_statement_get_cassia_events_by_tech_and_municipality(self, municipality, tech_id):

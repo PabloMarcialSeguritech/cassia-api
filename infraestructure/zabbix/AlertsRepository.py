@@ -282,10 +282,14 @@ async def get_alerts(municipalityId, tech_host_type, subtype, severities):
 
 
 async def process_alerts_local(data, municipalityId,  tech_id, severities, tipo):
+    print("entra aqui")
     if municipalityId == '0':
+        print("AAAAAA")
         alertas = await CassiaEventRepository.get_global_alerts_by_tech(tech_id, tipo)
+        print("BBBBB")
         if not alertas.empty:
             alertas = await process_and_filter_alerts(alertas, severities)
+            print("CCCCC")
     else:
         municipios = await CassiaConfigRepository.get_city_catalog()
         municipio_value = ''
@@ -308,6 +312,7 @@ async def process_alerts_local(data, municipalityId,  tech_id, severities, tipo)
             alertas.rename(columns={'message': 'Ack_message'}, inplace=True)
     data = pd.concat([alertas, data],
                      ignore_index=True).replace(np.nan, "")
+    print("ai sasdiasd asd")
     return data
 
 
