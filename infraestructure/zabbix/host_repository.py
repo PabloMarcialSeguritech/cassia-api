@@ -322,6 +322,7 @@ async def get_switch_through_put(municipality_id, switch_id, metric_switch_val):
         await db_connection.start_connection()
         database_response = await db_connection.run_stored_procedure(db_queries.stored_name_get_switch_through_put_data,
                                                                      stored_procedure_params)
+
         return database_response
 
     except Exception as e:
