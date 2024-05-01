@@ -43,6 +43,36 @@ class DBQueries:
         self.stored_name_catalog_devices_brands = 'sp_catBrand'
         self.stored_name_catalog_metric = "sp_catMetric"
         self.stored_name_catalog_models = "sp_catModel"
+        self.query_get_rfid_arcos_data_v2_gto = """SELECT m.Nombre as Municipio, a.Nombre as Arco, r.Descripcion,
+r.Estado, a2.UltimaLectura,
+cl.lecturas as Lecturas,
+a.Longitud,a.Latitud,
+r.Ip
+FROM RFID r
+INNER JOIN Arco a ON (a.IdArco =r.IdArco )
+INNER JOIN Municipio m ON (a.IdMunicipio =M.IdMunicipio)
+LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
+LEFT JOIN (select lr.IdRFID,lr.IdAntena,
+COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
+where lr.Fecha between dateadd(second,-30,getdate()) and getdate()
+group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
+order by a.Longitud,a.Latitud"""
+        self.query_get_rfid_arcos_data_v1 = """SELECT m.Nombre as Municipio, a.Nombre as Arco, r.Descripcion,
+r.Estado, a2.UltimaLectura,
+cl.lecturas as Lecturas,
+a.Longitud, a.Latitud,
+r.Ip
+FROM RFID r
+INNER JOIN ArcoRFID ar  ON(R.IdRFID=ar.IdRFID)
+INNER JOIN Arco a ON(ar.IdArco=a.IdArco)
+INNER JOIN ArcoMunicipio am ON(a.IdArco=am.IdArco)
+INNER JOIN Municipio m ON(am.IdMunicipio=M.IdMunicipio)
+LEFT JOIN Antena a2  On(r.IdRFID=a2.IdRFID)
+LEFT JOIN(select lr.IdRFID, lr.IdAntena,
+           COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
+where lr.Fecha between dateadd(second, -30, getdate()) and getdate()
+group by lr.IdRFID, lr.IdAntena) cl ON(r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
+order by a.Longitud, a.Latitud"""
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -51,6 +81,10 @@ class DBQueries:
     def builder_query_statement_get_cassia_event(self, eventid):
         self.query_statement_get_cassia_event = f"""select cassia_arch_traffic_events_id,created_at  from cassia_arch_traffic_events p where cassia_arch_traffic_events_id ='{eventid}'"""
         return self.query_statement_get_cassia_event
+
+    def builder_query_statement_get_cassia_event_2(self, eventid):
+        self.query_statement_get_cassia_event_2 = f"""select cassia_arch_traffic_events_id,created_at  from cassia_arch_traffic_events_2 p where cassia_arch_traffic_events_id ='{eventid}'"""
+        return self.query_statement_get_cassia_event_2
 
     def builder_query_statement_get_cassia_event_tickets(self, eventid):
         self.query_statement_get_cassia_event_tickets = f"select * from cassia_tickets where event_id ='{eventid}'"
@@ -206,3 +240,49 @@ where cate.closed_at is NULL and cate.hostid in ({hostids})"""
     def builder_query_statement_delete_ci_element_doc_by_id(self, doc_id):
         self.query_statement_delete_ci_element_doc_by_id = f"DELETE FROM cassia_ci_documents1 where doc_id={doc_id}"
         return self.query_statement_delete_ci_element_doc_by_id
+
+    def builder_query_statement_get_host_traffic_by_ip_v2_gto(self, ip):
+        self.query_statement_get_host_traffic_by_ip_v2_gto = f"""
+SELECT m.Nombre as Municipio, a.Nombre as Arco, r.Descripcion,
+r.Estado, a2.UltimaLectura,
+ISNULL(cl.lecturas,0)  as Lecturas,
+a.Longitud,a.Latitud,
+a2.Carril,
+r.Ip 
+FROM RFID r
+--INNER JOIN ArcoRFID ar  ON (R.IdRFID = ar.IdRFID )
+INNER JOIN Arco a ON (r.IdArco =a.IdArco )
+--INNER JOIN ArcoMunicipio am ON (a.IdArco =am.IdArco)
+INNER JOIN Municipio m ON (a.IdMunicipio =m.IdMunicipio)
+LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
+LEFT JOIN (select lr.IdRFID,lr.IdAntena,
+COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
+where lr.Fecha between dateadd(minute,-5,getdate()) and getdate()
+group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
+where r.Ip = '{ip}'
+order by a.Longitud,a.Latitud"""
+
+        return self.query_statement_get_host_traffic_by_ip_v2_gto
+
+    def builder_query_statement_get_host_traffic_by_ip_v1(self, ip):
+        self.query_statement_get_host_traffic_by_ip_v1 = f"""
+SELECT m.Nombre as Municipio, a.Nombre as Arco, r.Descripcion,
+r.Estado, a2.UltimaLectura,
+ISNULL(cl.lecturas,0)  as Lecturas,
+a.Longitud,a.Latitud,
+a2.Carril, m.Nombre ,
+r.Ip 
+FROM RFID r
+INNER JOIN ArcoRFID ar  ON (R.IdRFID = ar.IdRFID )
+INNER JOIN Arco a ON (ar.IdArco =a.IdArco )
+INNER JOIN ArcoMunicipio am ON (a.IdArco =am.IdArco)
+INNER JOIN Municipio m ON (am.IdMunicipio =m.IdMunicipio)
+LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
+LEFT JOIN (select lr.IdRFID,lr.IdAntena,
+COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
+where lr.Fecha between dateadd(minute,-5,getdate()) and getdate()
+group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
+where r.Ip = '{ip}'
+order by a.Longitud,a.Latitud"""
+
+        return self.query_statement_get_host_traffic_by_ip_v1

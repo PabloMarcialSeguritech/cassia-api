@@ -11,12 +11,14 @@ from models.cassia_config import CassiaConfig
 from models.cassia_arch_traffic_events import CassiaArchTrafficEvent
 from models.cassia_arch_traffic_events_3 import CassiaArchTrafficEvent3
 import utils.settings as settings
+from infraestructure.db_queries_model import DBQueries
 # Creating the Rocketry app
 rfid_schedule = Grouper()
 # Creating some tasks
 SETTINGS = settings.Settings()
 traffic = SETTINGS.cassia_traffic
 traffic_close = SETTINGS.cassia_traffic_close
+rfid_arcos_gto = SETTINGS.rfid_arcos_gto
 
 
 @rfid_schedule.cond('traffic')
@@ -45,23 +47,9 @@ async def get_rfid_data():
     session.close()
     """ print(rfid_devices.head())
     print(len(rfid_devices)) """
-
-    statement = text(f"""
-SELECT m.Nombre as Municipio, a.Nombre as Arco, r.Descripcion,
-r.Estado, a2.UltimaLectura,
-cl.lecturas as Lecturas,
-a.Longitud,a.Latitud,
-r.Ip 
-FROM RFID r
-INNER JOIN Arco a ON (a.IdArco =r.IdArco )
-INNER JOIN Municipio m ON (a.IdMunicipio =M.IdMunicipio)
-LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
-LEFT JOIN (select lr.IdRFID,lr.IdAntena,
-COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
-where lr.Fecha between dateadd(second,-30,getdate()) and getdate()
-group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
-order by a.Longitud,a.Latitud
-""")
+    query = DBQueries().query_get_rfid_arcos_data_v2_gto if rfid_arcos_gto else DBQueries(
+    ).query_get_rfid_arcos_data_v1
+    statement = text(query)
 
     try:
         arcos = pd.DataFrame(session_c5.execute(statement)).replace(np.nan, 0)
