@@ -18,6 +18,7 @@ import pytz
 from fastapi.exceptions import HTTPException
 from fastapi import status
 from services.cassia.configurations_service import get_configuration
+from infraestructure.db_queries_model import DBQueries
 import json
 import re
 import time
@@ -610,26 +611,9 @@ SELECT  DISTINCT h.hostid,h.name Host,hi.location_lat as latitude,hi.location_lo
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Host id not exist"
         )
-    statement = text(f"""
-SELECT m.Nombre as Municipio, a.Nombre as Arco, r.Descripcion,
-r.Estado, a2.UltimaLectura,
-ISNULL(cl.lecturas,0)  as Lecturas,
-a.Longitud,a.Latitud,
-a2.Carril,
-r.Ip 
-FROM RFID r
---INNER JOIN ArcoRFID ar  ON (R.IdRFID = ar.IdRFID )
-INNER JOIN Arco a ON (r.IdArco =a.IdArco )
---INNER JOIN ArcoMunicipio am ON (a.IdArco =am.IdArco)
-INNER JOIN Municipio m ON (a.IdMunicipio =m.IdMunicipio)
-LEFT JOIN Antena a2  On (r.IdRFID=a2.IdRFID)
-LEFT JOIN (select lr.IdRFID,lr.IdAntena,
-COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
-where lr.Fecha between dateadd(minute,-5,getdate()) and getdate()
-group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
-where r.Ip = '{host["ip"].values[0]}'
-order by a.Longitud,a.Latitud
-""")
+    query = DBQueries().builder_query_statement_get_host_traffic_by_ip_v2_gto(
+        host["ip"].values[0]) if settings.rfid_arcos_gto else DBQueries().builder_query_statement_get_host_traffic_by_ip_v1(host["ip"].values[0])
+    statement = text(query)
     db_c5 = DB_C5()
     session_c5 = db_c5.Session()
     arcos = session_c5.execute(statement)
