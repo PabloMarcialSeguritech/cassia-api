@@ -177,3 +177,10 @@ class Settings(BaseSettings):
             os.getenv('TRAFFIC_SYSLOG_CLOSE')) == 1 else False
     except:
         pass
+
+    rfid_arcos_gto: bool = True
+    try:
+        rfid_arcos_gto: bool = True if int(
+            os.getenv('RFID_ARCOS_GTO')) == 1 else False
+    except:
+        pass

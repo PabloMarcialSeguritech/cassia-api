@@ -14,7 +14,11 @@ async def get_cassia_event(eventid) -> pd.DataFrame:
         await db_model.start_connection()
         event_data = await db_model.run_query(get_event_query)
         event = pd.DataFrame(event_data).replace(np.nan, None)
-
+        """ if event.empty:
+            get_event_query = DBQueries().builder_query_statement_get_cassia_event_2(
+                eventid)
+            event_data = await db_model.run_query(get_event_query)
+            event = pd.DataFrame(event_data).replace(np.nan, None) """
         return event
     except Exception as e:
         print(f"Excepcion en get_cassia_event: {e}")
