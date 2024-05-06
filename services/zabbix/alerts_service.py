@@ -27,6 +27,11 @@ from infraestructure.zabbix import AlertsRepository
 from infraestructure.cassia import CassiaConfigRepository
 from infraestructure.cassia import CassiaDiagnostaRepository
 from infraestructure.cassia import CassiaEventRepository
+from infraestructure.zabbix import AcknowledgesRepository
+from infraestructure.zabbix import ZabbixEventRepository
+from infraestructure.cassia import cassia_tickets_repository
+from infraestructure.cassia import cassia_exception_agencies_repository
+from infraestructure.cassia import cassia_exceptions_repository
 import os
 import ntpath
 import shutil
@@ -605,6 +610,13 @@ async def get_exception_agencies():
     return success_response(data=rows.to_dict(orient="records"))
 
 
+async def get_exception_agencies_async():
+    exception_agencies = await cassia_exception_agencies_repository.get_cassia_exception_agencies()
+    if not exception_agencies.empty:
+        exception_agencies["id"] = exception_agencies["exception_agency_id"]
+    return success_response(data=exception_agencies.to_dict(orient="records"))
+
+
 def create_exception_agency(exception_agency: exception_agency_schema.CassiaExceptionAgencyBase):
     db_zabbix = DB_Zabbix()
     exception_agency_new = CassiaExceptionAgency(
@@ -627,6 +639,14 @@ def create_exception_agency(exception_agency: exception_agency_schema.CassiaExce
                                 updated_at=exception_agency_new.updated_at,
                                 deleted_at=exception_agency_new.deleted_at
                             ),
+                            status_code=status.HTTP_201_CREATED)
+
+
+async def create_exception_agency_async(exception_agency: exception_agency_schema.CassiaExceptionAgencyBase):
+    exception_agency = await cassia_exception_agencies_repository.create_cassia_exception_agency(exception_agency)
+    return success_response(message="Registro guardado correctamente",
+                            success=True,
+                            data=exception_agency,
                             status_code=status.HTTP_201_CREATED)
 
 
@@ -657,6 +677,19 @@ def update_exception_agency(exception_agency_id: int, exception_agency: exceptio
                             data=exception_agency_search)
 
 
+async def update_exception_agency_async(exception_agency_id: int, exception_agency_data: exception_agency_schema.CassiaExceptionAgencyBase):
+    exception_agency = await cassia_exception_agencies_repository.get_cassia_exception_agency_by_id(exception_agency_id)
+    if exception_agency.empty:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No existe el registro de Exception Agency"
+        )
+    result = await cassia_exception_agencies_repository.update_cassia_exception_agency(exception_agency_id, exception_agency_data)
+    exception_agency = await cassia_exception_agencies_repository.get_cassia_exception_agency_by_id(exception_agency_id)
+    return success_response(message="Exception Agency Actualizada",
+                            data=exception_agency.to_dict(orient="records")[0])
+
+
 def delete_exception_agency(exception_agency_id: int):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
@@ -676,6 +709,18 @@ def delete_exception_agency(exception_agency_id: int):
     return success_response(message="Exception Agency Deleted")
 
 
+async def delete_exception_agency_async(exception_agency_id: int):
+    exception_agency = await cassia_exception_agencies_repository.get_cassia_exception_agency_by_id(exception_agency_id)
+    if exception_agency.empty:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No existe el registro de Exception Agency"
+        )
+    result = await cassia_exception_agencies_repository.delete_cassia_exception_agency(exception_agency_id)
+    message = "Exception Agency Eliminada" if result else "Error al eliminar Exception Agency"
+    return success_response(message=message)
+
+
 """ Exceptions """
 
 
@@ -689,6 +734,11 @@ async def get_exceptions():
                 detail=f"Internal error : {e}"
             )
     return success_response(data=rows)
+
+
+async def get_exceptions_async():
+    exceptions = await cassia_exceptions_repository.get_cassia_exceptions()
+    return success_response(data=exceptions.to_dict(orient='records'))
 
 
 async def create_exception(exception: exception_schema.CassiaExceptionsBase, current_user_session):
@@ -712,6 +762,23 @@ async def create_exception(exception: exception_schema.CassiaExceptionsBase, cur
                             status_code=status.HTTP_201_CREATED)
 
 
+async def create_exception_async(exception: exception_schema.CassiaExceptionsBase, current_user_session):
+    host = await cassia_exceptions_repository.get_host_by_id(exception.hostid)
+    if host.empty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"El host con el id proporcionado no existe"
+        )
+    exception_dict = exception.dict()
+    exception_dict['session_id'] = current_user_session
+    exception_dict['closed_at'] = None
+    exception = await cassia_exceptions_repository.create_cassia_exception(exception_dict)
+
+    return success_response(message="Excepcion creada correctamente",
+                            data=exception,
+                            status_code=status.HTTP_201_CREATED)
+
+
 async def close_exception(exception_id, exception_data, current_user_session):
     with DB_Zabbix().Session() as session:
         exception = session.query(CassiaExceptions).filter(
@@ -726,6 +793,23 @@ async def close_exception(exception_id, exception_data, current_user_session):
         session.refresh(exception)
     return success_response(message="Excepcion cerrada correctamente",
                             data=exception,
+                            status_code=status.HTTP_200_OK)
+
+
+async def close_exception_async(exception_id, exception_data, current_user_session):
+    exception = await cassia_exceptions_repository.get_cassia_exception_by_id(exception_id)
+    if exception.empty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"La Excepcion con el id proporcionado no existe"
+        )
+    result = await cassia_exceptions_repository.close_cassia_exception_by_id(exception_id, exception_data.closed_at)
+    message = "Excepcion cerrada correctamente" if result else "Error al cerrar la excepcion"
+    exception = await cassia_exceptions_repository.get_cassia_exception_by_id(exception_id)
+    print(message)
+    print(exception)
+    return success_response(message=message,
+                            data=exception.to_dict(orient="records")[0],
                             status_code=status.HTTP_200_OK)
 
 """ def update_exception(exception_agency_id: int, exception_agency: exception_agency_schema.ExceptionAgencyBase):
@@ -1065,6 +1149,11 @@ async def get_acks(eventid, is_cassia_event):
     return success_response(data=response)
 
 
+async def get_tickets_async(eventid, is_cassia_event):
+    tickets = await AcknowledgesRepository.get_event_tickets(eventid, is_cassia_event)
+    return success_response(data=tickets.to_dict(orient="records"))
+
+
 async def get_tickets(eventid):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
@@ -1102,6 +1191,27 @@ async def link_ticket(ticket_data: cassia_ticket_schema.CassiaTicketBase, curren
     return success_response(data=ticket)
 
 
+async def link_ticket_async(ticket_data: cassia_ticket_schema.CassiaTicketBase, current_user_session, is_cassia_event):
+    if not is_cassia_event:
+        problem = await ZabbixEventRepository.get_zabbix_event(ticket_data.event_id)
+        if problem.empty:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The eventid not exists",
+            )
+        ticket = await cassia_tickets_repository.create_cassia_ticket(ticket_data, current_user_session.user_id,is_cassia_event)
+    else:
+        problem = await CassiaEventRepository.get_cassia_event(ticket_data.event_id)
+        if problem.empty:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The eventid not exists",
+            )
+        ticket = await cassia_tickets_repository.create_cassia_ticket(ticket_data, current_user_session.user_id,is_cassia_event)
+
+    return success_response(data=ticket)
+
+
 async def delete_ticket(ticket_id):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
@@ -1119,6 +1229,19 @@ async def delete_ticket(ticket_id):
     session.close()
 
     return success_response(message="El ticket fue eliminado correctamente")
+
+
+async def delete_ticket_async(ticket_id):
+    ticket = await cassia_tickets_repository.get_cassia_ticket(ticket_id)
+    if ticket.empty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The ticket not exists",
+        )
+    result = await cassia_tickets_repository.delete_cassia_ticket(ticket_id)
+    message = "El ticket fue eliminado correctamente" if result else "Error al eliminar el ticket"
+
+    return success_response(message=message)
 
 
 async def register_ack_cassia(eventid, message, current_session, close):

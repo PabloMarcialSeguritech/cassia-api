@@ -8,6 +8,8 @@ import numpy as np
 async def get_cassia_event(eventid) -> pd.DataFrame:
     db_model = DB()
     try:
+        print("nooooaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        print(f"eventid:f{eventid}")
         get_event_query = DBQueries().builder_query_statement_get_cassia_event(
             eventid)
         """ print("Query: ", get_event_query) """
