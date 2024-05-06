@@ -438,7 +438,9 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
         indexes = problems[problems['Problem'] == ping_loss_message]
         indexes = indexes[indexes['hostid'].isin(
             dependientes['hostid'].to_list())]
-        problems.loc[problems.index.isin(indexes.index.to_list()), 'tipo'] = 0
+        if not problems.empty:
+            problems.loc[problems.index.isin(
+                indexes.index.to_list()), 'tipo'] = 0
     sincronizados = await CassiaDiagnostaRepository.get_open_problems_diagnosta()
     if not sincronizados.empty:
         if not problems.empty:

@@ -12,13 +12,35 @@ layers_router = APIRouter(prefix="/layers")
 
 
 @layers_router.get(
+    "/aps_old/{municipality_id}",
+    tags=["Zabbix - Layers - Old"],
+    status_code=status.HTTP_200_OK,
+    summary="Get towers layer by municipality ID",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_aps(municipality_id=0):
+    return await layers_service.get_aps_layer()
+
+
+@layers_router.get(
     "/aps/{municipality_id}",
     tags=["Zabbix - Layers"],
     status_code=status.HTTP_200_OK,
     summary="Get towers layer by municipality ID",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_aps(municipality_id=0):
+async def get_aps_async(municipality_id=0):
+    return await layers_service.get_aps_layer_async()
+
+
+@layers_router.get(
+    "/towers_old",
+    tags=["Zabbix - Layers - Old"],
+    status_code=status.HTTP_200_OK,
+    summary="Get towers layer by municipality ID",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_towers():
     return await layers_service.get_aps_layer()
 
 
@@ -29,13 +51,13 @@ async def get_aps(municipality_id=0):
     summary="Get towers layer by municipality ID",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_towers():
-    return await layers_service.get_aps_layer()
+async def get_towers_async():
+    return await layers_service.get_aps_layer_async()
 
 
 @layers_router.get(
-    '/downs/{municipalityId}',
-    tags=["Zabbix - Layers"],
+    '/downs_old/{municipalityId}',
+    tags=["Zabbix - Layers - Old"],
     status_code=status.HTTP_200_OK,
     summary="Get host with status down by municipality ID, technology or device type, and subtype",
     dependencies=[Depends(auth_service2.get_current_user_session)]
@@ -45,8 +67,19 @@ async def get_hosts_filter(municipalityId: str = "0", dispId: str = "", subtype_
 
 
 @layers_router.get(
-    '/carreteros/{municipalityId}',
+    '/downs/{municipalityId}',
     tags=["Zabbix - Layers"],
+    status_code=status.HTTP_200_OK,
+    summary="Get host with status down by municipality ID, technology or device type, and subtype",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_hosts_filter_async(municipalityId: str = "0", dispId: str = "", subtype_id: str = ""):
+    return await layers_service.get_downs_layer_async(municipalityId, dispId, subtype_id)
+
+
+@layers_router.get(
+    '/carreteros_old/{municipalityId}',
+    tags=["Zabbix - Layers - Old"],
     status_code=status.HTTP_200_OK,
     summary="Get traffic info",
     dependencies=[Depends(auth_service2.get_current_user_session)]
@@ -56,8 +89,19 @@ def get_hosts_filter(municipalityId: str = "0"):
 
 
 @layers_router.get(
-    '/lpr/{municipalityId}',
+    '/carreteros/{municipalityId}',
     tags=["Zabbix - Layers"],
+    status_code=status.HTTP_200_OK,
+    summary="Get traffic info",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_hosts_filter_async(municipalityId: str = "0"):
+    return await layers_service.get_carreteros2_async(municipalityId)
+
+
+@layers_router.get(
+    '/lpr_old/{municipalityId}',
+    tags=["Zabbix - Layers - Old"],
     status_code=status.HTTP_200_OK,
     summary="Get traffic info",
     dependencies=[Depends(auth_service2.get_current_user_session)]
@@ -67,8 +111,19 @@ def get_hosts_filter(municipalityId: str = "0"):
 
 
 @layers_router.get(
-    '/switches_connectivity/{municipality_id}',
+    '/lpr/{municipalityId}',
     tags=["Zabbix - Layers"],
+    status_code=status.HTTP_200_OK,
+    summary="Get traffic info",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_hosts_filter_asyn(municipalityId: str = "0"):
+    return await layers_service.get_lpr_async(municipalityId)
+
+
+@layers_router.get(
+    '/switches_connectivity_old/{municipality_id}',
+    tags=["Zabbix - Layers - Old"],
     status_code=status.HTTP_200_OK,
     summary="Get switches connectivity info",
     dependencies=[Depends(auth_service2.get_current_user_session)]
@@ -78,11 +133,33 @@ async def get_switches_connectivity(municipality_id="0"):
 
 
 @layers_router.get(
-    '/downs/origen/{municipalityId}',
+    '/switches_connectivity/{municipality_id}',
     tags=["Zabbix - Layers"],
+    status_code=status.HTTP_200_OK,
+    summary="Get switches connectivity info",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_switches_connectivity_async(municipality_id="0"):
+    return await layers_service.get_switches_connectivity_async(municipality_id)
+
+
+@layers_router.get(
+    '/downs/origen_old/{municipalityId}',
+    tags=["Zabbix - Layers - Old"],
     status_code=status.HTTP_200_OK,
     summary="Get host with status down by municipality ID, technology or device type, and subtype",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def get_hosts_filter(municipalityId: str = "0", dispId: str = "", subtype_id: str = ""):
     return await layers_service.get_downs_origin_layer(municipalityId, dispId, subtype_id)
+
+
+@layers_router.get(
+    '/downs/origen/{municipalityId}',
+    tags=["Zabbix - Layers"],
+    status_code=status.HTTP_200_OK,
+    summary="Get host with status down by municipality ID, technology or device type, and subtype",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_hosts_filter_async(municipalityId: str = "0", dispId: str = "", subtype_id: str = ""):
+    return await layers_service.get_downs_origin_layer_async(municipalityId, dispId, subtype_id)

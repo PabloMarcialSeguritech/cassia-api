@@ -199,7 +199,7 @@ async def create_user(user: user_schema.UserRegister):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"The next role_ids values are not a valid role_id: {invalid_roles} "
         )
-    password = create_password(8)
+    password = create_password_v2(8)
     if get_user and get_user.deleted_at:
         get_user.mail = user.mail
         get_user.name = user.name
@@ -267,6 +267,15 @@ async def create_user(user: user_schema.UserRegister):
 def create_password(length):
     password = ''.join((secrets.choice(
         string.ascii_letters + string.digits + string.punctuation) for i in range(length)))
+    return password
+
+
+def create_password_v2(length):
+    longitud = length
+    caracteres = string.ascii_letters + string.digits
+    password = ''
+    while len(password) < longitud:
+        password += secrets.choice(caracteres)
     return password
 
 
@@ -347,7 +356,7 @@ async def update_user(user_id, user: user_schema.UserRegister):
     mail_nuevo = False
     if actual_user.mail != user.mail:
         actual_user.mail = user.mail
-        password = create_password(8)
+        password = create_password_v2(8)
         actual_user.password = get_password_hash(password)
         actual_user.verified_at = None
         url = ""
