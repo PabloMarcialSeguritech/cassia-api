@@ -279,12 +279,14 @@ where hi.device_id={rfid_id}""")
             alertas = pd.concat([alertas, result_alert], ignore_index=True)
 
     for ind in alertas.index:
+        # ACTUALIZAR NOMBRE
         alerta = session.query(CassiaArchTrafficEvent).filter(
             CassiaArchTrafficEvent.hostid == alertas['hostid'][ind],
             CassiaArchTrafficEvent.closed_at == None,
             CassiaArchTrafficEvent.alert_type == 'rfid'
         ).first()
         if not alerta:
+            # ACTUALIZAR NOMBRE
             alerta_created = CassiaArchTrafficEvent(
                 hostid=alertas['hostid'][ind],
                 created_at=datetime.now(pytz.timezone(
@@ -324,6 +326,7 @@ async def trigger_alerts_close():
         ping_loss_message = session.query(CassiaConfig).filter(
             CassiaConfig.name == "ping_loss_message").first()
         ping_loss_message = ping_loss_message.value if ping_loss_message else "Unavailable by ICMP ping"
+        # ACTUALIZAR NOMBRE
         a_cerrar = text(f"""SELECT * FROM 
                         cassia_arch_traffic_events
                         where closed_at is NULL
@@ -335,6 +338,7 @@ async def trigger_alerts_close():
         a_cerrar = pd.DataFrame(session.execute(a_cerrar)).replace(np.nan, '')
         ids = [0]
         if not a_cerrar.empty:
+            # ACTUALIZAR NOMBRE
             ids = a_cerrar['cassia_arch_traffic_events_id'].astype(
                 'int').to_list()
             statement = text(f"""

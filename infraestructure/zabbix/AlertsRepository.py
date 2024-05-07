@@ -190,7 +190,7 @@ async def process_cassia_alerts(cassia_alerts) -> pd.DataFrame:
     cassia_alerts['Ack'] = [0 for i in range(len(cassia_alerts))]
 
     cassia_alerts['manual_close'] = [
-        0 for i in range(len(cassia_alerts))]
+        1 for i in range(len(cassia_alerts))]
     cassia_alerts['dependents'] = [
         0 for i in range(len(cassia_alerts))]
     cassia_alerts['local'] = [
@@ -339,7 +339,7 @@ async def normalizar_eventos_cassia(data, data_problems, severities, ping_loss_m
     """ data_problems['Ack_message'] = [
                 '' for i in range(len(data_problems))] """
     data_problems['manual_close'] = [
-        0 for i in range(len(data_problems))]
+        1 for i in range(len(data_problems))]
     data_problems['dependents'] = [
         0 for i in range(len(data_problems))]
     data_problems['local'] = [
