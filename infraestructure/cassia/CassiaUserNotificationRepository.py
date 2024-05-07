@@ -19,9 +19,9 @@ async def get_user_slack_notification(user_id) -> pd.DataFrame:
             user_notification_data).replace(np.nan, None)
         return user_notification_df
     except Exception as e:
-        print(f"Excepcion en get_cassia_event: {e}")
+        print(f"Excepcion en get_user_slack_notification: {e}")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Excepcion en get_cassia_event: {e}")
+                            detail=f"Excepcion en get_user_slack_notification: {e}")
     finally:
         await db_model.close_connection()
 
@@ -40,7 +40,7 @@ async def get_user_slack_notifications_count(last_date) -> int:
         else:
             return 0
     except Exception as e:
-        print(f"Excepcion en get_cassia_event: {e}")
+        print(f"Excepcion en get_user_slack_notifications_count: {e}")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Excepcion en get_user_slack_notifications_count: {e}")
     finally:
@@ -61,9 +61,9 @@ async def get_total_slack_notifications_count() -> int:
         else:
             return 0
     except Exception as e:
-        print(f"Excepcion en get_cassia_event: {e}")
+        print(f"Excepcion en get_total_slack_notifications_count: {e}")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Excepcion en get_user_slack_notifications_count: {e}")
+                            detail=f"Excepcion en get_total_slack_notifications_count: {e}")
     finally:
         await db_model.close_connection()
 
@@ -79,7 +79,7 @@ async def get_notifications(skip, limit) -> pd.DataFrame:
             notifications_data).replace(np.nan, None)
         return notifications_df
     except Exception as e:
-        print(f"Excepcion en get_cassia_event: {e}")
+        print(f"Excepcion en  get_notifications: {e}")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Excepcion en get_notifications: {e}")
     finally:

@@ -9,6 +9,10 @@ from fastapi import status
 from utils.traits import success_response
 from utils.traits import success_response_with_alert
 from models.cassia_config import CassiaConfig
+from infraestructure.zabbix import layers_repository
+from infraestructure.cassia import CassiaConfigRepository
+from infraestructure.zabbix import host_repository
+from infraestructure.zabbix import AlertsRepository
 import numpy as np
 from datetime import datetime
 import pytz
@@ -24,6 +28,12 @@ async def get_aps_layer():
             orient="records"))
 
 
+async def get_aps_layer_async():
+    aps = await layers_repository.get_towers()
+    return success_response(data=aps.to_dict(
+        orient="records"))
+
+
 async def get_downs_layer(municipality_id, dispId, subtype_id):
     with DB_Zabbix().Session() as session:
         statement = text(
@@ -32,7 +42,7 @@ async def get_downs_layer(municipality_id, dispId, subtype_id):
         downs = session.execute(statement)
         downs = pd.DataFrame(downs).replace(np.nan, "")
         print(len(downs))
-        dependientes = text(f"""SELECT DISTINCT (hostid) from cassia_diagnostic_problems_2 cdp 
+        dependientes = text(f"""SELECT DISTINCT (hostid) from cassia_diagnostic_problems_2 cdp
 where closed_at is null and depends_hostid is not null""")
         dependientes = pd.DataFrame(
             session.execute(dependientes)).replace(np.nan, '')
@@ -91,36 +101,50 @@ where closed_at is null and depends_hostid is not null""")
         return success_response(data=response)
 
 
-""" db_zabbix = DB_Zabbix()
-    statement = text(
-        f"call sp_hostDown('{municipality_id}','{dispId}','{subtype_id}')")
-    session = db_zabbix.Session()
-    aps = session.execute(statement)
-    data = pd.DataFrame(aps).replace(np.nan, "")
-
-    downs_origen = text(
-        fcall sp_diagnostic_problems('{municipality_id}','{dispId}'))
-    downs_origen = pd.DataFrame(
-        session.execute(downs_origen)).replace(np.nan, "")
-    if not downs_origen.empty:
-        downs_origen['value'] = [1 for i in range(len(downs_origen))]
-        downs_origen['description'] = [
-            'ICMP ping' for i in range(len(downs_origen))]
-        downs_origen['origen'] = [1 for i in range(len(downs_origen))]
-        if not data.empty:
-            data = data[~data['hostid'].isin(downs_origen['hostid'].to_list())]
-    if not data.empty:
-        data['origen'] = [0 for i in range(len(data))]
-    if data.empty and not downs_origen.empty:
-        data = downs_origen
-    if not data.empty and not downs_origen.empty:
-        data = pd.concat([downs_origen, data],
-                         ignore_index=True).replace(np.nan, "")
-    response = {"downs": data.to_dict(
-        orient="records")
+async def get_downs_layer_async(municipality_id, dispId, subtype_id):
+    downs = await layers_repository.get_host_downs(municipality_id, dispId, subtype_id)
+    dependientes = await layers_repository.get_host_downs_dependientes()
+    if not downs.empty:
+        downs['value'] = [1 for i in range(len(downs))]
+        downs['description'] = [
+            'ICMP ping' for i in range(len(downs))]
+        downs['origen'] = [1 for i in range(len(downs))]
+    downs_totales = await layers_repository.get_host_downs(0, '', '')
+    dependientes_filtro = await layers_repository.get_host_downs_dependientes_filtro(municipality_id, dispId)
+    glob = {'downs_totales': 0,
+            'downs_dependientes': 0,
+            'downs_origen': 0}
+    filtro = {
+        'downs_totales': 0,
+        'downs_dependientes': 0,
+        'downs_origen': 0
     }
-    session.close()
-return success_response(data=response) """
+    if not downs_totales.empty:
+        downs_totales_count = len(downs_totales)
+        dependientes_count = len(dependientes)
+        origenes_count = downs_totales_count-dependientes_count
+        glob = {
+            'downs_totales': downs_totales_count,
+            'downs_dependientes': dependientes_count,
+            'downs_origen': origenes_count
+        }
+    if not downs.empty:
+        downs_count = len(downs)
+        dependientes_count = len(dependientes_filtro)
+        origenes_count = downs_count-dependientes_count
+        filtro = {
+            'downs_totales': downs_count,
+            'downs_dependientes': dependientes_count,
+            'downs_origen': origenes_count
+        }
+    if not downs.empty and not dependientes.empty:
+        downs.loc[downs['hostid'].isin(
+            dependientes['hostid'].to_list()), 'origen'] = 0
+
+    response = {"downs": downs.to_dict(
+        orient="records"), 'global_count': glob, 'filter_count': filtro
+    }
+    return success_response(data=response)
 
 
 async def get_downs_origin_layer(municipality_id, dispId, subtype_id):
@@ -137,7 +161,7 @@ async def get_downs_origin_layer(municipality_id, dispId, subtype_id):
         downs_globales = session.execute(statement)
         downs_globales = pd.DataFrame(downs_globales).replace(np.nan, "")
         print(len(downs))
-        dependientes = text(f"""SELECT DISTINCT (hostid) from cassia_diagnostic_problems_2 cdp 
+        dependientes = text(f"""SELECT DISTINCT (hostid) from cassia_diagnostic_problems_2 cdp
 where closed_at is null and depends_hostid is not null""")
         dependientes = pd.DataFrame(
             session.execute(dependientes)).replace(np.nan, '')
@@ -173,6 +197,50 @@ where closed_at is null and depends_hostid is not null""")
             orient="records"), 'global_count': glob, 'filter_count': filtro
         }
         return success_response(data=response)
+
+
+async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
+    downs = await layers_repository.get_host_downs(municipality_id, dispId, subtype_id)
+    downs_globales = await layers_repository.get_host_downs('0', '', '')
+    dependientes = await layers_repository.get_host_downs_dependientes()
+    downs_filtro = await AlertsRepository.get_problems_filter(municipality_id, dispId, subtype_id, "6")
+    if not downs_filtro.empty:
+        downs_filtro = downs_filtro[downs_filtro['Estatus'] == 'PROBLEM']
+        if not downs_filtro.empty:
+            downs_filtro = downs_filtro[downs_filtro['tipo'] == 1]
+
+    print(downs_filtro)
+    if not downs.empty:
+        downs_totales = len(downs)
+        origenes = len(downs_filtro)
+
+    filtro = {'downs_totales': downs_totales,
+              'downs_dependientes': 0,
+              'downs_origen': origenes}
+    downs_globales_problems = await AlertsRepository.get_problems_filter(0, dispId, '', "6")
+    if not downs_globales_problems.empty:
+        downs_globales_problems = downs_globales_problems[
+            downs_globales_problems['Estatus'] == 'PROBLEM']
+        if not downs_globales_problems.empty:
+            downs_globales_problems = downs_globales_problems[downs_globales_problems['tipo'] == 1]
+    if not downs_globales.empty:
+        downs_totales = len(downs_globales)
+        origenes = len(downs_globales_problems)
+    glob = {
+        'downs_totales': downs_totales,
+        'downs_dependientes': 0,
+        'downs_origen': origenes
+    }
+    if not downs.empty:
+        downs['value'] = [1 for i in range(len(downs))]
+        downs['description'] = [
+            'ICMP ping' for i in range(len(downs))]
+        downs['origen'] = [1 for i in range(len(downs))]
+
+    response = {"downs": downs.to_dict(
+        orient="records"), 'global_count': glob, 'filter_count': filtro
+    }
+    return success_response(data=response)
 
 
 async def downs_count(municipalityId, dispId, subtype, session):
@@ -243,10 +311,10 @@ left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
 from cassia_event_acknowledges cea group by eventid ) as ceaa
 on  cate.cassia_arch_traffic_events_id=ceaa.eventid
 left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
-left join cassia_diagnostic_problems_2 cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id 
+left join cassia_diagnostic_problems_2 cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id
 where cate.closed_at is NULL and cate.hostid in :hostids""")
         """select cate.*,cdp.dependents  from cassia_arch_traffic_events cate
-left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id 
+left join cassia_diagnostic_problems cdp on cdp.eventid=cate.cassia_arch_traffic_events_id
 where cate.closed_at is NULL and cate.hostid in :hostids """
         """ print(data_problems) """
         data_problems = pd.DataFrame(session.execute(
@@ -311,7 +379,7 @@ where cate.closed_at is NULL and cate.hostid in :hostids """
             dependientes_filtro['hostid'].to_list())]
         data.loc[data.index.isin(indexes.index.to_list()), 'tipo'] = 0
 
-    sincronizados_totales = text("""select * from cassia_diagnostic_problems_2 cdp 
+    sincronizados_totales = text("""select * from cassia_diagnostic_problems_2 cdp
 where cdp.closed_at is NULL""")
 
     sincronizados_totales = pd.DataFrame(
@@ -403,7 +471,7 @@ COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
 where lr.Fecha between dateadd(minute,-5,getdate()) and getdate()
 group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
 WHERE m.Nombre COLLATE Latin1_General_CI_AI LIKE '{municipio['name'].values[0]}' COLLATE Latin1_General_CI_AI
-group by a.Latitud, a.Longitud 
+group by a.Latitud, a.Longitud
 order by a.Longitud,a.Latitud
 """)
     else:
@@ -419,7 +487,7 @@ COUNT(lr.IdRFID) lecturas FROM LecturaRFID lr
 where lr.Fecha between dateadd(minute,-5,getdate()) and getdate()
 group by lr.IdRFID,lr.IdAntena) cl ON (r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
 
-group by a.Latitud, a.Longitud 
+group by a.Latitud, a.Longitud
 order by a.Longitud,a.Latitud""")
 
     session = db_c5.Session()
@@ -432,7 +500,7 @@ order by a.Longitud,a.Latitud""")
 def get_carreteros2(municipality_id):
     with DB_Zabbix().Session() as session:
         rfid_id = session.query(CassiaConfig).filter(
-            CassiaConfig.name == "lpr_id").first()
+            CassiaConfig.name == "rfid_id").first()
         rfid_id = "9" if not rfid_id else rfid_id.value
         if municipality_id != "0":
             statement = text("call sp_catCity()")
@@ -464,22 +532,22 @@ def get_carreteros2(municipality_id):
         data = rfids
         if municipality_id != "0":
             statement = text(f"""
-SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude FROM cassia_arch_traffic c 
-where c.`date` between DATE_ADD(now(),INTERVAL -5 MINUTE) and NOW()  
+SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude FROM cassia_arch_traffic c
+where c.`date` between DATE_ADD(now(),INTERVAL -5 MINUTE) and NOW()
 and c.municipality  LIKE '{municipio['name'].values[0]}'
-group by c.latitude, c.longitude 
+group by c.latitude, c.longitude
 """)
         else:
             statement = text("""
-SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude 
-FROM cassia_arch_traffic c where c.`date` 
-between DATE_ADD(now(),INTERVAL -5 MINUTE) and NOW()  
+SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude
+FROM cassia_arch_traffic c where c.`date`
+between DATE_ADD(now(),INTERVAL -5 MINUTE) and NOW()
 group by c.latitude, c.longitude
 """)
         lecturas = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
         activos = text("""
-SELECT DISTINCT c.longitude ,c.latitude 
-FROM cassia_arch_traffic c 
+SELECT DISTINCT c.longitude ,c.latitude
+FROM cassia_arch_traffic c
 group by c.latitude, c.longitude
 """)
         activos = pd.DataFrame(session.execute(activos)).replace(np.nan, "")
@@ -495,10 +563,10 @@ group by c.latitude, c.longitude
         else:
             data['Lecturas'] = [0 for i in range(len(data))]
         statement = text(f"""
-SELECT max(c.severity) as max_severity, c.longitude ,c.latitude FROM cassia_arch_traffic_events c 
-WHERE c.closed_at is NULL 
+SELECT max(c.severity) as max_severity, c.longitude ,c.latitude FROM cassia_arch_traffic_events c
+WHERE c.closed_at is NULL
 AND tech_id='{rfid_id}'
-group by c.latitude, c.longitude 
+group by c.latitude, c.longitude
 """)
         alerts = pd.DataFrame(session.execute(
             statement)).replace(np.nan, "")
@@ -509,6 +577,67 @@ group by c.latitude, c.longitude
         data['max_severity'] = [0 for al in range(len(data))]
     no_ceros = data[data['Lecturas'] != 0]
 
+    if no_ceros.empty:
+        return success_response_with_alert(data=data.to_dict(orient="records"), alert="Error al conectar a la base de datos de arcos carreteros, favor de contactar a soporte.")
+    return success_response_with_alert(data=data.to_dict(orient="records"))
+
+
+async def get_carreteros2_async(municipality_id):
+    rfid_id = await CassiaConfigRepository.get_config_value_by_name('rfid_id')
+    if not rfid_id.empty:
+        rfid_id = rfid_id['value'][0]
+    else:
+        rfid_id = "9"
+
+    if municipality_id != "0":
+        municipios = await CassiaConfigRepository.get_city_catalog()
+        try:
+            municipio = municipios.loc[municipios["groupid"] == int(
+                municipality_id)]
+        except:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Municipality id is not a int value"
+            )
+        if len(municipio) < 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Municipality id not exist"
+            )
+        rfids = await host_repository.get_host_view(municipality_id, rfid_id, '')
+        rfids = pd.DataFrame(rfids).replace(np.nan, "")
+    else:
+        rfids = await host_repository.get_host_view('0', rfid_id, '')
+        rfids = pd.DataFrame(rfids).replace(np.nan, "")
+    if not rfids.empty:
+        rfids = rfids[['latitude', 'longitude']]
+        rfids = rfids[rfids['latitude'] != '--']
+        rfids = rfids[rfids['longitude'] != '--']
+        rfids = rfids.drop_duplicates(subset=['latitude', 'longitude'])
+    data = rfids
+
+    if municipality_id != "0":
+        lecturas = await layers_repository.get_rfid_readings_by_municipality(municipio['name'].values[0])
+    else:
+        lecturas = await layers_repository.get_rfid_readings_global()
+    activos = await layers_repository.get_rfid_host_active()
+    if not lecturas.empty:
+        data = pd.merge(data, lecturas, how='right', left_on=['latitude', 'longitude'],
+                        right_on=['latitude', 'longitude']).replace(np.nan, 0)
+        data['activo'] = 0
+        if not activos.empty:
+            data.loc[data.set_index(['latitude', 'longitude']).index.isin(
+                activos.set_index(['latitude', 'longitude']).index), 'activo'] = 1
+    else:
+        data['Lecturas'] = [0 for i in range(len(data))]
+    alerts = await layers_repository.get_max_serverities_by_tech(rfid_id)
+    if not alerts.empty and not data.empty:
+        data = pd.merge(data, alerts, how="left", left_on=[
+            'latitude', 'longitude'], right_on=['latitude', 'longitude']).replace(np.nan, 0)
+    else:
+        data['max_severity'] = [0 for al in range(len(data))]
+    no_ceros = data[data['Lecturas'] != 0]
+    print(len(data))
     if no_ceros.empty:
         return success_response_with_alert(data=data.to_dict(orient="records"), alert="Error al conectar a la base de datos de arcos carreteros, favor de contactar a soporte.")
     return success_response_with_alert(data=data.to_dict(orient="records"))
@@ -551,22 +680,22 @@ def get_lpr(municipality_id):
 
         if municipality_id != "0":
             statement = text(f"""
-SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude FROM cassia_arch_traffic_lpr c 
-where c.`date` between DATE_ADD(now(),INTERVAL -10 MINUTE) and NOW()  
+SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude FROM cassia_arch_traffic_lpr c
+where c.`date` between DATE_ADD(now(),INTERVAL -10 MINUTE) and NOW()
 and c.municipality  LIKE '{municipio['name'].values[0]}'
-group by c.latitude, c.longitude 
+group by c.latitude, c.longitude
 """)
         else:
             statement = text("""
-SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude 
-FROM cassia_arch_traffic_lpr c where c.`date` 
-between DATE_ADD(now(),INTERVAL -10 MINUTE) and NOW()  
+SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude
+FROM cassia_arch_traffic_lpr c where c.`date`
+between DATE_ADD(now(),INTERVAL -10 MINUTE) and NOW()
 group by c.latitude, c.longitude
 """)
         lecturas = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
         activos = text("""
-SELECT DISTINCT c.longitude ,c.latitude 
-FROM cassia_arch_traffic_lpr c 
+SELECT DISTINCT c.longitude ,c.latitude
+FROM cassia_arch_traffic_lpr c
 group by c.latitude, c.longitude
 """)
         activos = pd.DataFrame(session.execute(activos)).replace(np.nan, "")
@@ -581,13 +710,76 @@ group by c.latitude, c.longitude
         else:
             data['Lecturas'] = [0 for i in range(len(data))]
         statement = text(f"""
-SELECT max(c.severity) as max_severity, c.longitude ,c.latitude FROM cassia_arch_traffic_events c 
-where c.closed_at is NULL 
+SELECT max(c.severity) as max_severity, c.longitude ,c.latitude FROM cassia_arch_traffic_events c
+where c.closed_at is NULL
 AND tech_id='{lpr_id}'
-group by c.latitude, c.longitude 
+group by c.latitude, c.longitude
 """)
         alerts = pd.DataFrame(session.execute(
             statement)).replace(np.nan, "")
+    if not alerts.empty and not data.empty:
+        data = pd.merge(data, alerts, how="left", left_on=[
+            'latitude', 'longitude'], right_on=['latitude', 'longitude']).replace(np.nan, 0)
+
+    else:
+        data['max_severity'] = [0 for al in range(len(data))]
+    no_ceros = data[data['Lecturas'] != 0]
+
+    if no_ceros.empty:
+        return success_response_with_alert(data=data.to_dict(orient="records"), alert="Error al conectar a la base de datos de syslog, favor de contactar a soporte.")
+    return success_response_with_alert(data=data.to_dict(orient="records"))
+
+
+async def get_lpr_async(municipality_id):
+    lpr_id = await CassiaConfigRepository.get_config_value_by_name('lpr_id')
+    if not lpr_id.empty:
+        lpr_id = lpr_id['value'][0]
+    else:
+        lpr_id = "1"
+    if municipality_id != "0":
+        municipios = await CassiaConfigRepository.get_city_catalog()
+        try:
+            municipio = municipios.loc[municipios["groupid"] == int(
+                municipality_id)]
+        except:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Municipality id is not a int value"
+            )
+        if len(municipio) < 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Municipality id not exist"
+            )
+        lprs = await host_repository.get_host_view(municipality_id, lpr_id, '')
+        lprs = pd.DataFrame(lprs).replace(np.nan, "")
+    else:
+        lprs = await host_repository.get_host_view('0', lpr_id, '')
+        lprs = pd.DataFrame(lprs).replace(np.nan, "")
+    if not lprs.empty:
+        lprs = lprs[['latitude', 'longitude']]
+        lprs = lprs[lprs['latitude'] != '--']
+        lprs = lprs[lprs['longitude'] != '--']
+        lprs = lprs.drop_duplicates(subset=['latitude', 'longitude'])
+    data = lprs
+    with DB_Zabbix().Session() as session:
+        if municipality_id != "0":
+            lecturas = await layers_repository.get_lpr_readings_by_municipality(municipio['name'].values[0])
+        else:
+            lecturas = await layers_repository.get_lpr_readings_global()
+        activos = await layers_repository.get_lpr_host_active()
+        if not lecturas.empty:
+            data = pd.merge(data, lecturas, how='left', left_on=['latitude', 'longitude'],
+                            right_on=['latitude', 'longitude']).replace(np.nan, 0)
+            data['activo'] = 0
+            if not activos.empty:
+                data.loc[data.set_index(['latitude', 'longitude']).index.isin(
+                    activos.set_index(['latitude', 'longitude']).index), 'activo'] = 1
+
+        else:
+            data['Lecturas'] = [0 for i in range(len(data))]
+
+        alerts = await layers_repository.get_max_serverities_by_tech(lpr_id)
     if not alerts.empty and not data.empty:
         data = pd.merge(data, alerts, how="left", left_on=[
             'latitude', 'longitude'], right_on=['latitude', 'longitude']).replace(np.nan, 0)
@@ -610,4 +802,9 @@ async def get_switches_connectivity(municipality_id):
     data = pd.DataFrame(switches).replace(np.nan, "")
     session.close()
 
+    return success_response(data=data.to_dict(orient="records"))
+
+
+async def get_switches_connectivity_async(municipality_id):
+    data = await layers_repository.get_switch_connectivity_layer(municipality_id)
     return success_response(data=data.to_dict(orient="records"))

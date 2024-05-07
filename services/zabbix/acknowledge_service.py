@@ -20,7 +20,7 @@ async def get_acks(eventid, is_cassia_event):
     # Obtiene los acknowledges del evento
     event_acknowledges = await AcknowledgesRepository.get_acknowledges(eventid, is_cassia_event)
     # Obtiene los tickets del evento
-    tickets = await AcknowledgesRepository.get_event_tickets(eventid)
+    tickets = await AcknowledgesRepository.get_event_tickets(eventid, is_cassia_event)
     # Procesa los acknowledges y tickets para obtener el acmulado de cada uno hasta hoy y retorna un diccionario
     resume = await AcknowledgesRepository.process_acknowledges_tickets(event, event_acknowledges, tickets, is_cassia_event)
     response = dict()
