@@ -4,7 +4,9 @@ from models.cassia_config import CassiaConfig
 from models.cassia_arch_traffic_events import CassiaArchTrafficEvent
 from models.cassia_arch_traffic_events_2 import CassiaArchTrafficEvent2
 from models.cassia_arch_traffic_events_3 import CassiaArchTrafficEvent3
+from models.cassia_diagnostic_problems import CassiaDiagnosticProblems
 from models.cassia_diagnostic_problems_3 import CassiaDiagnosticProblems3
+
 from models.cassia_diagnostic_problems_3_table import CassiaDiagnosticProblems3Table
 from rocketry import Grouper
 from utils.settings import Settings
@@ -117,7 +119,8 @@ def get_df_down_totales(downs: pd.DataFrame, cassia_events: pd.DataFrame):
 
 
 def get_cassia_events(session):
-    cassia_events = pd.DataFrame(session.execute(text("""SELECT cassia_arch_traffic_events_id ,cate.hostid ,cate.ip,cate.message  FROM cassia_arch_traffic_events_2 cate
+    # ACTUALIZAR NOMBRE
+    cassia_events = pd.DataFrame(session.execute(text("""SELECT cassia_arch_traffic_events_id ,cate.hostid ,cate.ip,cate.message  FROM cassia_arch_traffic_events cate
     where closed_at is null and alert_type ='diagnosta'""")))
     return pd.DataFrame(
         columns=['cassia_arch_traffic_events_id', 'hostid', 'ip', 'message']) if cassia_events.empty else cassia_events
@@ -129,8 +132,9 @@ def get_downs(session):
 
 
 def get_sincronizados(session):
+    # ACTUALIZAR NOMBRE
     sincronizados = pd.DataFrame(session.execute(
-        text("SELECT * FROM cassia_diagnostic_problems_2 where closed_at is null")))
+        text("SELECT * FROM cassia_diagnostic_problems where closed_at is null")))
 
     return pd.DataFrame(
         columns=['diagnostic_problem_id', 'hostid_origen', 'depends_hostid', 'status', 'closed_at', 'local', 'hostid', 'created_at', 'dependents', 'local_eventid']) if sincronizados.empty else sincronizados
@@ -214,7 +218,8 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
                 if not host_padre.empty:
                     now_a = datetime.now(
                         pytz.timezone('America/Mexico_City'))
-                    problem_local = CassiaArchTrafficEvent2(
+                    # ACTUALIZAR NOMBRE
+                    problem_local = CassiaArchTrafficEvent(
                         hostid=host_padre['hostid'][0],
                         severity=5,
                         message=ping_loss_message,
@@ -259,7 +264,8 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
                                                           None, 0, id_dependiente, 0, None]
                                     now = datetime.now(
                                         pytz.timezone('America/Mexico_City'))
-                                    sync_register = CassiaDiagnosticProblems3(
+                                    # ACTUALIZAR NOMBRE
+                                    sync_register = CassiaDiagnosticProblems(
                                         hostid_origen=a_sincronizar_data[0],
                                         depends_hostid=a_sincronizar_data[1],
                                         status=a_sincronizar_data[2],
@@ -289,7 +295,8 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
                                           None, 1, problem_local.hostid, dependientes_caidos, problem_local.cassia_arch_traffic_events_id]
                     now = datetime.now(
                         pytz.timezone('America/Mexico_City'))
-                    sync_register = CassiaDiagnosticProblems3(
+                    # ACTUALIZAR NOMBRE
+                    sync_register = CassiaDiagnosticProblems(
                         hostid_origen=a_sincronizar_data[0],
                         depends_hostid=a_sincronizar_data[1],
                         status=a_sincronizar_data[2],
@@ -337,7 +344,8 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
                                                       None, 0, id_dependiente, 0, None]
                                 now = datetime.now(
                                     pytz.timezone('America/Mexico_City'))
-                                sync_register = CassiaDiagnosticProblems3(
+                                # ACTUALIZAR NOMBRE
+                                sync_register = CassiaDiagnosticProblems(
                                     hostid_origen=a_sincronizar_data[0],
                                     depends_hostid=a_sincronizar_data[1],
                                     status=a_sincronizar_data[2],
@@ -365,7 +373,8 @@ def process_diagnostico(a_sincronizar: pd.DataFrame, res_host, a_diagnosticar: p
                                           None, 0, problematico[0], dependientes_caidos, None]
                     now = datetime.now(
                         pytz.timezone('America/Mexico_City'))
-                    sync_register = CassiaDiagnosticProblems3(
+                    # ACTUALIZAR NOMBRE
+                    sync_register = CassiaDiagnosticProblems(
                         hostid_origen=a_sincronizar_data[0],
                         depends_hostid=a_sincronizar_data[1],
                         status=a_sincronizar_data[2],
@@ -412,8 +421,8 @@ async def close_problems():
         else:
             ids = a_cerrar['diagnostic_problem_id'].to_list()
         now = datetime.now(pytz.timezone('America/Mexico_City'))
-
-        statement = text(f"""UPDATE cassia_diagnostic_problems_2
+        # ACTUALIZAR NOMBRE
+        statement = text(f"""UPDATE cassia_diagnostic_problems
         set closed_at=:date,
         status=:status
         where diagnostic_problem_id in :ids""")
@@ -421,8 +430,9 @@ async def close_problems():
 
         session.execute(statement, params={
                         'date': now, 'status': 'Cerrado', 'ids': ids})
+        # ACTUALIZAR NOMBRE
         statement = text(f"""
-        UPDATE cassia_arch_traffic_events_2
+        UPDATE cassia_arch_traffic_events
         set closed_at=:now,
         status=:status               
         where cassia_arch_traffic_events_id in :ids""")
@@ -470,15 +480,17 @@ async def close_problems():
         else:
             ids = a_cerrar_locales['diagnostic_problem_id'].to_list()
         now = datetime.now(pytz.timezone('America/Mexico_City'))
+        # ACTUALIZAR NOMBRE
         statement = text(f"""
-        UPDATE cassia_diagnostic_problems_2
+        UPDATE cassia_diagnostic_problems
         set closed_at= :now,
         status= :status
         where diagnostic_problem_id in :ids""")
         session.execute(statement, params={'now': now, 'status': 'Cerrado',
                         'ids': ids})
+        # ACTUALIZAR NOMBRE
         statement = text(f"""
-        UPDATE cassia_arch_traffic_events_2
+        UPDATE cassia_arch_traffic_events
         set closed_at=:now,
         status=:status               
         where cassia_arch_traffic_events_id in :ids""")
@@ -521,16 +533,17 @@ async def close_problems():
                     sincronizados_locales['diagnostic_problem_id'][ind])
                 eventos_a_cerrar.append(
                     sincronizados_locales['local_eventid'][ind])
-
+            # ACTUALIZAR NOMBRE
             statement = text(f"""
-        UPDATE cassia_diagnostic_problems_2
+        UPDATE cassia_diagnostic_problems
         set closed_at= :now,
         status= :status
         where diagnostic_problem_id in :ids""")
             session.execute(statement, params={'now': now, 'status': 'Cerrado',
                             'ids': a_cerrar_sincronizados})
+            # ACTUALIZAR NOMBRE
             statement = text(f"""
-            UPDATE cassia_arch_traffic_events_2
+            UPDATE cassia_arch_traffic_events
             set closed_at=:now,
             status=:status               
             where cassia_arch_traffic_events_id in :ids""")
@@ -566,9 +579,9 @@ async def close_problems():
                     continue
                 a_cerrar_sincronizados.append(
                     sincronizados_zabbix['diagnostic_problem_id'][ind])
-
+            # ACTUALIZAR NOMBRE
             statement = text(f"""
-        UPDATE cassia_diagnostic_problems_2
+        UPDATE cassia_diagnostic_problems
         set closed_at= :now,
         status= :status
         where diagnostic_problem_id in :ids""")

@@ -12,7 +12,8 @@ async def get_cassia_event(eventid) -> pd.DataFrame:
         print(f"eventid:f{eventid}")
         get_event_query = DBQueries().builder_query_statement_get_cassia_event(
             eventid)
-        """ print("Query: ", get_event_query) """
+        
+        print("Query: ", get_event_query)
         await db_model.start_connection()
         event_data = await db_model.run_query(get_event_query)
         event = pd.DataFrame(event_data).replace(np.nan, None)
@@ -45,7 +46,7 @@ async def get_global_alerts_by_tech(tech_id, tipo):
             cassia_alerts_df['TimeRecovery'] = ''
             cassia_alerts_df['Ack'] = 0
             cassia_alerts_df['Ack_message'] = ''
-            cassia_alerts_df["manual_close"] = 0
+            cassia_alerts_df["manual_close"] = 1
             cassia_alerts_df['alert_type'] = tipo
             cassia_alerts_df['local'] = 1
             cassia_alerts_df['dependents'] = 0
@@ -76,7 +77,7 @@ async def get_municipality_alerts_by_tech(municipality, tech_id, tipo):
             cassia_alerts_df['TimeRecovery'] = ''
             cassia_alerts_df['Ack'] = 0
             cassia_alerts_df['Ack_message'] = ''
-            cassia_alerts_df["manual_close"] = 0
+            cassia_alerts_df["manual_close"] = 1
             cassia_alerts_df['alert_type'] = tipo
             cassia_alerts_df['local'] = 1
             cassia_alerts_df['dependents'] = 0
