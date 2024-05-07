@@ -43,6 +43,10 @@ class DBQueries:
         self.stored_name_catalog_devices_brands = 'sp_catBrand'
         self.stored_name_catalog_metric = "sp_catMetric"
         self.stored_name_catalog_models = "sp_catModel"
+        self.stored_name_get_towers = "sp_catTower"
+        self.stored_name_get_host_downs = "sp_hostDown"
+        self.query_get_host_downs_dependientes = """SELECT DISTINCT (hostid) from cassia_diagnostic_problems_2 cdp 
+where closed_at is null and depends_hostid is not null"""
         self.query_get_rfid_arcos_data_v2_gto = """SELECT m.Nombre as Municipio, a.Nombre as Arco, r.Descripcion,
 r.Estado, a2.UltimaLectura,
 cl.lecturas as Lecturas,
@@ -73,6 +77,27 @@ LEFT JOIN(select lr.IdRFID, lr.IdAntena,
 where lr.Fecha between dateadd(second, -30, getdate()) and getdate()
 group by lr.IdRFID, lr.IdAntena) cl ON(r.IdRFID=cl.Idrfid AND a2.IdAntena=cl.idAntena)
 order by a.Longitud, a.Latitud"""
+        self.query_statement_get_rfid_readings_global = """
+SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude 
+FROM cassia_arch_traffic c where c.`date` 
+between DATE_ADD(now(),INTERVAL -5 MINUTE) and NOW()  
+group by c.latitude, c.longitude
+"""
+        self.query_get_rfid_acitve = """SELECT DISTINCT c.longitude ,c.latitude 
+FROM cassia_arch_traffic c 
+group by c.latitude, c.longitude"""
+        self.query_statement_get_lpr_readings_global = """
+SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude 
+FROM cassia_arch_traffic_lpr c where c.`date` 
+between DATE_ADD(now(),INTERVAL -10 MINUTE) and NOW()  
+group by c.latitude, c.longitude
+"""
+        self.query_get_lpr_acitve = """SELECT DISTINCT c.longitude ,c.latitude 
+FROM cassia_arch_traffic_lpr c 
+group by c.latitude, c.longitude"""
+        self.stored_name_switch_connectivity = "sp_switchConnectivity"
+        self.query_get_cassia_exception_agencies = "SELECT * FROM cassia_exception_agencies where deleted_at IS NULL"
+        self.query_get_cassia_exceptions = "select * from cassia_exceptions"
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -86,8 +111,8 @@ order by a.Longitud, a.Latitud"""
         self.query_statement_get_cassia_event_2 = f"""select cassia_arch_traffic_events_id,created_at  from cassia_arch_traffic_events_2 p where cassia_arch_traffic_events_id ='{eventid}'"""
         return self.query_statement_get_cassia_event_2
 
-    def builder_query_statement_get_cassia_event_tickets(self, eventid):
-        self.query_statement_get_cassia_event_tickets = f"select * from cassia_tickets where event_id ='{eventid}'"
+    def builder_query_statement_get_cassia_event_tickets(self, eventid, is_cassia_event):
+        self.query_statement_get_cassia_event_tickets = f"select * from cassia_tickets where event_id ='{eventid}' and is_cassia_event={is_cassia_event}"
         return self.query_statement_get_cassia_event_tickets
 
     def builder_query_statement_get_zabbix_event(self, eventid):
@@ -286,3 +311,56 @@ where r.Ip = '{ip}'
 order by a.Longitud,a.Latitud"""
 
         return self.query_statement_get_host_traffic_by_ip_v1
+
+    def builder_query_statement_get_rfid_readings_by_municipality_name(self, municipality_name):
+        self.query_statement_get_rfid_reading_by_municipality_name = f"""SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude FROM cassia_arch_traffic c 
+where c.`date` between DATE_ADD(now(),INTERVAL -5 MINUTE) and NOW()  
+and c.municipality  LIKE '{municipality_name}'
+group by c.latitude, c.longitude """
+        return self.query_statement_get_rfid_reading_by_municipality_name
+
+    def builder_query_statement_get_lpr_readings_by_municipality_name(self, municipality_name):
+        self.query_statement_get_lpr_reading_by_municipality_name = f"""SELECT SUM(c.readings) as Lecturas, c.longitude ,c.latitude FROM cassia_arch_traffic_lpr c 
+where c.`date` between DATE_ADD(now(),INTERVAL -10 MINUTE) and NOW()  
+and c.municipality  LIKE '{municipality_name}'
+group by c.latitude, c.longitude """
+        return self.query_statement_get_lpr_reading_by_municipality_name
+
+    def builder_query_statement_get_max_severities_by_tech(self, tech_id):
+        self.query_statement_get_max_severities_by_tech = f"""SELECT max(c.severity) as max_severity, c.longitude ,c.latitude FROM cassia_arch_traffic_events c 
+WHERE c.closed_at is NULL 
+AND tech_id='{tech_id}'
+group by c.latitude, c.longitude """
+        return self.query_statement_get_max_severities_by_tech
+
+    def builder_query_statement_delete_cassia_ticket_by_id(self, ticket_id):
+        self.query_statement_delete_cassia_ticket_by_id = f"DELETE FROM cassia_tickets where ticket_id={ticket_id}"
+        return self.query_statement_delete_cassia_ticket_by_id
+
+    def builder_query_statement_get_cassia_ticket_by_id(self, ticket_id):
+        self.query_statement_get_cassia_ticket_by_id = f"SELECT * FROM cassia_tickets where ticket_id={ticket_id}"
+        return self.query_statement_get_cassia_ticket_by_id
+
+    def builder_query_statement_get_cassia_exception_agency_by_id(self, exception_agency_id):
+        self.query_statement_get_cassia_exception_agency_by_id = f"SELECT * FROM cassia_exception_agencies where exception_agency_id={exception_agency_id}"
+        return self.query_statement_get_cassia_exception_agency_by_id
+
+    def builder_query_statement_update_cassia_exception_agency(self, exception_agency_id, name, date):
+        self.query_statement_update_cassia_exception_agency = f"""update cassia_exception_agencies set name='{name}', updated_at='{date}' where exception_agency_id={exception_agency_id}"""
+        return self.query_statement_update_cassia_exception_agency
+
+    def builder_query_statement_logic_delete_cassia_exception_agency(self, exception_agency_id, date):
+        self.query_statement_logic_delete_cassia_exception_agency = f"""update cassia_exception_agencies set deleted_at='{date}' where exception_agency_id={exception_agency_id}"""
+        return self.query_statement_logic_delete_cassia_exception_agency
+
+    def builder_query_statement_get_host_by_id(self, hostid):
+        self.query_statement_get_host_by_id = f"""select * from hosts where hostid={hostid}"""
+        return self.query_statement_get_host_by_id
+
+    def builder_query_statement_get_exception_by_id(self, exception_id):
+        self.query_statement_get_exception_by_id = f"""select * from cassia_exceptions where exception_id={exception_id}"""
+        return self.query_statement_get_exception_by_id
+
+    def builder_query_statement_close_exception_by_id(self, exception_id, date):
+        self.query_statement_close_exception_by_id = f"""update cassia_exceptions set closed_at='{date}' where exception_id={exception_id}"""
+        return self.query_statement_close_exception_by_id

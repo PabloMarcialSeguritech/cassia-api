@@ -28,10 +28,11 @@ async def get_acknowledges(eventid, is_zabbix_event) -> pd.DataFrame:
         await db_model.close_connection()
 
 
-async def get_event_tickets(eventid) -> pd.DataFrame:
+async def get_event_tickets(eventid, is_cassia_event) -> pd.DataFrame:
     db_model = DB()
     try:
-        get_tickets_query = DBQueries().builder_query_statement_get_cassia_event_tickets(eventid)
+        get_tickets_query = DBQueries().builder_query_statement_get_cassia_event_tickets(
+            eventid, is_cassia_event)
         await db_model.start_connection()
         tickets_data = await db_model.run_query(get_tickets_query)
         tickets = pd.DataFrame(tickets_data).replace(np.nan, None)
