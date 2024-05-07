@@ -9,22 +9,28 @@ class DBQueries:
         self.stored_name_get_host_health_detail_data = 'sp_hostHealt'
         self.stored_name_get_host_view_data = 'sp_hostView'
         self.stored_name_get_acknowledges = "sp_acknowledgeList1"
+        # ACTUALIZAR NOMBRE
         self.stored_name_get_dependents_diagnostic_problems = "sp_diagnostic_problemsD"
-        self.query_get_open_diagnosta_problems = "select * from cassia_diagnostic_problems_2 cdp where cdp.closed_at is NULL"
+        # ACTUALIZAR NOMBRE
+        self.query_get_open_diagnosta_problems = "select * from cassia_diagnostic_problems cdp where cdp.closed_at is NULL"
         self.query_get_total_slack_notifications_count = "select count(notification_id) as notificaciones from cassia_slack_notifications"
         self.query_statement_get_metrics_template = None
         self.query_statement_get_host_correlation = None
         self.stored_name_problems_severity = 'sp_problembySev'
-        self.query_statement_get_arch_traffic_events_date_close_null = "select * from cassia_arch_traffic_events WHERE closed_at IS NULL"
+        # ACTUALIZAR NOMBRE
+        self.query_statement_get_arch_traffic_events_date_close_null = "select * from cassia_arch_traffic_events WHERE closed_at IS NULL AND alert_type='rfid'"
         self.stored_name_catalog_city = 'sp_catCity'
         self.query_statement_get_arch_traffic_events_date_close_null_municipality_template = None
         self.stored_name_get_host_available_ping_loss_data = 'sp_hostAvailPingLoss'
         self.query_statement_get_config_data_by_name = None
         self.stored_name_get_view_problem_data = 'sp_viewProblem'
+        # ACTUALIZAR NOMBRE
         self.stored_name_get_diagnostic_problems = 'sp_diagnostic_problems1'
         self.query_statement_get_data_problems_by_list_ids = None
+        # ACTUALIZAR NOMBRE
         self.stored_name_get_diagnostic_problems_d = 'sp_diagnostic_problemsD'
-        self.query_statement_get_total_synchronized_data = "select * from cassia_diagnostic_problems_2 cdp where cdp.closed_at is NULL"
+        # ACTUALIZAR NOMBRE
+        self.query_statement_get_total_synchronized_data = "select * from cassia_diagnostic_problems cdp where cdp.closed_at is NULL"
         self.stored_name_get_metric_view_h_data = 'sp_MetricViewH'
         self.stored_name_get_switch_through_put_data = 'sp_switchThroughtput'
         self.stored_name_get_alerts = "sp_viewProblem"
@@ -33,6 +39,7 @@ class DBQueries:
         select eventid,MAX(cea.acknowledgeid) acknowledgeid
         from cassia_event_acknowledges cea group by eventid ) ceaa
         left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid"""
+        # ACTUALIZAR NOMBRE
         self.stored_name_diagnostic_problems_origen_1 = 'sp_diagnostic_problems1'
         self.stored_name_get_connectivity_data_by_device = "sp_connectivityHost"
         self.query_statement_get_device_alineacion = """select DISTINCT device_id from metrics_template mt 
@@ -45,7 +52,9 @@ class DBQueries:
         self.stored_name_catalog_models = "sp_catModel"
         self.stored_name_get_towers = "sp_catTower"
         self.stored_name_get_host_downs = "sp_hostDown"
-        self.query_get_host_downs_dependientes = """SELECT DISTINCT (hostid) from cassia_diagnostic_problems_2 cdp 
+
+        # ACTUALIZAR NOMBRE
+        self.query_get_host_downs_dependientes = """SELECT DISTINCT (hostid) from cassia_diagnostic_problems cdp 
 where closed_at is null and depends_hostid is not null"""
         self.query_get_rfid_arcos_data_v2_gto = """SELECT m.Nombre as Municipio, a.Nombre as Arco, r.Descripcion,
 r.Estado, a2.UltimaLectura,
@@ -104,6 +113,7 @@ group by c.latitude, c.longitude"""
         return self.query_statement_get_metrics_template
 
     def builder_query_statement_get_cassia_event(self, eventid):
+        # ACTUALIZAR NOMBRE
         self.query_statement_get_cassia_event = f"""select cassia_arch_traffic_events_id,created_at  from cassia_arch_traffic_events p where cassia_arch_traffic_events_id ='{eventid}'"""
         return self.query_statement_get_cassia_event
 
@@ -144,19 +154,21 @@ SELECT from_unixtime(p.clock,'%d/%m/%Y %H:%i:%s' ) as Time,
         return self.query_statement_get_hots_zabbix_alerts
 
     def builder_query_statement_get_hots_cassia_alerts(self, hostid):
+        # ACTUALIZAR NOMBRE
         self.query_statement_get_hots_cassia_alerts = f"""
-select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message  from cassia_arch_traffic_events_2 cate
+select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message  from cassia_arch_traffic_events cate
 left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
 from cassia_event_acknowledges cea group by eventid ) as ceaa
 on  cate.cassia_arch_traffic_events_id=ceaa.eventid
 left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
-left join cassia_diagnostic_problems_2 cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id
+left join cassia_diagnostic_problems cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id
 where cate.hostid ={hostid} order by cate.created_at desc limit 20
 """
         return self.query_statement_get_hots_cassia_alerts
 
     def builder_query_statement_get_local_events_diagnosta(self, hostid):
-        self.query_statement_get_local_events_diagnosta = f"select local_eventid from cassia_diagnostic_problems_2 where hostid={hostid}"
+        # ACTUALIZAR NOMBRE
+        self.query_statement_get_local_events_diagnosta = f"select local_eventid from cassia_diagnostic_problems where hostid={hostid}"
         return self.query_statement_get_local_events_diagnosta
 
     def builder_query_statement_get_config_value_by_name(self, name):
@@ -205,7 +217,8 @@ FROM cassia_config where cassia_config.name='{name}'"""
         return self.query_statement_get_host_correlation
 
     def builder_query_statement_get_arch_traffic_events_date_close_null_municipality(self, municipality):
-        self.query_statement_get_arch_traffic_events_date_close_null_municipality_template = f"""select * from cassia_arch_traffic_events WHERE closed_at IS NULL and municipality ='{municipality}'"""
+        # ACTUALIZAR NOMBRE
+        self.query_statement_get_arch_traffic_events_date_close_null_municipality_template = f"""select * from cassia_arch_traffic_events WHERE closed_at IS NULL and municipality ='{municipality}' and alert_type='rfid'"""
         return self.query_statement_get_arch_traffic_events_date_close_null_municipality_template
 
     def builder_query_statement_get_config_data_by_name(self, name):
@@ -213,32 +226,36 @@ FROM cassia_config where cassia_config.name='{name}'"""
         return self.query_statement_get_config_data_by_name
 
     def builder_query_statement_get_data_problems(self, list_hosts_downs_origen_ids):
+        # ACTUALIZAR NOMBRE
         self.query_statement_get_data_problems_by_list_ids = f"""
-            select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message from cassia_arch_traffic_events_2 cate
+            select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message from cassia_arch_traffic_events cate
             left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
             from cassia_event_acknowledges cea group by eventid ) as ceaa
             on  cate.cassia_arch_traffic_events_id=ceaa.eventid
             left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
-            left join cassia_diagnostic_problems_2 cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id
+            left join cassia_diagnostic_problems cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id
             where cate.closed_at is NULL and cate.hostid in {list_hosts_downs_origen_ids}"""
         return self.query_statement_get_data_problems_by_list_ids
 
     def builder_query_statement_get_global_cassia_events_by_tech(self, tech_id):
+        # ACTUALIZAR NOMBRE
         self.query_statement_get_global_cassia_events_by_tech = f"""SELECT * FROM cassia_arch_traffic_events where closed_at is NULL and tech_id='{tech_id}'"""
         return self.query_statement_get_global_cassia_events_by_tech
 
     def builder_query_statement_get_cassia_events_by_tech_and_municipality(self, municipality, tech_id):
+        # ACTUALIZAR NOMBRE
         self.query_statement_get_cassia_events_by_tech_and_municipality = f"""
         SELECT * FROM cassia_arch_traffic_events where closed_at is NULL and tech_id={tech_id} and municipality='{municipality}'"""
         return self.query_statement_get_cassia_events_by_tech_and_municipality
 
     def builder_query_statement_get_cassia_events_with_hosts_filter(self, hostids):
-        self.query_statement_get_cassia_events_with_hosts_filter = f"""select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message from cassia_arch_traffic_events_2 cate
+        # ACTUALIZAR NOMBRE
+        self.query_statement_get_cassia_events_with_hosts_filter = f"""select cate.*,cdp.dependents,IFNULL(cea.message,'') as Ack_message from cassia_arch_traffic_events cate
 left join (select eventid,MAX(cea.acknowledgeid) acknowledgeid
 from cassia_event_acknowledges cea group by eventid ) as ceaa
 on  cate.cassia_arch_traffic_events_id=ceaa.eventid
 left join cassia_event_acknowledges cea on cea.acknowledgeid  =ceaa.acknowledgeid
-left join cassia_diagnostic_problems_2 cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id 
+left join cassia_diagnostic_problems cdp on cdp.local_eventid=cate.cassia_arch_traffic_events_id 
 where cate.closed_at is NULL and cate.hostid in ({hostids})"""
         return self.query_statement_get_cassia_events_with_hosts_filter
 
@@ -327,6 +344,7 @@ group by c.latitude, c.longitude """
         return self.query_statement_get_lpr_reading_by_municipality_name
 
     def builder_query_statement_get_max_severities_by_tech(self, tech_id):
+        # ACTUALIZAR NOMBRE
         self.query_statement_get_max_severities_by_tech = f"""SELECT max(c.severity) as max_severity, c.longitude ,c.latitude FROM cassia_arch_traffic_events c 
 WHERE c.closed_at is NULL 
 AND tech_id='{tech_id}'
@@ -364,3 +382,13 @@ group by c.latitude, c.longitude """
     def builder_query_statement_close_exception_by_id(self, exception_id, date):
         self.query_statement_close_exception_by_id = f"""update cassia_exceptions set closed_at='{date}' where exception_id={exception_id}"""
         return self.query_statement_close_exception_by_id
+
+
+    def builder_query_statement_close_event_by_id(self, event_id, date):
+        # ACTUALIZAR NOMBRE
+        self.query_statement_close_event_by_id = f"""update cassia_arch_traffic_events set closed_at='{date}',
+          message='Evento cerrado manualmente',
+          status='Cerrada manualmente'
+          where cassia_arch_traffic_events_id={event_id}"""
+        return self.query_statement_close_event_by_id
+
