@@ -209,6 +209,8 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
         if not downs_filtro.empty:
             downs_filtro = downs_filtro[downs_filtro['tipo'] == 1]
 
+
+
     if not downs.empty:
         downs_totales = len(downs)
         origenes = len(downs_filtro)

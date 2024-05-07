@@ -52,6 +52,7 @@ class DBQueries:
         self.stored_name_catalog_models = "sp_catModel"
         self.stored_name_get_towers = "sp_catTower"
         self.stored_name_get_host_downs = "sp_hostDown"
+
         # ACTUALIZAR NOMBRE
         self.query_get_host_downs_dependientes = """SELECT DISTINCT (hostid) from cassia_diagnostic_problems cdp 
 where closed_at is null and depends_hostid is not null"""
@@ -382,6 +383,7 @@ group by c.latitude, c.longitude """
         self.query_statement_close_exception_by_id = f"""update cassia_exceptions set closed_at='{date}' where exception_id={exception_id}"""
         return self.query_statement_close_exception_by_id
 
+
     def builder_query_statement_close_event_by_id(self, event_id, date):
         # ACTUALIZAR NOMBRE
         self.query_statement_close_event_by_id = f"""update cassia_arch_traffic_events set closed_at='{date}',
@@ -389,3 +391,4 @@ group by c.latitude, c.longitude """
           status='Cerrada manualmente'
           where cassia_arch_traffic_events_id={event_id}"""
         return self.query_statement_close_event_by_id
+
