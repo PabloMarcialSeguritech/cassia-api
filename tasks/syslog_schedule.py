@@ -2,6 +2,7 @@ import pandas as pd
 from models.cassia_lpr_events import CassiaLprEvent as CassiaEventModel
 from models.cassia_config import CassiaConfig
 from models.cassia_arch_traffic_events import CassiaArchTrafficEvent
+from models.cassia_arch_traffic_events_3 import CassiaArchTrafficEvent3
 from rocketry import Grouper
 from utils.settings import Settings
 from utils.db import DB_Zabbix, DB_Syslog
@@ -226,12 +227,14 @@ where hi.device_id={lpr_id}""")
 
                 alertas = pd.concat([alertas, result_alert], ignore_index=True)
         for ind in alertas.index:
+            # ACTUALIZAR NOMBRE
             alerta = session.query(CassiaArchTrafficEvent).filter(
                 CassiaArchTrafficEvent.hostid == alertas['hostid'][ind],
                 CassiaArchTrafficEvent.closed_at == None,
                 CassiaArchTrafficEvent.alert_type == 'lpr'
             ).first()
             if not alerta:
+                # ACTUALIZAR NOMBRE
                 alerta_created = CassiaArchTrafficEvent(
                     hostid=alertas['hostid'][ind],
                     created_at=datetime.now(pytz.timezone(
@@ -269,6 +272,7 @@ async def trigger_alerts_lpr_close():
         ping_loss_message = session.query(CassiaConfig).filter(
             CassiaConfig.name == "ping_loss_message").first()
         ping_loss_message = ping_loss_message.value if ping_loss_message else "Unavailable by ICMP ping"
+        # ACTUALIZAR NOMBRE
         a_cerrar = text(f"""SELECT * FROM 
                         cassia_arch_traffic_events
                         where closed_at is NULL
@@ -282,6 +286,7 @@ async def trigger_alerts_lpr_close():
         if not a_cerrar.empty:
             ids = a_cerrar['cassia_arch_traffic_events_id'].astype(
                 'int').to_list()
+            # ACTUALIZAR NOMBRE
             statement = text(f"""
             UPDATE cassia_arch_traffic_events
             set closed_at='{datetime.now(pytz.timezone(
