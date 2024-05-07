@@ -301,7 +301,7 @@ where cate.closed_at is NULL and cate.hostid in :hostids """
             """ data_problems['Ack_message'] = [
                 '' for i in range(len(data_problems))] """
             data_problems['manual_close'] = [
-                0 for i in range(len(data_problems))]
+                1 for i in range(len(data_problems))]
             data_problems['dependents'] = [
                 0 for i in range(len(data_problems))]
             data_problems['local'] = [
@@ -499,7 +499,7 @@ where cate.closed_at is NULL and cate.hostid ={host_id} order by cate.created_at
         """ data_problems['Ack_message'] = [
             '' for i in range(len(data_problems))] """
         data_problems['manual_close'] = [
-            0 for i in range(len(data_problems))]
+            1 for i in range(len(data_problems))]
         data_problems['dependents'] = [
             0 for i in range(len(data_problems))]
         data_problems['local'] = [

@@ -209,7 +209,6 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
         if not downs_filtro.empty:
             downs_filtro = downs_filtro[downs_filtro['tipo'] == 1]
 
-    print(downs_filtro)
     if not downs.empty:
         downs_totales = len(downs)
         origenes = len(downs_filtro)
@@ -329,7 +328,7 @@ where cate.closed_at is NULL and cate.hostid in :hostids """
             """ data_problems['Ack_message'] = [
                 '' for i in range(len(data_problems))] """
             data_problems['manual_close'] = [
-                0 for i in range(len(data_problems))]
+                1 for i in range(len(data_problems))]
             data_problems['dependents'] = [
                 0 for i in range(len(data_problems))]
             data_problems['local'] = [

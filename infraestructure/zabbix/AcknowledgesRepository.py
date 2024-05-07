@@ -175,6 +175,10 @@ async def create_cassia_event_acknowledge(eventid, message, current_session, clo
         await session.commit()
 
         if cassia_event_acknowledge is not None:
+            if close:
+                close_event=await close_cassia_event_acknowledge(eventid)
+                if close_event:
+                    return True
             return True
         return False
     except Exception as e:
@@ -183,3 +187,22 @@ async def create_cassia_event_acknowledge(eventid, message, current_session, clo
     finally:
         print("Va a cerrar")
         await session.close()
+
+
+async def close_cassia_event_acknowledge(eventid):
+    db_model = DB()
+    try:
+        current_time = datetime.now(pytz.timezone('America/Mexico_City'))
+        formatted_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
+        query_close_cassia_event = DBQueries(
+        ).builder_query_statement_close_event_by_id(eventid, formatted_time)
+        """ print(query_get_last_ack) """
+        await db_model.start_connection()
+        close_event = await db_model.run_query(query_close_cassia_event)
+
+        return True
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error al cerrar el evento en close_cassia_event_acknowledge {eventid}: {e}")
+    finally:
+        await db_model.close_connection()
