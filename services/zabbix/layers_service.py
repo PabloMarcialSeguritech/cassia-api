@@ -142,7 +142,7 @@ async def get_downs_layer_async(municipality_id, dispId, subtype_id):
             dependientes['hostid'].to_list()), 'origen'] = 0
 
     response = {"downs": downs.to_dict(
-        orient="records"), 'global_count': glob, 'filter_count': filtro
+        orient="records"), 'global_count': glob, 'filter_count': filtro,
     }
     return success_response(data=response)
 

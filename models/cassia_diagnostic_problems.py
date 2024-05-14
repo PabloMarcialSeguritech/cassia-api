@@ -15,4 +15,4 @@ class CassiaDiagnosticProblems(DB_Zabbix.Base):
     hostid = Column(Integer, unique=False, nullable=False)
     created_at = Column(DateTime, default=datetime.now, nullable=True)
     dependents = Column(Integer, unique=False, nullable=False, default=0)
-    local_eventid = Column(Integer, unique=False, nullable=False)
+    local_eventid = Column(Integer, unique=False, nullable=True)
