@@ -251,10 +251,6 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
     response = {"downs": downs.to_dict(
         orient="records"), 'global_count': glob, 'filter_count': filtro
     }
-    print("AAAAAAAAAAAAAAAAAAAAAA")
-    print(len(downs_filtro))
-    print(len(downs))
-    """ print(downs_origen.to_string()) """
     return success_response(data=response)
 
 
