@@ -458,4 +458,75 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
                 exceptions['created_at'], format='%Y-%m-%d %H:%M:%S').dt.tz_localize(None)
         problems = pd.merge(problems, exceptions, on='hostid',
                             how='left').replace(np.nan, None)
+    if not problems.empty:
+        problems_zabbix = problems[problems['local'] == 0]
+        problems_zabbix_ids = problems_zabbix['eventid']
+        zabbix_eventids = '0'
+        if not problems_zabbix.empty:
+            zabbix_eventids = ','.join(
+                problems_zabbix_ids.astype('str').to_list())
+        acks_zabbix = await get_zabbix_acks(zabbix_eventids)
+        if not acks_zabbix.empty:
+            acks_zabbix_mensajes = acks_zabbix.groupby('eventid')[
+                'message'].agg(lambda x: ' | '.join(x)).reset_index()
+            acks_zabbix_mensajes.columns = [
+                'eventid', 'acknowledges_concatenados']
+        else:
+            acks_zabbix_mensajes = pd.DataFrame(
+                columns=['eventid', 'acknowledges_concatenados'])
+        problems_zabbix = pd.merge(
+            problems_zabbix, acks_zabbix_mensajes, how='left', on='eventid').replace(np.nan, None)
+        problems_cassia = problems[problems['local'] == 1]
+        problems_cassia_ids = problems_cassia['eventid']
+        cassia_eventids = '0'
+        if not problems_cassia.empty:
+            cassia_eventids = ','.join(
+                problems_cassia_ids.astype('str').to_list())
+        acks_cassia = await get_cassia_acks(cassia_eventids)
+        if not acks_cassia.empty:
+            acks_cassia_mensajes = acks_cassia.groupby('eventid')[
+                'message'].agg(lambda x: ' | '.join(x)).reset_index()
+            acks_cassia_mensajes.columns = [
+                'eventid', 'acknowledges_concatenados']
+        else:
+            acks_cassia_mensajes = pd.DataFrame(
+                columns=['eventid', 'acknowledges_concatenados'])
+        problems_cassia = pd.merge(
+            problems_cassia, acks_cassia_mensajes, how='left', on='eventid').replace(np.nan, None)
+        problems = pd.concat([problems_zabbix, problems_cassia])
+        problems = problems.sort_values(by='fecha', ascending=False)
     return problems
+
+
+async def get_zabbix_acks(eventids) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        query_get_zabbix_acks = DBQueries(
+        ).builder_query_statement_get_zabbix_acks(eventids)
+        await db_model.start_connection()
+        zabbix_alerts_acks_data = await db_model.run_query(query_get_zabbix_acks)
+        zabbix_alerts_acks_df = pd.DataFrame(
+            zabbix_alerts_acks_data).replace(np.nan, None)
+        return zabbix_alerts_acks_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_zabbix_acks {e}")
+    finally:
+        await db_model.close_connection()
+
+
+async def get_cassia_acks(eventids) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        query_get_cassia_acks = DBQueries(
+        ).builder_query_statement_get_cassia_acks(eventids)
+        await db_model.start_connection()
+        cassia_alerts_acks_data = await db_model.run_query(query_get_cassia_acks)
+        cassia_alerts_acks_df = pd.DataFrame(
+            cassia_alerts_acks_data).replace(np.nan, None)
+        return cassia_alerts_acks_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_cassia_acks {e}")
+    finally:
+        await db_model.close_connection()
