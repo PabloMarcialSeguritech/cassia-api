@@ -29,6 +29,7 @@ import asyncssh
 import asyncio
 import subprocess
 import infraestructure.zabbix.host_repository as host_repository
+from infraestructure.zabbix import layers_repository
 
 settings = Settings()
 
@@ -419,7 +420,7 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
     global_host_available = pd.DataFrame(await host_repository.get_host_available_ping_loss('0', dispId)).replace(np.nan, "")
     downs_global = await downs_count(0, dispId, '')
     if not global_host_available.empty:
-        #downs_totales = int(global_host_available['Down'][0])
+        # downs_totales = int(global_host_available['Down'][0])
         origenes = len(downs_global)
         global_host_available['Downs_origen'] = origenes
 
