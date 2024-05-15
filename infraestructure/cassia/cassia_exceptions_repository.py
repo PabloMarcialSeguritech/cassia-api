@@ -9,6 +9,26 @@ from models.cassia_exceptions_async import CassiaExceptionsAsync
 from fastapi import status, HTTPException
 
 
+async def get_cassia_exceptions_count(municipalityId, dispId) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        sp_get_exceptions_count = DBQueries(
+        ).stored_name_exceptions_count
+        await db_model.start_connection()
+        exceptions_count_data = await db_model.run_stored_procedure(sp_get_exceptions_count, (municipalityId, dispId))
+        exceptions_count_df = pd.DataFrame(
+            exceptions_count_data).replace(np.nan, None)
+        return exceptions_count_df
+    except Exception as e:
+        print(f"Excepcion generada en get_cassia_exceptions_count: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion generada en get_cassia_exceptions_count {e}"
+        )
+    finally:
+        await db_model.close_connection()
+
+
 async def get_cassia_exceptions() -> pd.DataFrame:
     db_model = DB()
     try:

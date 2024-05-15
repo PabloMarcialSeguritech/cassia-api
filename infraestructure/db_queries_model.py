@@ -106,6 +106,7 @@ group by c.latitude, c.longitude"""
         self.stored_name_switch_connectivity = "sp_switchConnectivity"
         self.query_get_cassia_exception_agencies = "SELECT * FROM cassia_exception_agencies where deleted_at IS NULL"
         self.query_get_cassia_exceptions = "select * from cassia_exceptions"
+        self.stored_name_exceptions_count = "sp_getExceptions"
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -389,3 +390,15 @@ group by c.latitude, c.longitude """
           status='Cerrada manualmente'
           where cassia_arch_traffic_events_id={event_id}"""
         return self.query_statement_close_event_by_id
+
+    def builder_query_statement_get_zabbix_acks(self, eventids):
+        self.query_statement_get_zabbix_acks = f"""
+select eventid,message from acknowledges a where eventid in({eventids})
+"""
+        return self.query_statement_get_zabbix_acks
+
+    def builder_query_statement_get_cassia_acks(self, eventids):
+        self.query_statement_get_cassia_acks = f"""
+select eventid,message from cassia_event_acknowledges cea  where eventid in({eventids})
+"""
+        return self.query_statement_get_cassia_acks
