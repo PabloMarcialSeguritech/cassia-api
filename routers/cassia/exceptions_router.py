@@ -68,7 +68,7 @@ async def delete_exception_agency(exception_agency_id):
     summary="Get all Exceptions",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_exceptions_async(municipalityId: str = "0", dispId: str = ""):
+async def get_exceptions_async(municipalityId: str = "0", dispId: str = "0"):
     return await exceptions_service.get_exceptions_count(municipalityId, dispId)
 
 

@@ -310,6 +310,7 @@ async def process_alerts_local(data, municipalityId,  tech_id, severities, tipo)
                                right_on='eventid', how='left')
             alertas.drop(columns=['Ack_message'], inplace=True)
             alertas.rename(columns={'message': 'Ack_message'}, inplace=True)
+    print(alertas)
     data = pd.concat([alertas, data],
                      ignore_index=True).replace(np.nan, "")
     print("ai sasdiasd asd")
@@ -420,10 +421,10 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
     problems = await get_alerts(
         municipalityId, tech_host_type, subtype, severities)
     problems = await normalizar_alertas_zabbix(problems, ping_loss_message)
-    if tech_host_type == lpr_id:
+    if tech_host_type == lpr_id or tech_host_type == '':
         problems = await process_alerts_local(
             problems, municipalityId,  lpr_id, severities, 'lpr')
-    if tech_host_type == rfid_id:
+    if tech_host_type == rfid_id or tech_host_type == '':
         problems = await process_alerts_local(
             problems, municipalityId,  rfid_id, severities, 'rfid')
     downs_origen = await CassiaDiagnostaRepository.get_downs_origen(municipalityId, tech_host_type)
@@ -495,6 +496,10 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
             problems_cassia, acks_cassia_mensajes, how='left', on='eventid').replace(np.nan, None)
         problems = pd.concat([problems_zabbix, problems_cassia])
         problems = problems.sort_values(by='fecha', ascending=False)
+    print(len(problems))
+    print(tech_host_type)
+    print(type(tech_host_type))
+    print(tech_host_type == '')
     return problems
 
 

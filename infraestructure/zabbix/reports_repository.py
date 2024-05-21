@@ -289,6 +289,9 @@ async def process_data_async(data, end_date, init_date, metric_name):
         if hours > 120 and hours <= 240:
             data = await process_dates(data, init_date, end_date, '12H', '%Y-%m-%d %H:%M:%S')
             data_range = "medios dias"
+        if hours > 3 and hours <= 120:
+            data = await process_dates(data, init_date, end_date, '1H', '%Y-%m-%d %H:%M:%S')
+            data_range = "HORAS"
         if hours >= 1 and hours <= 3:
             data = await process_dates(data, init_date, end_date, '15min', '%Y-%m-%d %H:%M:%S')
             data_range = "minutos"

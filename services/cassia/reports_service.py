@@ -14,6 +14,8 @@ import ntpath
 from fastapi.responses import FileResponse
 from infraestructure.zabbix import reports_repository
 from infraestructure.cassia import CassiaConfigRepository
+from infraestructure.zabbix import host_repository
+from infraestructure.zabbix import host_groups_repository
 settings = Settings()
 
 
@@ -97,6 +99,140 @@ async def get_graphic_data_multiple_devices_(device_ids, init_date, end_date):
     session.close()
 
     return success_response(data=response)
+
+
+async def process_data_(data, end_date, init_date, metric_name):
+    if not data.empty:
+        number = data['itemid'].nunique()
+        if metric_name == "Disponibilidad":
+            data_a = data.loc[data["time"] == "2023-12-06 07:15:01"]
+            data_a = data_a.sum()
+
+        data = data.groupby(['time']).agg(
+            {'Avg_min': 'mean', 'num': 'mean'}).reset_index()
+        data['Avg_min'] = data['Avg_min'].apply(lambda x: x * 100)
+
+        if metric_name == "Disponibilidad":
+            print(data)
+        data = data[['time', 'num', 'Avg_min']]
+        diff = end_date - init_date
+        hours = diff.days * 24 + diff.seconds // 3600
+        data_range = "horas"
+        first = data['time'][0]
+        last = data['time'][len(data) - 1]
+
+        if hours > 14400:
+            # cambio
+            data = await process_dates(data, init_date, end_date, '8640H', '%Y')
+            """ data = data.groupby([pd.to_datetime(data['time']).dt.floor('8640H').rename(
+                "date").dt.strftime('%Y')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True) """
+            data_range = "años"
+        if hours >= 7200 and hours <= 14400:
+            # cambio
+            data = await process_dates(data, init_date, end_date, '720H', '%Y-%m-%d')
+            """ data = data.groupby([pd.to_datetime(data['time']).dt.floor('720H').rename(
+                "date").dt.strftime('%Y-%m')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True) """
+            data_range = "meses"
+        if hours > 3696 and hours < 7200:
+            # cambio
+            data = await process_dates(data, init_date, end_date, '360H', '%Y-%m-%d')
+            """ data = data.groupby([pd.to_datetime(data['time']).dt.floor('360H').rename(
+                "date").dt.strftime('%Y-%m-%d')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True) """
+            data_range = "quincenas"
+        if hours > 1680 and hours <= 3696:
+            data = await process_dates(data, init_date, end_date, '168H', '%Y-%m-%d')
+            """ data = data.groupby(
+                [pd.to_datetime(data['time']).dt.floor('168H').rename("date").dt.strftime('%Y-%m-%d')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True) """
+            data_range = "semanas"
+        if hours > 240 and hours <= 1680:
+            # cambio
+            data = await process_dates(data, init_date, end_date, '24H', '%Y-%m-%d')
+            """ data = data.groupby(
+                [pd.to_datetime(data['time']).dt.floor('24H').rename("date").dt.strftime('%Y-%m-%d')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True) """
+            data_range = "dias"
+        if hours > 120 and hours <= 240:
+            # cambio
+            data = await process_dates(data, init_date, end_date, '12H', '%Y-%m-%d %H:%M:%S')
+            """ data = data.groupby(
+                [pd.to_datetime(data['time']).dt.floor('12H').rename("date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True) """
+            data_range = "medios dias"
+        if hours > 1 and hours <= 3:
+            # cambio
+            data = await process_dates(data, init_date, end_date, '15min', '%Y-%m-%d %H:%M:%S')
+            """ data = data.groupby([pd.to_datetime(data['time']).dt.floor('15min').rename(
+                "date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True) """
+            data_range = "minutos"
+        if hours >= 0 and hours <= 1:
+            # cambio
+            data = await process_dates(data, init_date, end_date, '1min', '%Y-%m-%d %H:%M:%S')
+            """ data = data.groupby([pd.to_datetime(data['time']).dt.floor('1min').rename(
+                "date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True) """
+            data_range = "minutos"
+
+        tiempo = f"{len(data)} {data_range}"
+        dias = round(hours / 24, 6)
+        print("AQUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")
+        print(data)
+        data.rename(columns={'Avg_min': metric_name,
+                    'time': 'Tiempo'}, inplace=True)
+        response = {
+            'data': data,
+            'number': number,
+            'dias': dias,
+            'data_range': data_range,
+            'tiempo': tiempo,
+            'first': first,
+            'last': last
+        }
+    else:
+        data = pd.DataFrame(
+            columns=['templateid', 'itemid', 'time', 'num', 'Avg_min'])
+        print("ACAA SI ES CCASCASCASCASCASC")
+        data.rename(columns={'Avg_min': metric_name,
+                             'time': 'Tiempo'}, inplace=True)
+        data = data.replace(np.nan, 0)
+        print(data)
+        response = {
+            'data': data,
+            'number': 0,
+            'dias': 0,
+            'data_range': 0,
+            'tiempo': 0,
+            'first': 0,
+            'last': 0
+        }
+    return response
+
+
+async def process_dates(data, init_date, end_date, freq, date_format):
+    fechas = pd.date_range(start=init_date, end=end_date, freq=freq)
+    mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
+    mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo'])
+    data = data.groupby(
+        [pd.to_datetime(data['time']).dt.floor(freq).rename("date").dt.strftime(date_format)])[['num', 'Avg_min']].mean().round(6).reset_index()
+    data['date'] = pd.to_datetime(data['date'])
+    data['date'] = data['date'].apply(
+        find_nearest_date, args=(mayor['Tiempo'],))
+    data['date'] = pd.to_datetime(data['date']).dt.strftime(date_format)
+    data = data[['date', 'num', 'Avg_min']]
+    data.rename(columns={'date': 'time'}, inplace=True)
+    return data
 
 
 def process_data(data, end_date, init_date, metric_name):
@@ -455,6 +591,147 @@ async def download_graphic_data_multiple(municipality_id: list, tech_id: list, b
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="The lenght of the arrays must be the same"
         )
+
+    conectividad = list()
+    alineacion = list()
+    processed_conectividades = list()
+    processed_alineaciones = list()
+    """ catalog_municipios = text("call sp_catCity()")
+    catalog_municipios = pd.DataFrame(
+        session.execute(catalog_municipios)).replace(np.nan, "") """
+    catalog_municipios = await host_groups_repository.get_catalog_city()
+    """ catalog_techs = text("call sp_catDevice(0)")
+    catalog_techs = pd.DataFrame(
+        session.execute(catalog_techs)).replace(np.nan, "") """
+    catalog_techs = await host_groups_repository.get_device_type_catalog(0)
+    """ catalog_brands = text("call sp_catBrand('')")
+    catalog_brands = pd.DataFrame(
+        session.execute(catalog_brands)).replace(np.nan, "") """
+    catalog_brands = await host_groups_repository.get_device_brands_catalog('')
+
+    for ind in range(len(municipality_id)):
+        # statement = text(f"""
+        # call sp_connectivity('{municipality_id[ind]}','{tech_id[ind]}','{brand_id[ind]}','{model_id[ind]}','{init_date}','{end_date}');
+        # """)
+        db_reseponse = await reports_repository.get_connectivity_data(municipality_id[ind], tech_id[ind], brand_id[ind], model_id[ind], init_date, end_date)
+        data = pd.DataFrame(db_reseponse)
+        data_insert = data
+        processed_conectividad = data
+        if not data.empty:
+            data_insert = data[['itemid', 'time', 'Avg_min']]
+            data_insert.rename(
+                columns={'Avg_min': 'disponibildad', 'itemid': 'itemid(host)'}, inplace=True)
+            processed_conectividad = await process_data_(
+                data, init_date, end_date, "Disponibilidad")
+            processed_conectividad = processed_conectividad['data']
+            model = 'Todos'
+            if brand_id[ind] != '':
+                """ catalog_models = text(f"call sp_catModel('{brand_id[ind]}')") """
+                catalog_models = await host_groups_repository.get_device_models_catalog_by_brand(brand_id[ind])
+                """ catalog_models = pd.DataFrame(
+                    session.execute(catalog_models)).replace(np.nan, "") """
+                model = get_model(
+                    catalog_models, model_id[ind] if model_id[ind] != '' else 0)
+            model = [
+                model for i in range(len(processed_conectividad))]
+            municipio = get_municipio(catalog_municipios, municipality_id[ind])
+            municipio = [
+                municipio for i in range(len(processed_conectividad))]
+            tech = get_tech(catalog_techs, tech_id[ind])
+            tech = [
+                tech for i in range(len(processed_conectividad))]
+            brand = get_brand(
+                catalog_brands, brand_id[ind] if brand_id[ind] != '' else 0)
+            brand = [
+                brand for i in range(len(processed_conectividad))]
+
+            processed_conectividad.insert(loc=0, column='modelo', value=model)
+            processed_conectividad.insert(loc=0, column='marca', value=brand)
+            processed_conectividad.insert(
+                loc=0, column='tecnologia', value=tech)
+            processed_conectividad.insert(
+                loc=0, column='municipio', value=municipio)
+
+        conectividad.append(data_insert)
+
+        processed_conectividades.append(processed_conectividad)
+    for ind in range(len(municipality_id)):
+        if tech_id[ind] == '11':
+            db_align_data = await reports_repository.get_aligment_report(municipality_id[ind], tech_id[ind], brand_id[ind], model_id[ind], init_date, end_date)
+            # statement = text(f"""
+            # call sp_alignmentReport('{municipality_id[ind]}','{tech_id[ind]}','{brand_id[ind]}','{model_id[ind]}','{init_date}','{end_date}');
+            # """)
+            data = pd.DataFrame(db_align_data)
+            data_insert = data
+            processed_conectividad = data
+            if not data.empty:
+                data_insert = data[['itemid', 'time', 'Avg_min']]
+                data_insert.rename(
+                    columns={'Avg_min': 'alineacion', 'itemid': 'itemid(host)'}, inplace=True)
+                processed_conectividad = await process_data_(
+                    data, init_date, end_date, "Alineacion")
+                processed_conectividad = processed_conectividad['data']
+                model = 'Todos'
+                if brand_id[ind] != '':
+                    """ catalog_models = text(
+                        f"call sp_catModel('{brand_id[ind]}')")
+                    catalog_models = pd.DataFrame(
+                        session.execute(catalog_models)).replace(np.nan, "") """
+                    catalog_models = await host_groups_repository.get_device_models_catalog_by_brand(brand_id[ind])
+                    model = get_model(
+                        catalog_models, model_id[ind] if model_id[ind] != '' else 0)
+                model = [
+                    model for i in range(len(processed_conectividad))]
+                municipio = get_municipio(
+                    catalog_municipios, municipality_id[ind])
+                municipio = [
+                    municipio for i in range(len(processed_conectividad))]
+                tech = get_tech(catalog_techs, tech_id[ind])
+                tech = [
+                    tech for i in range(len(processed_conectividad))]
+                brand = get_brand(
+                    catalog_brands, brand_id[ind] if brand_id[ind] != '' else 0)
+                brand = [
+                    brand for i in range(len(processed_conectividad))]
+
+                processed_conectividad.insert(
+                    loc=0, column='modelo', value=model)
+                processed_conectividad.insert(
+                    loc=0, column='marca', value=brand)
+                processed_conectividad.insert(
+                    loc=0, column='tecnologia', value=tech)
+                processed_conectividad.insert(
+                    loc=0, column='municipio', value=municipio)
+
+            alineacion.append(data_insert)
+
+            processed_alineaciones.append(processed_conectividad)
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp_file:
+        xlsx_filename = temp_file.name
+        with pd.ExcelWriter(xlsx_filename, engine="xlsxwriter") as writer:
+
+            for ind in range(len(conectividad)):
+                processed_conectividades[ind].to_excel(
+                    writer, sheet_name=f"Consulta {ind+1} conectividad", index=False)
+                conectividad[ind].to_excel(
+                    writer, sheet_name=f"Consulta {ind+1} conectividad_data", index=False)
+            for ind in range(len(alineacion)):
+                processed_alineaciones[ind].to_excel(
+                    writer, sheet_name=f"Consulta {ind+1} alineacion", index=False)
+                alineacion[ind].to_excel(
+                    writer, sheet_name=f"Consulta {ind+1} alineacion_data", index=False)
+    return FileResponse(xlsx_filename, headers={"Content-Disposition": "attachment; filename=datos.xlsx"}, media_type="application/vnd.ms-excel", filename="datos.xlsx")
+
+
+async def download_graphic_data_multiple_old(municipality_id: list, tech_id: list, brand_id: list, model_id: list, init_date: datetime, end_date: datetime):
+    brand_id = ['' if brand == '0' else brand for brand in brand_id]
+    model_id = ['' if model == '0' else model for model in model_id]
+    if not verify_lenghts([municipality_id, tech_id, brand_id, model_id]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The lenght of the arrays must be the same"
+        )
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
 
@@ -465,6 +742,7 @@ async def download_graphic_data_multiple(municipality_id: list, tech_id: list, b
     catalog_municipios = text("call sp_catCity()")
     catalog_municipios = pd.DataFrame(
         session.execute(catalog_municipios)).replace(np.nan, "")
+
     catalog_techs = text("call sp_catDevice(0)")
     catalog_techs = pd.DataFrame(
         session.execute(catalog_techs)).replace(np.nan, "")
