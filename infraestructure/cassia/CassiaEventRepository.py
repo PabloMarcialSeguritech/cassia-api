@@ -12,7 +12,7 @@ async def get_cassia_event(eventid) -> pd.DataFrame:
         print(f"eventid:f{eventid}")
         get_event_query = DBQueries().builder_query_statement_get_cassia_event(
             eventid)
-        
+
         print("Query: ", get_event_query)
         await db_model.start_connection()
         event_data = await db_model.run_query(get_event_query)

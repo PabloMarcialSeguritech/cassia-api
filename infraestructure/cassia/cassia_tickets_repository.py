@@ -17,7 +17,7 @@ async def create_cassia_ticket(ticket_data, user_id, is_cassia_event):
             tracker_id=ticket_data.tracker_id,
             user_id=user_id,
             clock=ticket_data.clock,
-            created_at=datetime.now(),
+            created_at=datetime.now(pytz.timezone('America/Mexico_City')),
             event_id=ticket_data.event_id,
             is_cassia_event=is_cassia_event
         )
