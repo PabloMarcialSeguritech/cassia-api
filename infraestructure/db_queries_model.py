@@ -106,7 +106,14 @@ group by c.latitude, c.longitude"""
         self.stored_name_switch_connectivity = "sp_switchConnectivity"
         self.query_get_cassia_exception_agencies = "SELECT * FROM cassia_exception_agencies where deleted_at IS NULL"
         self.query_get_cassia_exceptions = "select * from cassia_exceptions"
+        self.stored_name_get_cassia_exceptions = "sp_getExceptions_detail"
         self.stored_name_exceptions_count = "sp_getExceptions"
+        self.query_get_cassia_report_names = """select crfs.cassia_report_frequency_id, crfs.name
+from cassia_report_frequency_schedule crfs"""
+        self.query_get_cassia_users = """select user_id,mail,name from cassia_users cu 
+where cu.deleted_at  is NULL"""
+        self.query_get_cassia_user_reports = """select user_id,cassia_report_frequency_schedule_id from
+cassia_user_reports cur"""
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -402,3 +409,49 @@ select eventid,message from acknowledges a where eventid in({eventids})
 select eventid,message from cassia_event_acknowledges cea  where eventid in({eventids})
 """
         return self.query_statement_get_cassia_acks
+
+    def builder_query_statement_get_reports_to_process(self, lower_limit, upper_limit):
+        self.query_statement_get_reports_to_process = f"""
+        SELECT cr.internal_name, crf.monthly, crf.day_of_month ,crf.weekly,
+crf.day_of_week, crf.daily, crf.`hour`  from cassia_report_frequency_schedule crfs 
+inner join cassia_reports cr on cr.cassia_reports_id =crfs.cassia_report_id 
+inner join cassia_report_frequencies crf  on 
+crf.cassia_report_frequency_id =crfs.cassia_report_frequency_id 
+where hour BETWEEN '{lower_limit}' and '{upper_limit}'        
+"""
+        return self.query_statement_get_reports_to_process
+
+    def builder_query_get_user_reports_mail_by_schedule_id(self, schedule_id):
+        self.query_get_user_reports_mail_by_schedule_id = f"""select cur.user_id,mail from cassia_user_reports cur 
+inner join cassia_users cu on cu.user_id =cur.user_id 
+where cur.cassia_report_frequency_schedule_id ={schedule_id}"""
+        return self.query_get_user_reports_mail_by_schedule_id
+
+    def builder_query_delete_user_reports(self, user_id):
+        self.query_delete_user_reports = f"""DELETE FROM cassia_user_reports  where user_id={user_id}"""
+        return self.query_delete_user_reports
+
+    def builder_query_delete_users_reports(self, user_ids):
+        values = ", ".join(
+            [str(user_id) for user_id in user_ids])
+        self.query_delete_user_reports = f"""DELETE FROM cassia_user_reports  where user_id in ({values})"""
+        return self.query_delete_user_reports
+
+    def builder_query_insert_user_reports(self, user_id, reports_id):
+        values = ", ".join(
+            [f"({user_id}, {report_id})" for report_id in reports_id])
+        self.query_insert_user_reports = f"""
+INSERT INTO cassia_user_reports(user_id, cassia_report_frequency_schedule_id)
+VALUES
+{values}
+"""
+        return self.query_insert_user_reports
+
+    def builder_query_insert_user_reports_values(self, values):
+
+        self.query_insert_user_reports_values = f"""
+INSERT INTO cassia_user_reports(user_id, cassia_report_frequency_schedule_id)
+VALUES
+{values}
+"""
+        return self.query_insert_user_reports_values

@@ -50,14 +50,20 @@ async def delete_exception_agency_async(exception_agency_id: int):
 
 
 async def get_exceptions_count(municipalityId, dispId):
-    if int(dispId)==0:
-        dispId=''
+    if int(dispId) == 0:
+        dispId = ''
+    if dispId == '-1':
+        dispId = ''
     exceptions_count = await cassia_exceptions_repository.get_cassia_exceptions_count(municipalityId, dispId)
     return success_response(data=exceptions_count.to_dict(orient='records'))
 
 
-async def get_exceptions_async():
-    exceptions = await cassia_exceptions_repository.get_cassia_exceptions()
+async def get_exceptions_async(municipalityId, dispId):
+    if int(dispId) == 0:
+        dispId = ''
+    if dispId == '-1':
+        dispId = ''
+    exceptions = await cassia_exceptions_repository.get_cassia_exceptions(municipalityId, dispId)
     return success_response(data=exceptions.to_dict(orient='records'))
 
 
