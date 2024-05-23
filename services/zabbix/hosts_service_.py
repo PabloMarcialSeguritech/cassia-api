@@ -315,9 +315,6 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
     if dispId == "-1":
         dispId = ''
 
-    db_zabbix = DB_Zabbix()
-    session = db_zabbix.Session()
-
     switch_config = pd.DataFrame(await host_repository.get_config_data_by_name('switch_id'))
     switch_id = "12"
     switch_troughtput = False
@@ -380,14 +377,15 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
         """ alertas_rfid = pd.DataFrame([(
             r.severity,
         ) for r in alertas_rfid], columns=['severity']) """
-
-        alertas_rfid = alertas_rfid.groupby(
-            ['severity'])['severity'].count().rename_axis('Severities').reset_index()
-        alertas_rfid.rename(
-            columns={'severity': 'Severities', 'Severities': 'severity'}, inplace=True)
-        problems_count = pd.concat([data3, alertas_rfid], ignore_index=True)
-        data3 = problems_count.groupby(
-            ['severity']).sum().reset_index()
+        if not alertas_rfid.empty:
+            alertas_rfid = alertas_rfid.groupby(
+                ['severity'])['severity'].count().rename_axis('Severities').reset_index()
+            alertas_rfid.rename(
+                columns={'severity': 'Severities', 'Severities': 'severity'}, inplace=True)
+            problems_count = pd.concat(
+                [data3, alertas_rfid], ignore_index=True)
+            data3 = problems_count.groupby(
+                ['severity']).sum().reset_index()
     data4 = pd.DataFrame(await host_repository.get_host_available_ping_loss(municipalityId, dispId)).replace(np.nan, "")
     downs_filtro = await downs_count(municipalityId, dispId, subtype_id)
     if not data4.empty:

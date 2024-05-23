@@ -29,13 +29,13 @@ async def get_cassia_exceptions_count(municipalityId, dispId) -> pd.DataFrame:
         await db_model.close_connection()
 
 
-async def get_cassia_exceptions() -> pd.DataFrame:
+async def get_cassia_exceptions(municipalityId, dispId) -> pd.DataFrame:
     db_model = DB()
     try:
-        query_get_exceptions = DBQueries(
-        ).query_get_cassia_exceptions
+        sp_get_exceptions = DBQueries(
+        ).stored_name_get_cassia_exceptions
         await db_model.start_connection()
-        exceptions_data = await db_model.run_query(query_get_exceptions)
+        exceptions_data = await db_model.run_stored_procedure(sp_get_exceptions, (municipalityId, dispId))
         exceptions_df = pd.DataFrame(
             exceptions_data).replace(np.nan, None)
         return exceptions_df

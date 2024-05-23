@@ -184,3 +184,10 @@ class Settings(BaseSettings):
             os.getenv('RFID_ARCOS_GTO')) == 1 else False
     except:
         pass
+
+    send_reports: bool = False
+    try:
+        send_reports: bool = True if int(
+            os.getenv('SEND_REPORTS')) == 1 else False
+    except:
+        pass
