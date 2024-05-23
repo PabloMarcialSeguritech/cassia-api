@@ -631,18 +631,6 @@ def encrypt(plaintext, key):
     return fernet.encrypt(plaintext.encode())
 
 
-""" async def encrypt_windows():
-    fernet = Fernet("AhAxwL90loljM6Azb_TMcip4mJxtAzZH-mTLxFhsndI=")
-    user = "cassia"
-    user = fernet.encrypt(user.encode())
-    password = "#E8Ftk3oVXD."
-    password = fernet.encrypt(password.encode())
-    print(user)
-    print(password)
-    reponse = {'user': user, 'password': password}
-    return success_response(data=reponse) """
-
-
 def decrypt(encriptedText, key):
     fernet = Fernet(key)
     return fernet.decrypt(encriptedText.encode())
