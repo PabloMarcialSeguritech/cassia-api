@@ -21,6 +21,17 @@ sistema_operativo = {}
 tasks = {}
 
 
+""" @hosts_router.get(
+    'encriptar',
+    tags=["Zabbix - Hosts"],
+    status_code=status.HTTP_200_OK,
+    summary="Get host by municipality ID, technology or device type, and subtype",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def encriptar():
+    return await hosts_service.encrypt_windows() """
+
+
 @hosts_router.get(
     '_old/{municipalityId}',
     tags=["Zabbix - Hosts"],

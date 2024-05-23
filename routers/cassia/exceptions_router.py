@@ -73,14 +73,14 @@ async def get_exceptions_async(municipalityId: str = "0", dispId: str = "0"):
 
 
 @exceptions_router.get(
-    '/exceptions',
+    '/exceptions/{municipalityId}',
     tags=["Zabbix - Problems(Alerts) - Exceptions"],
     status_code=status.HTTP_200_OK,
     summary="Get all Exceptions",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_exceptions_async():
-    return await exceptions_service.get_exceptions_async()
+async def get_exceptions_async(municipalityId: str = "0", dispId: str = "0"):
+    return await exceptions_service.get_exceptions_async(municipalityId, dispId)
 
 
 @exceptions_router.post(

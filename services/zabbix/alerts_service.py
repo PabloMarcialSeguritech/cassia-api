@@ -681,9 +681,6 @@ def delete_exception_agency(exception_agency_id: int):
     return success_response(message="Exception Agency Deleted")
 
 
-
-
-
 """ Exceptions """
 
 
@@ -697,7 +694,6 @@ async def get_exceptions():
                 detail=f"Internal error : {e}"
             )
     return success_response(data=rows)
-
 
 
 async def create_exception(exception: exception_schema.CassiaExceptionsBase, current_user_session):
@@ -721,9 +717,6 @@ async def create_exception(exception: exception_schema.CassiaExceptionsBase, cur
                             status_code=status.HTTP_201_CREATED)
 
 
-
-
-
 async def close_exception(exception_id, exception_data, current_user_session):
     with DB_Zabbix().Session() as session:
         exception = session.query(CassiaExceptions).filter(
@@ -739,8 +732,6 @@ async def close_exception(exception_id, exception_data, current_user_session):
     return success_response(message="Excepcion cerrada correctamente",
                             data=exception,
                             status_code=status.HTTP_200_OK)
-
-
 
 
 """ def update_exception(exception_agency_id: int, exception_agency: exception_agency_schema.ExceptionAgencyBase):
