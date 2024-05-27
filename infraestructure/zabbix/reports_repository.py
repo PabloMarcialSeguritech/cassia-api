@@ -281,14 +281,14 @@ async def process_data_async(data, end_date, init_date, metric_name):
             data = await process_dates(data, init_date, end_date, '168H', '%Y-%m-%d')
             data_range = "semanas"
 
-        if hours > 120 and hours <= 1680:
+        if hours > 168 and hours <= 1680:
             data = await process_dates(data, init_date, end_date, '24H', '%Y-%m-%d')
             data_range = "dias"
 
         """ if hours > 120 and hours <= 240:
             data = await process_dates(data, init_date, end_date, '12H', '%Y-%m-%d %H:%M:%S')
             data_range = "medios dias" """
-        if hours > 3 and hours <= 120:
+        if hours > 3 and hours <= 168:
             data = await process_dates(data, init_date, end_date, '1H', '%Y-%m-%d %H:%M:%S')
             data_range = "HORAS"
         if hours >= 1 and hours <= 3:
@@ -358,14 +358,14 @@ async def process_data_async_alineacion(data, end_date, init_date, metric_name):
             data = await process_dates(data, init_date, end_date, '168H', '%Y-%m-%d')
             data_range = "semanas"
 
-        if hours > 120 and hours <= 1680:
+        if hours > 168 and hours <= 1680:
             data = await process_dates(data, init_date, end_date, '24H', '%Y-%m-%d')
             data_range = "dias"
 
         """ if hours > 120 and hours <= 240:
             data = await process_dates(data, init_date, end_date, '12H', '%Y-%m-%d %H:%M:%S')
             data_range = "medios dias" """
-        if hours >= 0 and hours <= 120:
+        if hours >= 0 and hours <= 168:
             data = await process_dates(data, init_date, end_date, '1H', '%Y-%m-%d %H:%M:%S')
             data_range = "HORAS"
         """ if hours >= 1 and hours <= 3:

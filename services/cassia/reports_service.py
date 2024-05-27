@@ -2084,7 +2084,7 @@ async def crear_mayor_async(init_date, last_date):
         data_range = "semanas"
         print("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
         print(mayor.to_string())
-    if hours > 120 and hours <= 1680:
+    if hours > 168 and hours <= 1680:
         fechas = pd.date_range(start=init_date, end=last_date, freq='24H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
         data_range = "dias"
@@ -2092,7 +2092,7 @@ async def crear_mayor_async(init_date, last_date):
         fechas = pd.date_range(start=init_date, end=last_date, freq='12H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
         data_range = "medios dias" """
-    if hours > 3 and hours <= 120:
+    if hours > 3 and hours <= 168:
         fechas = pd.date_range(start=init_date, end=last_date, freq='1H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
         data_range = "horas"
@@ -2146,7 +2146,7 @@ async def crear_mayor_async_alineacion(init_date, last_date):
         data_range = "semanas"
         print("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
         print(mayor.to_string())
-    if hours > 120 and hours <= 1680:
+    if hours > 168 and hours <= 1680:
         fechas = pd.date_range(start=init_date, end=last_date, freq='24H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
         data_range = "dias"
@@ -2154,7 +2154,7 @@ async def crear_mayor_async_alineacion(init_date, last_date):
         fechas = pd.date_range(start=init_date, end=last_date, freq='12H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
         data_range = "medios dias" """
-    if hours >= 0 and hours <= 120:
+    if hours >= 0 and hours <= 168:
         fechas = pd.date_range(start=init_date, end=last_date, freq='1H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
         data_range = "horas"
