@@ -118,21 +118,21 @@ async def crear_mayor_async(init_date, last_date):
         data_range = "semanas"
         print("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
         print(mayor.to_string())
-    if hours > 240 and hours <= 1680:
+    if hours > 168 and hours <= 1680:
         fechas = pd.date_range(start=init_date, end=last_date, freq='24H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
         """ mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']) """
         mayor['Tiempo'] = pd.to_datetime(
             mayor['Tiempo']).dt.strftime('%Y-%m-%d')
         data_range = "dias"
-    if hours > 120 and hours <= 240:
-        fechas = pd.date_range(start=init_date, end=last_date, freq='12H')
-        mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
-        """ mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']) """
-        mayor['Tiempo'] = pd.to_datetime(
-            mayor['Tiempo']).dt.strftime('%Y-%m-%d %H:%M:%S')
-        data_range = "medios dias"
-    if hours > 3 and hours <= 120:
+    # if hours > 120 and hours <= 240:
+    #    fechas = pd.date_range(start=init_date, end=last_date, freq='12H')
+    #    mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
+    #    """ mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']) """
+    #    mayor['Tiempo'] = pd.to_datetime(
+    #        mayor['Tiempo']).dt.strftime('%Y-%m-%d %H:%M:%S')
+    #    data_range = "medios dias"
+    if hours > 3 and hours <= 168:
         fechas = pd.date_range(start=init_date, end=last_date, freq='1H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
         """ mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']) """
@@ -153,6 +153,97 @@ async def crear_mayor_async(init_date, last_date):
         mayor['Tiempo'] = pd.to_datetime(
             mayor['Tiempo']).dt.strftime('%Y-%m-%d %H:%M:%S')
         data_range = "minutos"
+    tiempo = f"{len(mayor)} {data_range}"
+    mayor['Tiempo'] = mayor['Tiempo'].astype('str')
+    mayor.rename(columns={'Avg_min': 'Disponibilidad'}, inplace=True)
+
+    return {
+        'data': mayor,
+        'number': 0,
+        'dias': dias,
+        'data_range': data_range,
+        'tiempo': tiempo,
+        'first': init_date,
+        'last': last_date
+    }
+
+
+async def crear_mayor_async_alineacion(init_date, last_date):
+    mayor = pd.DataFrame()
+
+    diff = last_date-init_date
+    hours = diff.days*24 + diff.seconds//3600
+    data_range = "horas"
+    dias = round(hours / 24, 6)
+    if hours > 14400:
+        fechas = pd.date_range(start=init_date, end=last_date, freq='8640H')
+        mayor = pd.DataFrame(
+            {'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
+        """ mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']) """
+        mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']).dt.strftime('%Y')
+        data_range = "años"
+        print("A")
+    if hours >= 7200 and hours <= 14400:
+        fechas = pd.date_range(start=init_date, end=last_date, freq='720H')
+        mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
+        """ mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']) """
+        mayor['Tiempo'] = pd.to_datetime(
+            mayor['Tiempo']).dt.strftime('%Y-%m-%d')
+        data_range = "meses"
+        print("B")
+    if hours > 3696 and hours < 7200:
+        fechas = pd.date_range(start=init_date, end=last_date, freq='360H')
+        mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
+        """ mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']) """
+        mayor['Tiempo'] = pd.to_datetime(
+            mayor['Tiempo']).dt.strftime('%Y-%m-%d')
+        data_range = "quincenas"
+        print("C")
+    if hours > 1680 and hours <= 3696:
+        fechas = pd.date_range(start=init_date, end=last_date, freq='168H')
+        """ fechas = pd.to_datetime(fechas) """
+        mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
+        """ mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']) """
+        mayor['Tiempo'] = pd.to_datetime(
+            mayor['Tiempo']).dt.strftime('%Y-%m-%d')
+        data_range = "semanas"
+        print("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
+        print(mayor.to_string())
+    if hours > 168 and hours <= 1680:
+        fechas = pd.date_range(start=init_date, end=last_date, freq='24H')
+        mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
+        """ mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']) """
+        mayor['Tiempo'] = pd.to_datetime(
+            mayor['Tiempo']).dt.strftime('%Y-%m-%d')
+        data_range = "dias"
+    # if hours > 120 and hours <= 240:
+    #    fechas = pd.date_range(start=init_date, end=last_date, freq='12H')
+    #    mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
+    #    """ mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']) """
+    #    mayor['Tiempo'] = pd.to_datetime(
+    #        mayor['Tiempo']).dt.strftime('%Y-%m-%d %H:%M:%S')
+    #    data_range = "medios dias"
+    if hours >= 0 and hours <= 168:
+        fechas = pd.date_range(start=init_date, end=last_date, freq='1H')
+        mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
+        """ mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']) """
+        mayor['Tiempo'] = pd.to_datetime(
+            mayor['Tiempo']).dt.strftime('%Y-%m-%d %H:%M:%S')
+        data_range = "horas"
+    # if hours > 1 and hours <= 3:
+    #    fechas = pd.date_range(start=init_date, end=last_date, freq='15min')
+    #    mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
+    #    """ mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']) """
+    #    mayor['Tiempo'] = pd.to_datetime(
+    #        mayor['Tiempo']).dt.strftime('%Y-%m-%d %H:%M:%S')
+    #    data_range = "minutos"
+    # if hours >= 0 and hours <= 1:
+    #    fechas = pd.date_range(start=init_date, end=last_date, freq='1min')
+    #    mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
+    #    """ mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']) """
+    #    mayor['Tiempo'] = pd.to_datetime(
+    #        mayor['Tiempo']).dt.strftime('%Y-%m-%d %H:%M:%S')
+    #    data_range = "minutos"
     tiempo = f"{len(mayor)} {data_range}"
     mayor['Tiempo'] = mayor['Tiempo'].astype('str')
     mayor.rename(columns={'Avg_min': 'Disponibilidad'}, inplace=True)
@@ -238,7 +329,7 @@ async def process_data(data, end_date, init_date, metric_name):
             data = data[['date', 'num', 'Avg_min']]
             data.rename(columns={'date': 'time'}, inplace=True) """
             data_range = "semanas"
-        if hours > 240 and hours <= 1680:
+        if hours > 168 and hours <= 1680:
             # cambio
             data = await process_dates(data, init_date, end_date, '24H', '%Y-%m-%d')
             """ data = data.groupby(
@@ -246,15 +337,15 @@ async def process_data(data, end_date, init_date, metric_name):
             data = data[['date', 'num', 'Avg_min']]
             data.rename(columns={'date': 'time'}, inplace=True) """
             data_range = "dias"
-        if hours > 120 and hours <= 240:
+        # if hours > 120 and hours <= 240:
             # cambio
-            data = await process_dates(data, init_date, end_date, '12H', '%Y-%m-%d %H:%M:%S')
-            """ data = data.groupby(
-                [pd.to_datetime(data['time']).dt.floor('12H').rename("date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
-            data = data[['date', 'num', 'Avg_min']]
-            data.rename(columns={'date': 'time'}, inplace=True) """
-            data_range = "medios dias"
-        if hours > 3 and hours <= 120:
+        #    data = await process_dates(data, init_date, end_date, '12H', '%Y-%m-%d %H:%M:%S')
+        #    """ data = data.groupby(
+        #        [pd.to_datetime(data['time']).dt.floor('12H').rename("date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
+        #    data = data[['date', 'num', 'Avg_min']]
+        #    data.rename(columns={'date': 'time'}, inplace=True) """
+        #    data_range = "medios dias"
+        if hours > 3 and hours <= 168:
             data = await process_dates(data, init_date, end_date, '1H', '%Y-%m-%d %H:%M:%S')
             """ data = data.groupby([pd.to_datetime(data['time']).dt.floor('15min').rename(
                 "date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
@@ -280,6 +371,132 @@ async def process_data(data, end_date, init_date, metric_name):
 
         tiempo = f"{len(data)} {data_range}"
         dias = round(hours / 24, 6)
+
+        print(data)
+        data.rename(columns={'Avg_min': metric_name,
+                    'time': 'Tiempo'}, inplace=True)
+        response = {
+            'data': data,
+            'number': number,
+            'dias': dias,
+            'data_range': data_range,
+            'tiempo': tiempo,
+            'first': first,
+            'last': last
+        }
+    else:
+        data = pd.DataFrame(
+            columns=['templateid', 'itemid', 'time', 'num', 'Avg_min'])
+
+        data.rename(columns={'Avg_min': metric_name,
+                             'time': 'Tiempo'}, inplace=True)
+        data = data.replace(np.nan, 0)
+        print(data)
+        response = {
+            'data': data,
+            'number': 0,
+            'dias': 0,
+            'data_range': 0,
+            'tiempo': 0,
+            'first': 0,
+            'last': 0
+        }
+    return response
+
+
+async def process_data_alineacion(data, end_date, init_date, metric_name):
+    if not data.empty:
+        number = data['itemid'].nunique()
+        if metric_name == "Disponibilidad":
+            data_a = data.loc[data["time"] == "2023-12-06 07:15:01"]
+            data_a = data_a.sum()
+
+        data = data.groupby(['time']).agg(
+            {'Avg_min': 'mean', 'num': 'mean'}).reset_index()
+        data['Avg_min'] = data['Avg_min'].apply(lambda x: x * 100)
+
+        if metric_name == "Disponibilidad":
+            print(data)
+        data = data[['time', 'num', 'Avg_min']]
+        diff = end_date - init_date
+        hours = diff.days * 24 + diff.seconds // 3600
+        data_range = "horas"
+        first = data['time'][0]
+        last = data['time'][len(data) - 1]
+
+        if hours > 14400:
+            # cambio
+            data = await process_dates(data, init_date, end_date, '8640H', '%Y')
+            """ data = data.groupby([pd.to_datetime(data['time']).dt.floor('8640H').rename(
+                "date").dt.strftime('%Y')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True) """
+            data_range = "años"
+        if hours >= 7200 and hours <= 14400:
+            # cambio
+            data = await process_dates(data, init_date, end_date, '720H', '%Y-%m-%d')
+            """ data = data.groupby([pd.to_datetime(data['time']).dt.floor('720H').rename(
+                "date").dt.strftime('%Y-%m')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True) """
+            data_range = "meses"
+        if hours > 3696 and hours < 7200:
+            # cambio
+            data = await process_dates(data, init_date, end_date, '360H', '%Y-%m-%d')
+            """ data = data.groupby([pd.to_datetime(data['time']).dt.floor('360H').rename(
+                "date").dt.strftime('%Y-%m-%d')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True) """
+            data_range = "quincenas"
+        if hours > 1680 and hours <= 3696:
+            data = await process_dates(data, init_date, end_date, '168H', '%Y-%m-%d')
+            """ data = data.groupby(
+                [pd.to_datetime(data['time']).dt.floor('168H').rename("date").dt.strftime('%Y-%m-%d')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True) """
+            data_range = "semanas"
+        if hours > 168 and hours <= 1680:
+            # cambio
+            data = await process_dates(data, init_date, end_date, '24H', '%Y-%m-%d')
+            """ data = data.groupby(
+                [pd.to_datetime(data['time']).dt.floor('24H').rename("date").dt.strftime('%Y-%m-%d')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True) """
+            data_range = "dias"
+        # if hours > 120 and hours <= 240:
+            # cambio
+        #    data = await process_dates(data, init_date, end_date, '12H', '%Y-%m-%d %H:%M:%S')
+        #    """ data = data.groupby(
+        #        [pd.to_datetime(data['time']).dt.floor('12H').rename("date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
+        #    data = data[['date', 'num', 'Avg_min']]
+        #    data.rename(columns={'date': 'time'}, inplace=True) """
+        #    data_range = "medios dias"
+        if hours >= 0 and hours <= 168:
+            data = await process_dates(data, init_date, end_date, '1H', '%Y-%m-%d %H:%M:%S')
+            """ data = data.groupby([pd.to_datetime(data['time']).dt.floor('15min').rename(
+                "date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
+            data = data[['date', 'num', 'Avg_min']]
+            data.rename(columns={'date': 'time'}, inplace=True) """
+            data_range = "minutos"
+        # if hours > 1 and hours <= 3:
+            # cambio
+        #    data = await process_dates(data, init_date, end_date, '15min', '%Y-%m-%d %H:%M:%S')
+        #    """ data = data.groupby([pd.to_datetime(data['time']).dt.floor('15min').rename(
+        #        "date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
+        #    data = data[['date', 'num', 'Avg_min']]
+        #    data.rename(columns={'date': 'time'}, inplace=True) """
+        #    data_range = "minutos"
+        # if hours >= 0 and hours <= 1:
+        #    # cambio
+        #    data = await process_dates(data, init_date, end_date, '1min', '%Y-%m-%d %H:%M:%S')
+        #    """ data = data.groupby([pd.to_datetime(data['time']).dt.floor('1min').rename(
+        #        "date").dt.strftime('%Y-%m-%d %H:%M:%S')])[['num', 'Avg_min']].mean().round(6).reset_index()
+        #    data = data[['date', 'num', 'Avg_min']]
+        #    data.rename(columns={'date': 'time'}, inplace=True) """
+        #    data_range = "minutos"
+
+        tiempo = f"{len(data)} {data_range}"
+        dias = round(hours / 24, 6)
         print("AQUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")
         print(data)
         data.rename(columns={'Avg_min': metric_name,
@@ -296,7 +513,6 @@ async def process_data(data, end_date, init_date, metric_name):
     else:
         data = pd.DataFrame(
             columns=['templateid', 'itemid', 'time', 'num', 'Avg_min'])
-        print("ACAA SI ES CCASCASCASCASCASC")
         data.rename(columns={'Avg_min': metric_name,
                              'time': 'Tiempo'}, inplace=True)
         data = data.replace(np.nan, 0)
@@ -1215,7 +1431,7 @@ async def process_data_alignment_(municipality_id, tech_id, brand_id, model_id, 
     general = pd.DataFrame()
     promedios_general = []
     municipios = []
-    mayor = await crear_mayor_async(init_date, end_date)  # cambio
+    mayor = await crear_mayor_async_alineacion(init_date, end_date)  # cambio
     datas.append(
         {'index': 0, 'data': mayor['data'], 'hostid': 0})  # cambio
     existen = False
@@ -1249,7 +1465,7 @@ async def process_data_alignment_(municipality_id, tech_id, brand_id, model_id, 
         data_aligment_report = pd.DataFrame(await reports_repository.get_aligment_report(municipality_id[ind], tech_id[ind], brand_id[ind], model_id[ind], init_date, end_date))
         """ print("REPORTEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
         print(data_aligment_report) """
-        data_procesed = await process_data(data_aligment_report, end_date, init_date, "Disponibilidad")
+        data_procesed = await process_data_alineacion(data_aligment_report, end_date, init_date, "Disponibilidad")
         print("PROCESEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEED")
         print(data_procesed)
         print(mayor)
