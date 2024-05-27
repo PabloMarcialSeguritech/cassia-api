@@ -256,7 +256,6 @@ async def get_device_brand_catalog():
 
 async def process_data_async(data, end_date, init_date, metric_name):
     if not data.empty:
-
         number = data['itemid'].nunique()
         data = data.groupby(['time']).agg(
             {'Avg_min': 'mean', 'num': 'mean'}).reset_index()
@@ -282,13 +281,13 @@ async def process_data_async(data, end_date, init_date, metric_name):
             data = await process_dates(data, init_date, end_date, '168H', '%Y-%m-%d')
             data_range = "semanas"
 
-        if hours > 240 and hours <= 1680:
+        if hours > 120 and hours <= 1680:
             data = await process_dates(data, init_date, end_date, '24H', '%Y-%m-%d')
             data_range = "dias"
 
-        if hours > 120 and hours <= 240:
+        """ if hours > 120 and hours <= 240:
             data = await process_dates(data, init_date, end_date, '12H', '%Y-%m-%d %H:%M:%S')
-            data_range = "medios dias"
+            data_range = "medios dias" """
         if hours > 3 and hours <= 120:
             data = await process_dates(data, init_date, end_date, '1H', '%Y-%m-%d %H:%M:%S')
             data_range = "HORAS"
@@ -299,6 +298,83 @@ async def process_data_async(data, end_date, init_date, metric_name):
         if hours >= 0 and hours <= 1:
             data = await process_dates(data, init_date, end_date, '1min', '%Y-%m-%d %H:%M:%S')
             data_range = "minutos"
+
+        tiempo = f"{len(data)} {data_range}"
+        dias = round(hours / 24, 6)
+        availability_avg = data.loc[:, 'Avg_min'].mean()
+        data.rename(columns={'Avg_min': metric_name,
+                             'time': 'Tiempo'}, inplace=True)
+        response = {
+            'data': data,
+            'number': number,
+            'dias': dias,
+            'data_range': data_range,
+            'tiempo': tiempo,
+            'first': first,
+            'last': last
+        }
+    else:
+        data = pd.DataFrame(
+            columns=['templateid', 'itemid', 'time', 'num', 'Avg_min'])
+        data.rename(columns={'Avg_min': metric_name,
+                             'time': 'Tiempo'}, inplace=True)
+        data = data.replace(np.nan, 0)
+        response = {
+            'data': data,
+            'number': 0,
+            'dias': 0,
+            'data_range': 0,
+            'tiempo': 0,
+            'first': 0,
+            'last': 0
+        }
+    return response
+
+
+async def process_data_async_alineacion(data, end_date, init_date, metric_name):
+    if not data.empty:
+        number = data['itemid'].nunique()
+        data = data.groupby(['time']).agg(
+            {'Avg_min': 'mean', 'num': 'mean'}).reset_index()
+        data['Avg_min'] = data['Avg_min'].apply(lambda x: x*100)
+        data = data[['time', 'num', 'Avg_min']]
+        diff = end_date-init_date
+        hours = diff.days*24 + diff.seconds//3600
+        data_range = "horas"
+        first = data['time'][0]
+        last = data['time'][len(data)-1]
+
+        if hours > 14400:
+            data = await process_dates(data, init_date, end_date, '8640H', '%Y')
+            data_range = "años"
+        if hours >= 7200 and hours <= 14400:
+            data = await process_dates(data, init_date, end_date, '720H', '%Y-%m-%d')
+            data_range = "meses"
+        if hours > 3696 and hours < 7200:
+            data = await process_dates(data, init_date, end_date, '360H', '%Y-%m-%d')
+            data_range = "quincenas"
+
+        if hours > 1680 and hours <= 3696:
+            data = await process_dates(data, init_date, end_date, '168H', '%Y-%m-%d')
+            data_range = "semanas"
+
+        if hours > 120 and hours <= 1680:
+            data = await process_dates(data, init_date, end_date, '24H', '%Y-%m-%d')
+            data_range = "dias"
+
+        """ if hours > 120 and hours <= 240:
+            data = await process_dates(data, init_date, end_date, '12H', '%Y-%m-%d %H:%M:%S')
+            data_range = "medios dias" """
+        if hours >= 0 and hours <= 120:
+            data = await process_dates(data, init_date, end_date, '1H', '%Y-%m-%d %H:%M:%S')
+            data_range = "HORAS"
+        """ if hours >= 1 and hours <= 3:
+            data = await process_dates(data, init_date, end_date, '15min', '%Y-%m-%d %H:%M:%S')
+            data_range = "minutos"
+
+        if hours >= 0 and hours <= 1:
+            data = await process_dates(data, init_date, end_date, '1min', '%Y-%m-%d %H:%M:%S')
+            data_range = "minutos" """
 
         tiempo = f"{len(data)} {data_range}"
         dias = round(hours / 24, 6)

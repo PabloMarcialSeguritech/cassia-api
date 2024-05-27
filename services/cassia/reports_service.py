@@ -2084,14 +2084,14 @@ async def crear_mayor_async(init_date, last_date):
         data_range = "semanas"
         print("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
         print(mayor.to_string())
-    if hours > 240 and hours <= 1680:
+    if hours > 120 and hours <= 1680:
         fechas = pd.date_range(start=init_date, end=last_date, freq='24H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
         data_range = "dias"
-    if hours > 120 and hours <= 240:
+    """ if hours > 120 and hours <= 240:
         fechas = pd.date_range(start=init_date, end=last_date, freq='12H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
-        data_range = "medios dias"
+        data_range = "medios dias" """
     if hours > 3 and hours <= 120:
         fechas = pd.date_range(start=init_date, end=last_date, freq='1H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
@@ -2104,6 +2104,61 @@ async def crear_mayor_async(init_date, last_date):
         fechas = pd.date_range(start=init_date, end=last_date, freq='1min')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
         data_range = "minutos"
+    tiempo = f"{len(mayor)} {data_range}"
+    mayor['Tiempo'] = mayor['Tiempo'].astype('str')
+
+    return {
+        'data': mayor,
+        'number': 0,
+        'dias': dias,
+        'data_range': data_range,
+        'tiempo': tiempo,
+        'first': init_date,
+        'last': last_date
+    }
+
+
+async def crear_mayor_async_alineacion(init_date, last_date):
+    mayor = pd.DataFrame()
+
+    diff = last_date-init_date
+    hours = diff.days*24 + diff.seconds//3600
+    data_range = "horas"
+    dias = round(hours / 24, 6)
+    if hours > 14400:
+        fechas = pd.date_range(start=init_date, end=last_date, freq='8640H')
+        mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
+        data_range = "años"
+        print("A")
+    if hours >= 7200 and hours <= 14400:
+        fechas = pd.date_range(start=init_date, end=last_date, freq='720H')
+        mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
+        data_range = "meses"
+        print("B")
+    if hours > 3696 and hours < 7200:
+        fechas = pd.date_range(start=init_date, end=last_date, freq='360H')
+        mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
+        data_range = "quincenas"
+        print("C")
+    if hours > 1680 and hours <= 3696:
+        fechas = pd.date_range(start=init_date, end=last_date, freq='168H')
+        mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
+        data_range = "semanas"
+        print("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
+        print(mayor.to_string())
+    if hours > 120 and hours <= 1680:
+        fechas = pd.date_range(start=init_date, end=last_date, freq='24H')
+        mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
+        data_range = "dias"
+    """ if hours > 120 and hours <= 240:
+        fechas = pd.date_range(start=init_date, end=last_date, freq='12H')
+        mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
+        data_range = "medios dias" """
+    if hours >= 0 and hours <= 120:
+        fechas = pd.date_range(start=init_date, end=last_date, freq='1H')
+        mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
+        data_range = "horas"
+
     tiempo = f"{len(mayor)} {data_range}"
     mayor['Tiempo'] = mayor['Tiempo'].astype('str')
 
@@ -2143,14 +2198,14 @@ def crear_mayor(init_date, last_date):
         fechas = pd.date_range(start=init_date, end=last_date, freq='168H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
         data_range = "semanas"
-    if hours > 240 and hours <= 1680:
+    if hours > 120 and hours <= 1680:
         fechas = pd.date_range(start=init_date, end=last_date, freq='24H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
         data_range = "dias"
-    if hours > 120 and hours <= 240:
+    """ if hours > 120 and hours <= 240:
         fechas = pd.date_range(start=init_date, end=last_date, freq='12H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
-        data_range = "medios dias"
+        data_range = "medios dias" """
     if hours > 3 and hours <= 120:
         fechas = pd.date_range(start=init_date, end=last_date, freq='1H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Avg_min': 0})
@@ -2474,7 +2529,7 @@ async def process_data_alignment_devices_async(device_ids, init_date, end_date, 
     promedios_general = []
     municipios = []
     hostids = []
-    mayor = await crear_mayor_async(init_date, end_date)
+    mayor = await crear_mayor_async_alineacion(init_date, end_date)
 
     datas.append(
         {'index': 0, 'data': mayor['data'], 'hostid': 0})
@@ -2484,7 +2539,7 @@ async def process_data_alignment_devices_async(device_ids, init_date, end_date, 
         if pertenece.empty:
             continue
         data = await reports_repository.get_alignment_by_device(device_ids[ind], init_date, end_date)
-        data_procesed = await reports_repository.process_data_async(
+        data_procesed = await reports_repository.process_data_async_alineacion(
             data, end_date, init_date, f"{device_ids[ind]}")
 
         datas.append(
