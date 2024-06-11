@@ -436,12 +436,13 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
             problems = await normalizar_eventos_cassia(problems, data_problems, severities, ping_loss_message)
     dependientes = await CassiaDiagnostaRepository.get_host_dependientes()
     if not dependientes.empty:
-        indexes = problems[problems['Problem'] == ping_loss_message]
-        indexes = indexes[indexes['hostid'].isin(
-            dependientes['hostid'].to_list())]
         if not problems.empty:
-            problems.loc[problems.index.isin(
-                indexes.index.to_list()), 'tipo'] = 0
+            indexes = problems[problems['Problem'] == ping_loss_message]
+            indexes = indexes[indexes['hostid'].isin(
+                dependientes['hostid'].to_list())]
+            if not problems.empty:
+                problems.loc[problems.index.isin(
+                    indexes.index.to_list()), 'tipo'] = 0
     sincronizados = await CassiaDiagnostaRepository.get_open_problems_diagnosta()
     if not sincronizados.empty:
         if not problems.empty:

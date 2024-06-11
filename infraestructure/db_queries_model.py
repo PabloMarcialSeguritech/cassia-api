@@ -108,12 +108,22 @@ group by c.latitude, c.longitude"""
         self.query_get_cassia_exceptions = "select * from cassia_exceptions"
         self.stored_name_get_cassia_exceptions = "sp_getExceptions_detail"
         self.stored_name_exceptions_count = "sp_getExceptions"
-        self.query_get_cassia_report_names = """select crfs.cassia_report_frequency_id, crfs.name
+        self.query_get_cassia_report_names = """select crfs.cassia_report_frequency_id, crfs.name,crfs.description
 from cassia_report_frequency_schedule crfs"""
         self.query_get_cassia_users = """select user_id,mail,name from cassia_users cu 
 where cu.deleted_at  is NULL"""
         self.query_get_cassia_user_reports = """select user_id,cassia_report_frequency_schedule_id from
 cassia_user_reports cur"""
+        self.query_get_hosts_actions_to_process = """select interface_id,is_auto,ia.action_id,condition_id,i.hostid, caa.action_auto_id 
+from interface_action ia inner join
+cassia_action_auto caa on ia.action_id =caa.action_id 
+inner join interface i 
+on i.interfaceid=ia.interface_id 
+where ia.is_auto=1"""
+        self.query_get_cassia_auto_operational_values_to_process = """select cao.*,i.ip  from cassia_auto_operational cao 
+inner join interface i on i.interfaceid =cao.interface_id 
+where cao.status='EnProceso'"""
+        self.stored_name_get_credentials = "sp_getCredentials"
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -455,3 +465,46 @@ VALUES
 {values}
 """
         return self.query_insert_user_reports_values
+
+    def builder_query_get_auto_action_conditions(self, condition_id):
+        self.query_get_auto_action_conditions = f"""
+select cond_detail_id ,delay, template_id, range_min, range_max, units
+from cassia_auto_condition_detail cacd where 
+condition_id ={condition_id}
+"""
+        return self.query_get_auto_action_conditions
+
+    def builder_query_get_auto_action_operational_values(self, interface_id, templateid):
+        self.query_get_auto_action_operational_values = f"""
+select * from cassia_auto_operational cao 
+where interface_id = {interface_id}
+and action_auto_id = {templateid}
+and status='EnProceso'
+"""
+        return self.query_get_auto_action_operational_values
+
+    def builder_query_insert_action_auto_operational_values(self, values):
+        self.query_insert_action_auto_operational_values = f"""
+INSERT INTO cassia_auto_operational(interface_id,action_auto_id,delay,templateid,lastValue,started_at,closed_at,status)
+VALUES
+{values}
+"""
+        return self.query_insert_action_auto_operational_values
+
+    def builder_query_update_action_auto_operational_values(self, auto_operation_id, last_value, updated_at):
+        self.query_update_action_auto_operational_values = f"""
+update cassia_auto_operational 
+set lastValue ='{last_value}',
+updated_at='{updated_at}'
+where auto_operation_id ={auto_operation_id}
+"""
+        return self.query_update_action_auto_operational_values
+
+    def builder_query_close_action_auto_operational_values(self, auto_operation_ids, closed_at):
+        self.query_close_action_auto_operational_values = f"""
+update cassia_auto_operational 
+set closed_at ='{closed_at}',
+status='Cancelado'
+where auto_operation_id in {auto_operation_ids}
+"""
+        return self.query_close_action_auto_operational_values
