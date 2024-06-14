@@ -1,3 +1,7 @@
+from schemas import cassia_auto_action_condition_schema
+from schemas import cassia_auto_action_schema
+
+
 class DBQueries:
 
     def __init__(self):
@@ -108,12 +112,26 @@ group by c.latitude, c.longitude"""
         self.query_get_cassia_exceptions = "select * from cassia_exceptions"
         self.stored_name_get_cassia_exceptions = "sp_getExceptions_detail"
         self.stored_name_exceptions_count = "sp_getExceptions"
-        self.query_get_cassia_report_names = """select crfs.cassia_report_frequency_id, crfs.name
+        self.query_get_cassia_report_names = """select crfs.cassia_report_frequency_id, crfs.name,crfs.description
 from cassia_report_frequency_schedule crfs"""
         self.query_get_cassia_users = """select user_id,mail,name from cassia_users cu 
 where cu.deleted_at  is NULL"""
         self.query_get_cassia_user_reports = """select user_id,cassia_report_frequency_schedule_id from
 cassia_user_reports cur"""
+        self.query_get_hosts_actions_to_process = """select interface_id,is_auto,ia.action_id,condition_id,i.hostid, caa.action_auto_id 
+from interface_action ia inner join
+cassia_action_auto caa on ia.action_id =caa.action_id 
+inner join interface i 
+on i.interfaceid=ia.interface_id 
+where ia.is_auto=1"""
+        self.query_get_cassia_auto_operational_values_to_process = """select cao.*,i.ip  from cassia_auto_operational cao 
+inner join interface i on i.interfaceid =cao.interface_id 
+where cao.status='EnProceso'"""
+        self.stored_name_get_credentials = "sp_getCredentials"
+        self.query_get_auto_actions_conditions = "SELECT * FROM cassia_auto_condition"
+        self.query_get_auto_actions = """select caa.*,cac.name as condition_name ,ca.name as cassia_action_name from 
+cassia_action_auto caa inner join cassia_action ca on ca.action_id =caa.action_id 
+inner join cassia_auto_condition cac on cac.condition_id =caa.condition_id"""
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -455,3 +473,141 @@ VALUES
 {values}
 """
         return self.query_insert_user_reports_values
+
+    def builder_query_get_auto_action_conditions(self, condition_id):
+        self.query_get_auto_action_conditions = f"""
+select cond_detail_id ,delay, template_id, range_min, range_max, units
+from cassia_auto_condition_detail cacd where 
+condition_id ={condition_id}
+"""
+        return self.query_get_auto_action_conditions
+
+    def builder_query_get_auto_action_operational_values(self, interface_id, templateid):
+        self.query_get_auto_action_operational_values = f"""
+select * from cassia_auto_operational cao 
+where interface_id = {interface_id}
+and action_auto_id = {templateid}
+and status='EnProceso'
+"""
+        return self.query_get_auto_action_operational_values
+
+    def builder_query_insert_action_auto_operational_values(self, values):
+        self.query_insert_action_auto_operational_values = f"""
+INSERT INTO cassia_auto_operational(interface_id,action_auto_id,delay,templateid,lastValue,started_at,closed_at,status)
+VALUES
+{values}
+"""
+        return self.query_insert_action_auto_operational_values
+
+    def builder_query_update_action_auto_operational_values(self, auto_operation_id, last_value, updated_at):
+        self.query_update_action_auto_operational_values = f"""
+update cassia_auto_operational 
+set lastValue ='{last_value}',
+updated_at='{updated_at}'
+where auto_operation_id ={auto_operation_id}
+"""
+        return self.query_update_action_auto_operational_values
+
+    def builder_query_close_action_auto_operational_values(self, auto_operation_ids, closed_at):
+        self.query_close_action_auto_operational_values = f"""
+update cassia_auto_operational 
+set closed_at ='{closed_at}',
+status='Cancelado'
+where auto_operation_id in {auto_operation_ids}
+"""
+        return self.query_close_action_auto_operational_values
+
+    def builder_query_increase_retry_times_auto_action_operation_values(self, ids, num_retry_times, now_str):
+        self.query_increase_retry_times_auto_action_operation_values = f"""
+update cassia_auto_operational 
+set last_retry_date ='{now_str}',
+action_retry_times={num_retry_times}
+where auto_operation_id in ({ids})
+"""
+        return self.query_increase_retry_times_auto_action_operation_values
+
+    def builder_query_close_auto_action_operation_values(self, ids, now_str):
+        self.query_close_auto_action_operation_values = f"""
+update cassia_auto_operational 
+set status ='Cerrado',
+updated_at='{now_str}',
+closed_at='{now_str}'
+where auto_operation_id in ({ids})
+"""
+        return self.query_close_auto_action_operation_values
+
+    def builder_query_cancel_auto_action_operation_values_max_retry_times(self, ids, now_str):
+        self.query_cancel_auto_action_operation_values_max_retry_times = f"""
+update cassia_auto_operational 
+set status ='Cancelado',
+updated_at='{now_str}',
+closed_at='{now_str}'
+where auto_operation_id in ({ids})
+"""
+        return self.query_cancel_auto_action_operation_values_max_retry_times
+
+    def builder_query_get_auto_condition_by_id(self, condition_id):
+        self.query_get_auto_condition_by_id = f"""SELECT * FROM cassia_auto_condition where condition_id={condition_id}"""
+        return self.query_get_auto_condition_by_id
+
+    def builder_query_get_auto_condition_detail_by_id(self, condition_id):
+        self.query_get_auto_condition_detail_by_id = f"""SELECT * FROM cassia_auto_condition_detail where condition_id={condition_id}"""
+        return self.query_get_auto_condition_detail_by_id
+
+    def builder_query_get_auto_condition_detail_by_detail_id(self, condition_detail_id):
+        self.query_get_auto_condition_detail_by_detail_id = f"""SELECT * FROM cassia_auto_condition_detail where cond_detail_id={condition_detail_id}"""
+        return self.query_get_auto_condition_detail_by_detail_id
+
+    def builder_delete_auto_condition_detail_by_id(self, condition_id):
+        self.delete_auto_condition_detail_by_id = f"""DELETE FROM cassia_auto_condition_detail where condition_id={condition_id}"""
+        return self.delete_auto_condition_detail_by_id
+
+    def builder_delete_auto_condition_by_id(self, condition_id):
+        self.delete_auto_condition_by_id = f"""DELETE FROM cassia_auto_condition where condition_id={condition_id}"""
+        return self.delete_auto_condition_by_id
+
+    def builder_query_get_auto_action_by_id(self, action_auto_id):
+        self.query_get_auto_action_by_id = f"""select caa.*,cac.name as condition_name ,ca.name as cassia_action_name from 
+cassia_action_auto caa inner join cassia_action ca on ca.action_id =caa.action_id 
+inner join cassia_auto_condition cac on cac.condition_id =caa.condition_id
+WHERE caa.action_auto_id={action_auto_id}"""
+        return self.query_get_auto_action_by_id
+
+    def builder_query_get_action_by_id(self, action_id):
+        self.query_get_action_by_id = f"""select * from cassia_action where action_id={action_id}"""
+        return self.query_get_action_by_id
+
+    def builder_query_delete_action_auto_by_id(self, action_id):
+        self.query_delete_action_auto_by_id = f"""DELETE FROM cassia_action_auto where action_auto_id={action_id}"""
+        return self.query_delete_action_auto_by_id
+
+    def builder_query_update_action_condition_by_id(self, condition_id, name):
+        self.query_update_action_condition_by_id = f"""
+        UPDATE cassia_auto_condition
+        SET name='{name}'
+        WHERE condition_id={condition_id}"""
+        return self.query_update_action_condition_by_id
+
+    def builder_query_update_action_condition_detail_by_id(self, condition_detail_data: cassia_auto_action_condition_schema.AutoActionConditionDetailUpdateSchema):
+        self.query_update_action_condition_detail_by_id = f"""
+        UPDATE cassia_auto_condition_detail
+        SET condition_id='{condition_detail_data.condition_id}',
+        delay='{condition_detail_data.delay}',
+        template_name='{condition_detail_data.template_name}',
+        template_id={condition_detail_data.template_id},
+        range_min='{condition_detail_data.range_min}',
+        range_max='{condition_detail_data.range_max}',
+        units='{condition_detail_data.units}'
+        WHERE cond_detail_id={condition_detail_data.cond_detail_id}"""
+        return self.query_update_action_condition_detail_by_id
+
+    def builder_query_update_action_by_id(self, action_data: cassia_auto_action_schema.AutoActionUpdateSchema):
+        self.query_update_action_by_id = f"""
+        UPDATE cassia_action_auto
+        SET name='{action_data.name}',
+        description='{action_data.description}',
+        action_id={action_data.action_id},
+        type_trigger='{action_data.type_trigger}',
+        condition_id={action_data.condition_id}
+        WHERE action_auto_id={action_data.action_auto_id}"""
+        return self.query_update_action_by_id

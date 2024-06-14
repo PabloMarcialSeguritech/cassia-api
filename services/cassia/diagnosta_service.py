@@ -30,6 +30,7 @@ async def analize_host(hostid_or_ip: str):
                                                      'conectado'])
             if 'capaGeneral' in response:
                 capa = response['capaGeneral']
+                print("A")
                 if 'desconectados_dependientes' in capa:
                     desconectados = capa['desconectados_dependientes']
                     problematico = pd.DataFrame(columns=['hostid',

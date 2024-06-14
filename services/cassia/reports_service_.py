@@ -35,7 +35,6 @@ async def get_graphic_data_multiple_(municipality_id: list, tech_id: list, brand
 
     # obtener datos de conectividad en formato
     conectividad = await process_data_conectivity_(municipality_id, tech_id, brand_id, model_id, init_date, end_date, promedios)
-
     metrics.append(conectividad)
 
     # obtiene datos de alineacion y los concatena directamente en la variable metrica, transforma la variable promedios
@@ -91,7 +90,7 @@ async def crear_mayor_async(init_date, last_date):
         """ mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']) """
         mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']).dt.strftime('%Y')
         data_range = "años"
-        print("A")
+        """ print("A") """
     if hours >= 7200 and hours <= 14400:
         fechas = pd.date_range(start=init_date, end=last_date, freq='720H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
@@ -99,7 +98,7 @@ async def crear_mayor_async(init_date, last_date):
         mayor['Tiempo'] = pd.to_datetime(
             mayor['Tiempo']).dt.strftime('%Y-%m-%d')
         data_range = "meses"
-        print("B")
+        """ print("B") """
     if hours > 3696 and hours < 7200:
         fechas = pd.date_range(start=init_date, end=last_date, freq='360H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
@@ -107,7 +106,7 @@ async def crear_mayor_async(init_date, last_date):
         mayor['Tiempo'] = pd.to_datetime(
             mayor['Tiempo']).dt.strftime('%Y-%m-%d')
         data_range = "quincenas"
-        print("C")
+        """ print("C") """
     if hours > 1680 and hours <= 3696:
         fechas = pd.date_range(start=init_date, end=last_date, freq='168H')
         """ fechas = pd.to_datetime(fechas) """
@@ -116,8 +115,8 @@ async def crear_mayor_async(init_date, last_date):
         mayor['Tiempo'] = pd.to_datetime(
             mayor['Tiempo']).dt.strftime('%Y-%m-%d')
         data_range = "semanas"
-        print("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
-        print(mayor.to_string())
+        """ print("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
+        print(mayor.to_string()) """
     if hours > 168 and hours <= 1680:
         fechas = pd.date_range(start=init_date, end=last_date, freq='24H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
@@ -182,7 +181,7 @@ async def crear_mayor_async_alineacion(init_date, last_date):
         """ mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']) """
         mayor['Tiempo'] = pd.to_datetime(mayor['Tiempo']).dt.strftime('%Y')
         data_range = "años"
-        print("A")
+        """ print("A") """
     if hours >= 7200 and hours <= 14400:
         fechas = pd.date_range(start=init_date, end=last_date, freq='720H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
@@ -190,7 +189,7 @@ async def crear_mayor_async_alineacion(init_date, last_date):
         mayor['Tiempo'] = pd.to_datetime(
             mayor['Tiempo']).dt.strftime('%Y-%m-%d')
         data_range = "meses"
-        print("B")
+        """ print("B") """
     if hours > 3696 and hours < 7200:
         fechas = pd.date_range(start=init_date, end=last_date, freq='360H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
@@ -198,7 +197,7 @@ async def crear_mayor_async_alineacion(init_date, last_date):
         mayor['Tiempo'] = pd.to_datetime(
             mayor['Tiempo']).dt.strftime('%Y-%m-%d')
         data_range = "quincenas"
-        print("C")
+        """ print("C") """
     if hours > 1680 and hours <= 3696:
         fechas = pd.date_range(start=init_date, end=last_date, freq='168H')
         """ fechas = pd.to_datetime(fechas) """
@@ -207,8 +206,8 @@ async def crear_mayor_async_alineacion(init_date, last_date):
         mayor['Tiempo'] = pd.to_datetime(
             mayor['Tiempo']).dt.strftime('%Y-%m-%d')
         data_range = "semanas"
-        print("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
-        print(mayor.to_string())
+        """ print("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
+        print(mayor.to_string()) """
     if hours > 168 and hours <= 1680:
         fechas = pd.date_range(start=init_date, end=last_date, freq='24H')
         mayor = pd.DataFrame({'Tiempo': fechas, 'num': 0, 'Disponibilidad': 0})
@@ -290,7 +289,7 @@ async def process_data(data, end_date, init_date, metric_name):
         data['Avg_min'] = data['Avg_min'].apply(lambda x: x * 100)
 
         if metric_name == "Disponibilidad":
-            print(data)
+            """ print(data) """
         data = data[['time', 'num', 'Avg_min']]
         diff = end_date - init_date
         hours = diff.days * 24 + diff.seconds // 3600
@@ -372,7 +371,7 @@ async def process_data(data, end_date, init_date, metric_name):
         tiempo = f"{len(data)} {data_range}"
         dias = round(hours / 24, 6)
 
-        print(data)
+        """ print(data) """
         data.rename(columns={'Avg_min': metric_name,
                     'time': 'Tiempo'}, inplace=True)
         response = {
@@ -391,7 +390,7 @@ async def process_data(data, end_date, init_date, metric_name):
         data.rename(columns={'Avg_min': metric_name,
                              'time': 'Tiempo'}, inplace=True)
         data = data.replace(np.nan, 0)
-        print(data)
+        """ print(data) """
         response = {
             'data': data,
             'number': 0,
@@ -416,7 +415,7 @@ async def process_data_alineacion(data, end_date, init_date, metric_name):
         data['Avg_min'] = data['Avg_min'].apply(lambda x: x * 100)
 
         if metric_name == "Disponibilidad":
-            print(data)
+            """ print(data) """
         data = data[['time', 'num', 'Avg_min']]
         diff = end_date - init_date
         hours = diff.days * 24 + diff.seconds // 3600
@@ -497,8 +496,8 @@ async def process_data_alineacion(data, end_date, init_date, metric_name):
 
         tiempo = f"{len(data)} {data_range}"
         dias = round(hours / 24, 6)
-        print("AQUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")
-        print(data)
+        """ print("AQUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")
+        print(data) """
         data.rename(columns={'Avg_min': metric_name,
                     'time': 'Tiempo'}, inplace=True)
         response = {
@@ -516,7 +515,7 @@ async def process_data_alineacion(data, end_date, init_date, metric_name):
         data.rename(columns={'Avg_min': metric_name,
                              'time': 'Tiempo'}, inplace=True)
         data = data.replace(np.nan, 0)
-        print(data)
+        """ print(data) """
         response = {
             'data': data,
             'number': 0,
@@ -1021,7 +1020,7 @@ def procesar_vacio(vacio, mayor):
 
 async def procesar_vacio_alineacion(vacio, mayor):
     vacio['Tiempo'] = [mayor['Tiempo'][ind] for ind in mayor.index]
-    print(vacio, "Si es este")
+    """ print(vacio, "Si es este") """
     vacio['num'] = [0 for ind in range(len(mayor))]
     vacio['Alineacion'] = [0 for ind in range(len(mayor))]
     vacio = vacio.replace(np.nan, 0)
@@ -1040,7 +1039,7 @@ def procesar_al():
     vacios = list()
     no_vacios = list()
     for ind in range(len(municipality_id)):
-        print(municipality_id)
+        """ print(municipality_id) """
         statement = text(f"""
         call sp_alignmentReport('{municipality_id[ind]}','{tech_id[ind]}','{brand_id[ind]}','{model_id[ind]}','{init_date}','{end_date}');
         """)
@@ -1077,7 +1076,7 @@ def procesar_al():
 
         for df in vacios[1:]:
             ind2 = df['index']
-            print(ind1, ind2)
+            """ print(ind1, ind2) """
             merged_df = pd.merge(merged_df, df['data'], on='Tiempo',
                                  how='left', suffixes=[f'_{ind1}', f'_{ind2}'])
             promedios.append(df['data'].loc[:, 'Alineacion'].mean())
@@ -1197,6 +1196,7 @@ async def process_data_conectivity_(municipality_id, tech_id, brand_id, model_id
     promedios_general = []
     municipios = []
     mayor = await crear_mayor_async(init_date, end_date)
+    """ print(mayor) """
     datas.append(
         {'index': 0, 'data': mayor['data'], 'hostid': 0})
     existen_globales = False
@@ -1204,7 +1204,9 @@ async def process_data_conectivity_(municipality_id, tech_id, brand_id, model_id
         if municipality_id[0] == '0':
 
             connectivity_data = pd.DataFrame(await reports_repository.get_connectivity_data_m(tech_id[0], brand_id[0], model_id[0], init_date, end_date))
+
             if not connectivity_data.empty:
+                print(connectivity_data.to_string())
                 municipios = connectivity_data.municipality.unique().tolist()
                 ans = [y for x, y in connectivity_data.groupby('municipality')]
                 ans = [{'index': x['municipality'].values[0], 'data': await process_data(x[['templateid', 'itemid', 'time', 'num', 'Avg_min']], end_date, init_date, x['municipality'].values[0])} for x in ans]
@@ -1466,9 +1468,9 @@ async def process_data_alignment_(municipality_id, tech_id, brand_id, model_id, 
         """ print("REPORTEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
         print(data_aligment_report) """
         data_procesed = await process_data_alineacion(data_aligment_report, end_date, init_date, "Disponibilidad")
-        print("PROCESEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEED")
+        """ print("PROCESEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEED")
         print(data_procesed)
-        print(mayor)
+        print(mayor) """
         datas.append({'index': ind + 1, 'data': data_procesed['data']})
         dispositivos.append(data_procesed['number'])
         dias.append(data_procesed['dias'])
@@ -1565,8 +1567,8 @@ async def process_data_alignment_(municipality_id, tech_id, brand_id, model_id, 
             ind2 = df['index']
             merged_df = pd.merge(merged_df, df['data'], on='Tiempo', how='left', suffixes=[
                                  f'_{ind1}', f'_{ind2}']).rename(columns={'Disponibilidad': f'Disponibilidad_{ind2}'})
-            print("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr")
-            print(df['data'])
+            """ print("rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr")
+            print(df['data']) """
             promedios.append(
                 {'index': ind2, 'data': df['data'].loc[:, 'Disponibilidad'].mean()})
             proms_index = await get_index(proms, 'index', df['index'])
@@ -1664,7 +1666,7 @@ def process_metrics(data):
     promedios = list()
     for dat in data:
         datas = sorted(dat['data'])
-        print(datas)
+        """ print(datas) """
         if len(datas) > 1:
             promedios.append((datas[0] * datas[len(datas) - 1]) / 100)
         else:
@@ -1892,7 +1894,7 @@ where nickname ='Alineación'""")
     general = pd.DataFrame()
     promedios_general = []
     municipios = []
-    print("llega acaaaaaaaaaaaaaaaaaaaaaaa")
+    """ print("llega acaaaaaaaaaaaaaaaaaaaaaaa") """
     for ind in range(len(device_ids)):
         pertenece = text(
             f"""select * from hosts h
@@ -1900,10 +1902,10 @@ inner join host_inventory hi
 on h.hostid =hi.hostid 
 where hi.hostid ={device_ids[ind]}
 and hi.device_id ={device_alineacion_id}""")
-        print(pertenece)
+        """ print(pertenece) """
         pertenece = pd.DataFrame(session.execute(pertenece))
-        print(pertenece)
-        print("llega acaaaaaaaaaaaaaaaaaaaaaaa")
+        """ print(pertenece)
+        print("llega acaaaaaaaaaaaaaaaaaaaaaaa") """
         if pertenece.empty:
             continue
         statement = text(f"""
@@ -2055,8 +2057,8 @@ and hi.device_id ={device_alineacion_id}""")
         promedios.append(
             {'index': ind1, 'data': merged_df.loc[:, 'Disponibilidad'].mean()})
         proms_index = get_index(proms, 'index', ind1)
-        print(proms_index)
-        print(proms)
+        """ print(proms_index)
+        print(proms) """
         proms[proms_index]['data'].append(
             merged_df.loc[:, 'Disponibilidad'].mean())
         for df in no_vacios[1:]:
@@ -2151,10 +2153,10 @@ inner join host_inventory hi
 on h.hostid =hi.hostid 
 where hi.hostid ={device_ids[ind]}
 and hi.device_id ={device_alineacion_id}""")
-        print(pertenece)
+        """ print(pertenece) """
         pertenece = pd.DataFrame(session.execute(pertenece))
-        print(pertenece)
-        print("llega acaaaaaaaaaaaaaaaaaaaaaaa")
+        """ print(pertenece)
+        print("llega acaaaaaaaaaaaaaaaaaaaaaaa") """
         if pertenece.empty:
             continue
         statement = text(f"""
