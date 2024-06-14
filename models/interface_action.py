@@ -9,3 +9,4 @@ class InterfaceAction(DB_Zabbix.Base):
     int_act_id = Column(Integer, primary_key=True, autoincrement=True)
     interface_id = Column(Integer, nullable=False)
     action_id = Column(Integer, nullable=False)
+    is_auto = Column(Integer, nullable=True)

@@ -27,6 +27,60 @@ from infraestructure.cassia import CassiaConfigRepository
 settings = Settings()
 
 
+async def cancel_action_max_retry_times(ids, now_str):
+    db_model = DB()
+    try:
+        query_cancel_auto_action_max_retry_times = DBQueries(
+        ).builder_query_cancel_auto_action_operation_values_max_retry_times(ids, now_str)
+        await db_model.start_connection()
+        cancel_auto_action_max_retry_times = await db_model.run_query(query_cancel_auto_action_max_retry_times)
+        return True
+
+    except Exception as e:
+        print(f"Excepcion en cancel_action_max_retry_times: {e}")
+        return False
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en cancel_action_max_retry_times: {e}")
+    finally:
+        await db_model.close_connection()
+
+
+async def close_auto_action(ids, now_str):
+    db_model = DB()
+    try:
+        query_close_auto_action = DBQueries(
+        ).builder_query_close_auto_action_operation_values(ids, now_str)
+        await db_model.start_connection()
+        close_auto_action = await db_model.run_query(query_close_auto_action)
+        return True
+
+    except Exception as e:
+        print(f"Excepcion en close_auto_action: {e}")
+        return False
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_hosts_actions_to_process: {e}")
+    finally:
+        await db_model.close_connection()
+
+
+async def increase_retry_times(ids, num_retry_times, now_str):
+    db_model = DB()
+    try:
+        query_increase_retry_times = DBQueries(
+        ).builder_query_increase_retry_times_auto_action_operation_values(ids, num_retry_times, now_str)
+        await db_model.start_connection()
+        increase_retry_times = await db_model.run_query(query_increase_retry_times)
+        return True
+
+    except Exception as e:
+        print(f"Excepcion en increase_retry_times: {e}")
+        return False
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_hosts_actions_to_process: {e}")
+    finally:
+        await db_model.close_connection()
+
+
 async def get_hosts_actions_to_process():
     db_model = DB()
     try:

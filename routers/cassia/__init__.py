@@ -10,6 +10,7 @@ from .slack_notifications_router import notifications_router
 from .diagnosta_router import diagnosta_router
 from .exceptions_router import exceptions_router
 from .reports_notifications_router import reports_notifications_router
+from .auto_actions_router import auto_actions_router
 cassia_router = APIRouter(prefix="/api/v1/cassia")
 
 cassia_router.include_router(users_router)
@@ -23,3 +24,4 @@ cassia_router.include_router(notifications_router)
 cassia_router.include_router(diagnosta_router)
 cassia_router.include_router(exceptions_router)
 cassia_router.include_router(reports_notifications_router)
+cassia_router.include_router(auto_actions_router)

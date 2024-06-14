@@ -20,10 +20,10 @@ automation_actions = settings.automation_actions
 def is_automation_actions():
     return automation_actions
 
+# PROCESA LOS HOST QUE ESTAN ASIGNADOS A ACCIONES AUTOMATICAS
 
-""" @automation_actions_scheduler.task(("every 1 minute  & automation_actions"), execution="thread") """
 
-
+@automation_actions_scheduler.task(("every 1 minute  & automation_actions"), execution="thread")
 async def process_action_values():
     host_actions_to_process = await cassia_automation_actions.get_hosts_actions_to_process()
     procesos = []
@@ -35,6 +35,8 @@ async def process_action_values():
     await asyncio.gather(*procesos)
     return
 
+# PROCESO QUE VERIFICA LAS CONDICIONES Y VALORES DE LAS METRICAS
+
 
 async def verify_conditions(interface_id, hostid, condition_id, action_auto_id):
     host_metrics = pd.DataFrame(await host_repository.get_host_health_detail(hostid))
@@ -45,9 +47,6 @@ async def verify_conditions(interface_id, hostid, condition_id, action_auto_id):
                              == conditions['template_id'][i]]
         template_id = conditions['template_id'][i]
 
-        """ if value.empty:
-            # VERIFICAR ESTE CASO
-            print("Error, metrica no encontrada") """
         if not value.empty:
             print(f"El valor de la metrica es {value}")
             valor = value['Metric'].values[0]
@@ -90,15 +89,11 @@ async def verify_conditions(interface_id, hostid, condition_id, action_auto_id):
                     now_str = datetime.now(pytz.timezone(
                         "America/Mexico_City")).strftime('%Y-%m-%d %H:%M:%S')
                     await cassia_automation_actions.close_auto_action_operational_values(ids, now_str)
-                    print("CANCELADOS")
+
                     break
 
-    print(host_metrics)
-    print(conditions)
-    """ print(f"Hostid {hostid} - Condition: {condition_id}")
-    for i in range(5):
-        print(f"Iteracion {i}")
-        time.sleep(1) """
+
+# PROCESO QUE VERIFICA LOS VALORES DE LA TABLA Y CREA LOS HILOS PARA EJECUTAR LAS ACCIONES
 
 
 @automation_actions_scheduler.task(("every 1 minute  & automation_actions"), execution="thread")
@@ -124,26 +119,39 @@ async def process_actions():
             if (values['minutes'] > values['delay'].astype(float)).all():
                 print("Todos los delay cumplen")
                 procesos.append(execute_actions(
-                    operation_values_to_verify['interface_id'][i], operation_values_to_verify['ip'][i], operation_values_to_verify['action_auto_id'][i], values['auto_operation_id']))
+                    operation_values_to_verify['interface_id'][i], operation_values_to_verify['ip'][i], operation_values_to_verify['action_auto_id'][i], values['auto_operation_id'], values['action_retry_times'][0]))
     await asyncio.gather(*procesos)
 
+# PROCESO QUE EJECUTA LAS ACCIONES
 
-async def execute_actions(interface_id, ip, action_id, operation_ids):
+
+async def execute_actions(interface_id, ip, action_id, operation_ids, num_retry_times):
     ids = ",".join([str(op_id) for op_id in operation_ids.to_list()])
-    print(ids)
-    return
-    print(
-        f"Ejecutando Acción {action_id} en interface {interface_id}... con la ip {ip}")
+    # Realiza la accion
     result = await cassia_automation_actions.prepare_action(ip, action_id)
-    print(result)
     body = result.body
     json_string = body.decode('utf-8')
     response_dict = json.loads(json_string)
+    # Ve si se ejecuto con exito
     success = response_dict['success']
+    now_str = datetime.now(pytz.timezone(
+        "America/Mexico_City")).strftime('%Y-%m-%d %H:%M:%S')
+
     if success == False:
-        await cassia_automation_actions.increase_retry_times(ids)
-        pass
+        # No se ejecuto con exito
+        if num_retry_times is None:
+            num_retry_times = 1
+        else:
+            num_retry_times += 1
+            if num_retry_times > 5:
+                # Si ya se ejecuto 5 veces sin exito se cancela
+                result_cancel = await cassia_automation_actions.cancel_action_max_retry_times(ids, now_str)
+                return result_cancel
+        # Actualiza el numero de intentos y la fecha de ultimo intento
+        result_update = await cassia_automation_actions.increase_retry_times(ids, num_retry_times, now_str)
+
+        return result_update
     else:
-        await cassia_automation_actions.close_auto_action(ids)
-        pass
-    """ print(f"total_time: {response_dict['data']['total_time']}") """
+        # Se ejecuto con exito y se cierra
+        result_update = await cassia_automation_actions.close_auto_action(ids, now_str)
+        return result_update

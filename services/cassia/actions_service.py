@@ -55,12 +55,12 @@ async def get_ci_element_relations(action_id):
             status_code=status.HTTP_400_BAD_REQUEST, detail="Action not exists")
 
     relations = text(f"""
-    select ia.int_act_id ,i.hostid, i.interfaceid, i.ip, h.name
+    select ia.int_act_id ,i.hostid, i.interfaceid, i.ip, h.name,ia.is_auto 
 from interface_action ia left join interface i on
 ia.interface_id = i.interfaceid left join hosts h 
 on i.hostid = h.hostid where ia.action_id ={action_id}""")
     relations = pd.DataFrame(
-        session.execute(relations)).replace(np.nan, "")
+        session.execute(relations)).replace(np.nan, None)
 
     action = action.to_dict(orient='records')[0]
 
@@ -72,7 +72,7 @@ on i.hostid = h.hostid where ia.action_id ={action_id}""")
     return success_response(data=response)
 
 
-async def create_interface_action_relation(action_id, affected_interface_id):
+async def create_interface_action_relation(action_id, affected_interface_id, is_auto):
     db_zabbix = DB_Zabbix()
     session = db_zabbix.Session()
     action = text(
@@ -100,7 +100,8 @@ async def create_interface_action_relation(action_id, affected_interface_id):
 
     interface_action_create = InterfaceAction(
         interface_id=affected_interface_id,
-        action_id=action_id
+        action_id=action_id,
+        is_auto=is_auto
     )
 
     session.add(interface_action_create)
