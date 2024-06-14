@@ -61,8 +61,8 @@ async def get_actions_relations(action_id: str):
     summary="Create a CIs element relation",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def create_interface_action_relation(action_id: str, affected_interface_id=Form(...)):
-    return await actions_service.create_interface_action_relation(action_id, affected_interface_id)
+async def create_interface_action_relation(action_id: str, affected_interface_id=Form(...), is_auto=Form(default=0)):
+    return await actions_service.create_interface_action_relation(action_id, affected_interface_id, is_auto)
 
 
 @actions_router.delete(

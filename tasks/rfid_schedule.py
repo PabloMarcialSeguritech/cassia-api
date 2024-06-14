@@ -42,14 +42,15 @@ async def get_rfid_data():
     rfid_id = "9"
     if rfid_config:
         rfid_id = rfid_config.value
-    statement = text(f"call sp_hostView('0','{rfid_id}','')")
+    statement = text(
+        f"call sp_hostView('0','{rfid_id}','')").execution_options(timeout=120)
     rfid_devices = pd.DataFrame(session.execute(statement)).replace(np.nan, "")
     session.close()
     """ print(rfid_devices.head())
     print(len(rfid_devices)) """
     query = DBQueries().query_get_rfid_arcos_data_v2_gto if rfid_arcos_gto else DBQueries(
     ).query_get_rfid_arcos_data_v1
-    statement = text(query)
+    statement = text(query).execution_options(timeout=120)
 
     try:
         arcos = pd.DataFrame(session_c5.execute(statement)).replace(np.nan, 0)

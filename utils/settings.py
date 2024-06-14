@@ -191,3 +191,9 @@ class Settings(BaseSettings):
             os.getenv('SEND_REPORTS')) == 1 else False
     except:
         pass
+    automation_actions: bool = False
+    try:
+        automation_actions: bool = True if int(
+            os.getenv('AUTOMATION_ACTIONS')) == 1 else False
+    except:
+        pass

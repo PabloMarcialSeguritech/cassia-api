@@ -153,12 +153,26 @@ order by count(h.hostid) desc""")
 async def clean_data_lpr():
     with DB_Zabbix().Session() as session:
         date = datetime.now(pytz.timezone(
-            'America/Mexico_City')) - timedelta(minutes=70)
+            'America/Mexico_City')) - timedelta(minutes=130)
         statement = text(f"""
     DELETE FROM cassia_arch_traffic_lpr
     WHERE cassia_arch_traffic_lpr_id in(
                      SELECT * FROM (SELECT cassia_arch_traffic_lpr_id FROM cassia_arch_traffic_lpr
         WHERE date<'{date}') AS p)""")
+        delete_rows = session.execute(statement)
+        session.commit()
+
+
+@syslog_schedule.task(("every 60 seconds & traffic_syslog"), execution="thread")
+async def clean_data_lpr_events():
+    with DB_Zabbix().Session() as session:
+        date = datetime.now(pytz.timezone(
+            'America/Mexico_City')) - timedelta(minutes=130)
+        statement = text(f"""
+    DELETE FROM cassia_lpr_events
+    WHERE event_id in(
+                     SELECT * FROM (SELECT event_id FROM cassia_lpr_events
+        WHERE devicedReportedTime<'{date}') AS p)""")
         delete_rows = session.execute(statement)
         session.commit()
 
