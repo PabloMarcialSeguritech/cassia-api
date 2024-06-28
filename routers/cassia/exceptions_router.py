@@ -107,3 +107,14 @@ async def close_exception_async(exception_id, exception_data: exception_schema.C
                                 current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
     return await exceptions_service.close_exception_async(exception_id=exception_id, exception_data=exception_data,
                                                           current_user_session=current_user_session.session_id.hex)
+
+
+@exceptions_router.get(
+    '/exceptions/list/detail',
+    tags=["Zabbix - Problems(Alerts) - Exceptions"],
+    status_code=status.HTTP_200_OK,
+    summary="Get all Exceptions",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_exceptions_detail_async():
+    return await exceptions_service.get_exceptions_detail_async()
