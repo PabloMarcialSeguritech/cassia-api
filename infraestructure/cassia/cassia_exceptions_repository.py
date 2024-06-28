@@ -126,3 +126,23 @@ async def close_cassia_exception_by_id(exception_id, date) -> pd.DataFrame:
         )
     finally:
         await db_model.close_connection()
+
+
+async def get_cassia_exceptions_detail() -> pd.DataFrame:
+    db_model = DB()
+    try:
+        query_get_cassia_exceptions_detail = DBQueries(
+        ).query_get_cassia_exceptions_detail
+        await db_model.start_connection()
+        exceptions_data = await db_model.run_query(query_get_cassia_exceptions_detail)
+        exceptions_df = pd.DataFrame(
+            exceptions_data).replace(np.nan, None)
+        return exceptions_df
+    except Exception as e:
+        print(f"Excepcion generada en get_cassia_exceptions_detail: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion generada en  get_cassia_exceptions_detail {e}"
+        )
+    finally:
+        await db_model.close_connection()

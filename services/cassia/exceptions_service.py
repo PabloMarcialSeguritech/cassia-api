@@ -99,3 +99,8 @@ async def close_exception_async(exception_id, exception_data, current_user_sessi
     return success_response(message=message,
                             data=exception.to_dict(orient="records")[0],
                             status_code=status.HTTP_200_OK)
+
+
+async def get_exceptions_detail_async():
+    exceptions = await cassia_exceptions_repository.get_cassia_exceptions_detail()
+    return success_response(data=exceptions.to_dict(orient='records'))

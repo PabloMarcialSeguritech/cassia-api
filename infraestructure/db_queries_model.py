@@ -1,5 +1,7 @@
 from schemas import cassia_auto_action_condition_schema
 from schemas import cassia_auto_action_schema
+from schemas import cassia_technologies_schema
+from utils import traits
 
 
 class DBQueries:
@@ -112,7 +114,7 @@ group by c.latitude, c.longitude"""
         self.query_get_cassia_exceptions = "select * from cassia_exceptions"
         self.stored_name_get_cassia_exceptions = "sp_getExceptions_detail"
         self.stored_name_exceptions_count = "sp_getExceptions"
-        self.query_get_cassia_report_names = """select crfs.cassia_report_frequency_id, crfs.name,crfs.description
+        self.query_get_cassia_report_names = """select crfs.cassia_report_frequency_schedule_id , crfs.name,crfs.description
 from cassia_report_frequency_schedule crfs"""
         self.query_get_cassia_users = """select user_id,mail,name from cassia_users cu 
 where cu.deleted_at  is NULL"""
@@ -132,6 +134,15 @@ where cao.status='EnProceso'"""
         self.query_get_auto_actions = """select caa.*,cac.name as condition_name ,ca.name as cassia_action_name from 
 cassia_action_auto caa inner join cassia_action ca on ca.action_id =caa.action_id 
 inner join cassia_auto_condition cac on cac.condition_id =caa.condition_id"""
+        """ self.query_get_cassia_technologies = "select * from cassia_technologies where deleted_at is NULL" """
+        self.query_get_cassia_technologies = "select * from cassia_ci_tech"
+        self.query_get_cassia_exceptions_detail = """SELECT ce.*,cea.name ,h.host, hi.location_lat ,hi.location_lon
+FROM cassia_exceptions ce
+INNER JOIN host_inventory hi ON hi.hostid =ce.hostid
+inner join hosts h on h.hostid =ce.hostid 
+inner join cassia_exception_agencies cea 
+on cea.exception_agency_id = ce.exception_agency_id 
+WHERE closed_at is NULL """
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -611,3 +622,85 @@ WHERE caa.action_auto_id={action_auto_id}"""
         condition_id={action_data.condition_id}
         WHERE action_auto_id={action_data.action_auto_id}"""
         return self.query_update_action_by_id
+
+    def builder_query_get_cassia_technology_by_id(self, cassia_technology_id):
+        self.query_get_cassia_technology_by_id = f"""select * from cassia_ci_tech where 
+        tech_id={cassia_technology_id}"""
+        return self.query_get_cassia_technology_by_id
+
+    def builder_query_update_cassia_technology_by_id(self, cassia_technology_id, tech_data: cassia_technologies_schema.CassiaTechnologySchema):
+        self.query_update_cassia_technology_by_id = f"""
+        UPDATE cassia_technologies
+        SET technology_name='{tech_data.technology_name}',
+        sla={tech_data.sla},
+        tech_group_ids='{tech_data.tech_group_ids}',
+        updated_at='{traits.get_datetime_now_str_with_tz()}'
+        WHERE cassia_technologies_id={cassia_technology_id}"""
+        return self.query_update_cassia_technology_by_id
+
+    def builder_query_delete_cassia_technology_by_id(self, cassia_technology_id):
+        self.query_delete_cassia_technology_by_id = f"""
+        UPDATE cassia_technologies
+        SET deleted_at='{traits.get_datetime_now_str_with_tz()}'
+        WHERE cassia_technologies_id={cassia_technology_id}"""
+        return self.query_delete_cassia_technology_by_id
+
+    def builder_query_get_technology_devices_by_ids(self, tech_group_ids):
+        self.query_get_technology_devices_by_ids = f"""
+        select h.hostid ,h.host,h.name,hi.alias,hi.location,hi.location_lat ,hi.location_lon,hi.device_id  from hosts h 
+inner join host_inventory hi on hi.hostid =h.hostid 
+where device_id  in ({tech_group_ids})"""
+        return self.query_get_technology_devices_by_ids
+
+    def builder_query_get_technology_devices_by_tech_id(self, tech_id):
+        self.query_get_technology_devices_by_tech_id = f"""SELECT 
+    cce.element_id,
+    cce.host_id ,
+    cce.ip,
+    h.name,
+    cce.technology,
+    cce.device_name,
+    cce.description,
+    cce.referencia,
+    his.hardware_brand,
+    his.hardware_model,
+    his.software_version,
+    his.hardware_no_serie,
+    cct.tech_name 
+FROM 
+    cassia_ci_element cce
+LEFT JOIN 
+    hosts h ON h.hostid = cce.host_id
+LEFT JOIN 
+    cassia_ci_tech cct ON cct.tech_id = cce.tech_id
+LEFT JOIN 
+    (
+        SELECT 
+            cch.element_id,
+            cch.hardware_brand,
+            cch.hardware_model,
+            cch.software_version,
+            cch.hardware_no_serie 
+        FROM 
+            (
+                SELECT 
+                    element_id,
+                    hardware_brand,
+                    hardware_model,
+                    software_version,
+                    hardware_no_serie,
+                    ROW_NUMBER() OVER (PARTITION BY element_id ORDER BY closed_at DESC) AS rn
+                FROM 
+                    cassia_ci_history
+                WHERE 
+                    status = "Cerrada" 
+                    AND deleted_at IS NULL
+            ) cch
+        WHERE 
+            rn = 1
+    ) his ON cce.element_id = his.element_id
+WHERE 
+    cce.deleted_at IS NULL
+    and cce.tech_id={tech_id}
+    """
+        return self.query_get_technology_devices_by_tech_id
