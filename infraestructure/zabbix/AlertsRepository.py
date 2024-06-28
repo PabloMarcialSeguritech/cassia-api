@@ -398,6 +398,112 @@ async def process_open_diagnosta_events(problems, sincronizados: pd.DataFrame, p
     return problems
 
 
+async def get_problems_filter_backup(municipalityId, tech_host_type=0, subtype="", severities=""):
+    if subtype == "0":
+        subtype = ""
+    if tech_host_type == "-1":
+        tech_host_type = ''
+    rfid_df = await CassiaConfigRepository.get_config_value_by_name('rfid_id')
+    rfid_id = rfid_df['value'][0] if not rfid_df.empty else '9'
+    lpr_df = await CassiaConfigRepository.get_config_value_by_name('lpr_id')
+    lpr_id = lpr_df['value'][0] if not lpr_df.empty else '9'
+    ping_loss_message = await CassiaConfigRepository.get_config_ping_loss_message()
+    if subtype == "376276" or subtype == "375090":
+        subtype = '376276,375090'
+    if subtype != "" and tech_host_type == "":
+        tech_host_type = "0"
+    switch_df = await CassiaConfigRepository.get_config_value_by_name('switch_id')
+    switch_id = switch_df['value'][0] if not switch_df.empty else '12'
+    metric_switch_df = await CassiaConfigRepository.get_config_value_by_name('switch_throughtput')
+    metric_switch_val = metric_switch_df['value'][0] if not metric_switch_df.empty else 'Interface Bridge-Aggregation_: Bits'
+    if subtype == metric_switch_val:
+        subtype = ""
+    problems = await get_alerts(
+        municipalityId, tech_host_type, subtype, severities)
+    problems = await normalizar_alertas_zabbix(problems, ping_loss_message)
+    if tech_host_type == lpr_id or tech_host_type == '':
+        problems = await process_alerts_local(
+            problems, municipalityId,  lpr_id, severities, 'lpr')
+    if tech_host_type == rfid_id or tech_host_type == '':
+        problems = await process_alerts_local(
+            problems, municipalityId,  rfid_id, severities, 'rfid')
+    downs_origen = await CassiaDiagnostaRepository.get_downs_origen(municipalityId, tech_host_type)
+    if not downs_origen.empty:
+        hostids = downs_origen['hostid'].tolist()
+        hostids_str = ",".join([str(host) for host in hostids])
+        data_problems = await CassiaEventRepository.get_cassia_events_with_hosts_filter(hostids_str)
+        if not data_problems.empty:
+            problems = await normalizar_eventos_cassia(problems, data_problems, severities, ping_loss_message)
+    dependientes = await CassiaDiagnostaRepository.get_host_dependientes()
+    if not dependientes.empty:
+        if not problems.empty:
+            indexes = problems[problems['Problem'] == ping_loss_message]
+            indexes = indexes[indexes['hostid'].isin(
+                dependientes['hostid'].to_list())]
+            if not problems.empty:
+                problems.loc[problems.index.isin(
+                    indexes.index.to_list()), 'tipo'] = 0
+    sincronizados = await CassiaDiagnostaRepository.get_open_problems_diagnosta()
+    if not sincronizados.empty:
+        if not problems.empty:
+            problems = await process_open_diagnosta_events(problems, sincronizados, ping_loss_message)
+    if not problems.empty:
+        problems = await procesar_fechas_problemas(problems)
+        problems.drop_duplicates(
+            subset=['hostid', 'Problem'], inplace=True)
+    if not problems.empty:
+
+        exceptions = await get_exceptions_async(
+            problems['hostid'].to_list())
+        if not exceptions.empty:
+            exceptions['created_at'] = pd.to_datetime(
+                exceptions['created_at'], format='%Y-%m-%d %H:%M:%S').dt.tz_localize(None)
+        problems = pd.merge(problems, exceptions, on='hostid',
+                            how='left').replace(np.nan, None)
+    if not problems.empty:
+        problems_zabbix = problems[problems['local'] == 0]
+        problems_zabbix_ids = problems_zabbix['eventid']
+        zabbix_eventids = '0'
+        if not problems_zabbix.empty:
+            zabbix_eventids = ','.join(
+                problems_zabbix_ids.astype('str').to_list())
+        acks_zabbix = await get_zabbix_acks(zabbix_eventids)
+        if not acks_zabbix.empty:
+            acks_zabbix_mensajes = acks_zabbix.groupby('eventid')[
+                'message'].agg(lambda x: ' | '.join(x)).reset_index()
+            acks_zabbix_mensajes.columns = [
+                'eventid', 'acknowledges_concatenados']
+        else:
+            acks_zabbix_mensajes = pd.DataFrame(
+                columns=['eventid', 'acknowledges_concatenados'])
+        problems_zabbix = pd.merge(
+            problems_zabbix, acks_zabbix_mensajes, how='left', on='eventid').replace(np.nan, None)
+        problems_cassia = problems[problems['local'] == 1]
+        problems_cassia_ids = problems_cassia['eventid']
+        cassia_eventids = '0'
+        if not problems_cassia.empty:
+            cassia_eventids = ','.join(
+                problems_cassia_ids.astype('str').to_list())
+        acks_cassia = await get_cassia_acks(cassia_eventids)
+        if not acks_cassia.empty:
+            acks_cassia_mensajes = acks_cassia.groupby('eventid')[
+                'message'].agg(lambda x: ' | '.join(x)).reset_index()
+            acks_cassia_mensajes.columns = [
+                'eventid', 'acknowledges_concatenados']
+        else:
+            acks_cassia_mensajes = pd.DataFrame(
+                columns=['eventid', 'acknowledges_concatenados'])
+        problems_cassia = pd.merge(
+            problems_cassia, acks_cassia_mensajes, how='left', on='eventid').replace(np.nan, None)
+        problems = pd.concat([problems_zabbix, problems_cassia])
+        problems = problems.sort_values(by='fecha', ascending=False)
+    print(len(problems))
+    print(tech_host_type)
+    print(type(tech_host_type))
+    print(tech_host_type == '')
+    return problems
+
+
 async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", severities=""):
     if subtype == "0":
         subtype = ""
@@ -501,6 +607,12 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
     print(tech_host_type)
     print(type(tech_host_type))
     print(tech_host_type == '')
+
+    resolveds = problems[problems['Estatus'] == "RESOLVED"]
+
+    print("RESUELSTOSSSSSSSSSSSSSSSSSSSS")
+    print(problems.columns)
+    print(resolveds['Estatus'])
     return problems
 
 
