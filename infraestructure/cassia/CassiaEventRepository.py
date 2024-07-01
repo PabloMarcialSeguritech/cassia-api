@@ -8,12 +8,10 @@ import numpy as np
 async def get_cassia_event(eventid) -> pd.DataFrame:
     db_model = DB()
     try:
-        print("nooooaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-        print(f"eventid:f{eventid}")
-        get_event_query = DBQueries().builder_query_statement_get_cassia_event(
+        # PINK
+        get_event_query = DBQueries().builder_query_statement_get_cassia_event_test(
             eventid)
 
-        print("Query: ", get_event_query)
         await db_model.start_connection()
         event_data = await db_model.run_query(get_event_query)
         event = pd.DataFrame(event_data).replace(np.nan, None)
@@ -35,7 +33,7 @@ async def get_global_alerts_by_tech(tech_id, tipo):
     db_model = DB()
     try:
         sp_name_get_cassia_events_by_tech = DBQueries(
-        ).builder_query_statement_get_global_cassia_events_by_tech(tech_id)
+        ).builder_query_statement_get_global_cassia_events_by_tech_test(tech_id)
         print(sp_name_get_cassia_events_by_tech)
         await db_model.start_connection()
         cassia_alerts_data = await db_model.run_query(sp_name_get_cassia_events_by_tech)
@@ -97,8 +95,9 @@ async def get_municipality_alerts_by_tech(municipality, tech_id, tipo):
 async def get_cassia_events_acknowledges():
     db_model = DB()
     try:
+        # PINK
         query_get_cassia_events_acknowledges = DBQueries(
-        ).query_statement_get_cassia_events_acknowledges
+        ).query_statement_get_cassia_events_acknowledges_test
         await db_model.start_connection()
         cassia_alerts_acknowledges_data = await db_model.run_query(query_get_cassia_events_acknowledges)
         cassia_alerts_acknowledges_df = pd.DataFrame(
@@ -114,8 +113,9 @@ async def get_cassia_events_acknowledges():
 async def get_cassia_events_with_hosts_filter(hostids: str):
     db_model = DB()
     try:
+        # PINK
         query_get_cassia_events_with_hosts_filter = DBQueries(
-        ).builder_query_statement_get_cassia_events_with_hosts_filter(hostids)
+        ).builder_query_statement_get_cassia_events_with_hosts_filter_test(hostids)
         await db_model.start_connection()
         cassia_alerts_data = await db_model.run_query(query_get_cassia_events_with_hosts_filter)
         cassia_alerts_df = pd.DataFrame(

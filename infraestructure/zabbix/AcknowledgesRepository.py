@@ -7,14 +7,15 @@ from datetime import datetime
 from infraestructure.zabbix.ZabbixApi import ZabbixApi
 from models.cassia_acknowledge import CassiaAcknowledge
 from models.cassia_event_acknowledges import CassiaEventAcknowledge
+from models.cassia_event_acknowledges_test import CassiaEventAcknowledgeTest  # PINK
 import pytz
 
 
 async def get_acknowledges(eventid, is_zabbix_event) -> pd.DataFrame:
     db_model = DB()
     try:
-
-        sp_get_acknowledges = DBQueries().stored_name_get_acknowledges
+        # PINK
+        sp_get_acknowledges = DBQueries().stored_name_get_acknowledges_test
         await db_model.start_connection()
         acknowledges_data = await db_model.run_stored_procedure(sp_get_acknowledges, (eventid, is_zabbix_event))
         acknowledges = pd.DataFrame(acknowledges_data).replace(np.nan, None)
@@ -31,7 +32,8 @@ async def get_acknowledges(eventid, is_zabbix_event) -> pd.DataFrame:
 async def get_event_tickets(eventid, is_cassia_event) -> pd.DataFrame:
     db_model = DB()
     try:
-        get_tickets_query = DBQueries().builder_query_statement_get_cassia_event_tickets(
+        # PINK
+        get_tickets_query = DBQueries().builder_query_statement_get_cassia_event_tickets_test(
             eventid, is_cassia_event)
         await db_model.start_connection()
         tickets_data = await db_model.run_query(get_tickets_query)
@@ -165,7 +167,8 @@ async def create_cassia_event_acknowledge(eventid, message, current_session, clo
     db_model = DB()
     try:
         session = await db_model.get_session()
-        cassia_event_acknowledge = CassiaEventAcknowledge(
+        # PINK
+        cassia_event_acknowledge = CassiaEventAcknowledgeTest(
             userid=current_session.user_id,
             eventid=eventid,
             message=message,
@@ -176,7 +179,7 @@ async def create_cassia_event_acknowledge(eventid, message, current_session, clo
 
         if cassia_event_acknowledge is not None:
             if close:
-                close_event=await close_cassia_event_acknowledge(eventid)
+                close_event = await close_cassia_event_acknowledge(eventid)
                 if close_event:
                     return True
             return True
@@ -194,8 +197,9 @@ async def close_cassia_event_acknowledge(eventid):
     try:
         current_time = datetime.now(pytz.timezone('America/Mexico_City'))
         formatted_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
+        # PINK
         query_close_cassia_event = DBQueries(
-        ).builder_query_statement_close_event_by_id(eventid, formatted_time)
+        ).builder_query_statement_close_event_by_id_test(eventid, formatted_time)
         """ print(query_get_last_ack) """
         await db_model.start_connection()
         close_event = await db_model.run_query(query_close_cassia_event)

@@ -8,8 +8,9 @@ import numpy as np
 async def get_local_events_diagnosta_by_host(hostid) -> pd.DataFrame:
     db_model = DB()
     try:
+        # PINK
         query_get_local_events_diagnosta_by_host = DBQueries(
-        ).builder_query_statement_get_local_events_diagnosta(hostid)
+        ).builder_query_statement_get_local_events_diagnosta_test(hostid)
         await db_model.start_connection()
 
         diagnosta_events_data = await db_model.run_query(query_get_local_events_diagnosta_by_host)
@@ -26,8 +27,9 @@ async def get_local_events_diagnosta_by_host(hostid) -> pd.DataFrame:
 async def get_host_dependientes() -> pd.DataFrame:
     db_model = DB()
     try:
+        # PINK
         sp_name_get_dependents_diagnostic_problems = DBQueries(
-        ).stored_name_get_dependents_diagnostic_problems
+        ).stored_name_get_dependents_diagnostic_problems_test
         await db_model.start_connection()
 
         diagnosta_dependents_data = await db_model.run_stored_procedure(sp_name_get_dependents_diagnostic_problems, (0, ''))
@@ -44,8 +46,9 @@ async def get_host_dependientes() -> pd.DataFrame:
 async def get_open_problems_diagnosta() -> pd.DataFrame:
     db_model = DB()
     try:
+        # PINK
         query_get_open_problems = DBQueries(
-        ).query_get_open_diagnosta_problems
+        ).query_get_open_diagnosta_problems_test
         await db_model.start_connection()
 
         diagnosta_open_problems_data = await db_model.run_query(query_get_open_problems)
@@ -62,8 +65,9 @@ async def get_open_problems_diagnosta() -> pd.DataFrame:
 async def get_downs_origen(municipalityId, tech_host_type) -> pd.DataFrame:
     db_model = DB()
     try:
+        # PINK
         sp_get_downs_origen = DBQueries(
-        ).stored_name_diagnostic_problems_origen_1
+        ).stored_name_diagnostic_problems_origen_1_test
         await db_model.start_connection()
 
         diagnosta_downs_origen_data = await db_model.run_stored_procedure(sp_get_downs_origen, (municipalityId, tech_host_type))
