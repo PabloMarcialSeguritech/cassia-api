@@ -11,6 +11,7 @@ from utils.traits import success_response_with_alert
 from models.cassia_config import CassiaConfig
 from infraestructure.zabbix import layers_repository
 from infraestructure.cassia import CassiaConfigRepository
+from infraestructure.cassia import CassiaDiagnostaRepository
 from infraestructure.zabbix import host_repository
 from infraestructure.zabbix import AlertsRepository
 import numpy as np
@@ -102,17 +103,20 @@ where closed_at is null and depends_hostid is not null""")
 
 
 async def get_downs_layer_async(municipality_id, dispId, subtype_id):
+
     downs = await layers_repository.get_host_downs(municipality_id, dispId, subtype_id)
     dependientes = await layers_repository.get_host_downs_dependientes()
-    downs_filtro = await AlertsRepository.get_problems_filter(municipality_id, dispId, subtype_id, "6")
-    downs_filtro = downs_filtro[downs_filtro['tipo'] == 1]
+    downs_origen_filtro = await CassiaDiagnostaRepository.get_downs_origen(municipality_id, dispId)
+    downs_origen = await CassiaDiagnostaRepository.get_downs_origen(0, '')
+    """ downs_filtro = downs_origen """
+    """ downs_filtro = await AlertsRepository.get_problems_filter(municipality_id, dispId, subtype_id, "6")
+    downs_filtro = downs_filtro[downs_filtro['tipo'] == 1] """
     if not downs.empty:
         downs['value'] = [1 for i in range(len(downs))]
         downs['description'] = [
             'ICMP ping' for i in range(len(downs))]
         downs['origen'] = [0 for i in range(len(downs))]
-    if 'hostid' in downs_filtro.columns:
-        downs_origen = downs_filtro
+    if 'hostid' in downs_origen.columns:
         if not downs.empty:
             downs_odd_no_analizados = downs[~downs['hostid'].isin(
                 dependientes['hostid'].to_list())]
@@ -124,8 +128,19 @@ async def get_downs_layer_async(municipality_id, dispId, subtype_id):
             downs_origen = downs_origen.drop_duplicates()
             downs.loc[downs['hostid'].isin(
                 downs_origen['hostid'].to_list()), 'origen'] = 1
+
+            downs_odd_no_analizados = downs[~downs['hostid'].isin(
+                dependientes['hostid'].to_list())]
+
+            downs_odd_analizados = downs[downs['hostid'].isin(
+                downs_origen_filtro['hostid'].to_list())]
+            downs_origen_filtro = pd.concat(
+                [downs_odd_no_analizados, downs_odd_analizados])
+            downs_origen_filtro = downs_origen_filtro.drop_duplicates()
             """ downs[downs['hostid'].isin(downs_origen['hostid'].to_list())] = 1 """
+
     downs_totales = await layers_repository.get_host_downs(0, '', '')
+    # AQUI
     dependientes_filtro = await layers_repository.get_host_downs_dependientes_filtro(municipality_id, dispId)
     glob = {'downs_totales': 0,
             'downs_dependientes': 0,
@@ -138,7 +153,7 @@ async def get_downs_layer_async(municipality_id, dispId, subtype_id):
     if not downs_totales.empty:
         downs_totales_count = len(downs_totales)
         dependientes_count = len(dependientes)
-        origenes_count = downs_totales_count-dependientes_count
+        origenes_count = len(downs_origen)
 
         glob = {
             'downs_totales': downs_totales_count,
@@ -148,17 +163,7 @@ async def get_downs_layer_async(municipality_id, dispId, subtype_id):
     if not downs.empty:
         downs_count = len(downs)
         dependientes_count = len(dependientes_filtro)
-        origenes_count = downs_count-dependientes_count
-        print("DOWNSSSS")
-        print(downs_origen)
-        print(downs)
-        print(origenes_count)
-        print("no analizados")
-        print(downs_odd_no_analizados)
-        print("ANALIZADOS")
-        print(downs_odd_analizados)
-        print("Downs filtro")
-        print(downs_filtro['tipo'])
+        origenes_count = len(downs_origen_filtro)
         filtro = {
             'downs_totales': downs_count,
             'downs_dependientes': dependientes_count,
@@ -280,6 +285,7 @@ where closed_at is null and depends_hostid is not null""")
 
 
 async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
+
     downs = await layers_repository.get_host_downs(municipality_id, dispId, subtype_id)
     downs_aaa = downs.copy()
     downs_globales = await layers_repository.get_host_downs('0', '', '')
@@ -307,6 +313,7 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
     filtro = {'downs_totales': downs_totales,
               'downs_dependientes': 0,
               'downs_origen': origenes}
+    # AQUI
     downs_globales_problems = await AlertsRepository.get_problems_filter(0, dispId, '', "6")
     if not downs_globales_problems.empty:
         downs_globales_problems = downs_globales_problems[
