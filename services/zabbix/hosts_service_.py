@@ -30,6 +30,7 @@ import asyncio
 import subprocess
 import infraestructure.zabbix.host_repository as host_repository
 from infraestructure.zabbix import layers_repository
+from infraestructure.cassia import CassiaDiagnostaRepository
 
 settings = Settings()
 
@@ -392,10 +393,13 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
 
     data4 = pd.DataFrame(await host_repository.get_host_available_ping_loss(municipalityId, dispId)).replace(np.nan, "")
     # GIO
-    downs_filtro = await downs_count(municipalityId, dispId, subtype_id)
+    downs = await layers_repository.get_host_downs(municipalityId, dispId, subtype_id)
+    print(downs)
+    downs_origen_filtro = await CassiaDiagnostaRepository.get_downs_origen(municipalityId, dispId)
     if not data4.empty:
         if 'Down' in data4.columns:  # Verifica si la columna 'Down' existe
             # Obtener el valor de la primera fila
+            data4['Down'].iloc[0] = len(downs)
             down_value = data4['Down'].iloc[0]
             if down_value == '0':
                 downs_totales = 0
@@ -408,7 +412,7 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
     else:
         downs_totales = 0
 
-    origenes = len(downs_filtro)
+    origenes = len(downs_origen_filtro)
     data4['Downs_origen'] = origenes
     data2 = corelations.replace(np.nan, "")
     # aditional data

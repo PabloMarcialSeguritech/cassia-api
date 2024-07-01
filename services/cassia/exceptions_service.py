@@ -6,6 +6,9 @@ from utils.traits import success_response
 from infraestructure.cassia import cassia_exception_agencies_repository
 from infraestructure.cassia import cassia_exceptions_repository
 from fastapi import status
+import pandas as pd
+import pytz
+from datetime import datetime
 settings = Settings()
 
 
@@ -103,4 +106,17 @@ async def close_exception_async(exception_id, exception_data, current_user_sessi
 
 async def get_exceptions_detail_async():
     exceptions = await cassia_exceptions_repository.get_cassia_exceptions_detail()
+    if not exceptions.empty:
+        now = datetime.now(pytz.timezone('America/Mexico_City'))
+        exceptions['created_at'] = pd.to_datetime(exceptions['created_at'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
+            pytz.timezone('America/Mexico_City'))
+        exceptions['diferencia'] = now-exceptions['created_at']
+        exceptions['dias'] = exceptions['diferencia'].dt.days
+        exceptions['horas'] = exceptions['diferencia'].dt.components.hours
+        exceptions['minutos'] = exceptions['diferencia'].dt.components.minutes
+        exceptions = exceptions.drop(columns=['diferencia',])
+        exceptions['active_time'] = exceptions.apply(
+            lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
+        exceptions = exceptions.drop(
+            columns=['dias', 'horas', 'minutos'])
     return success_response(data=exceptions.to_dict(orient='records'))
