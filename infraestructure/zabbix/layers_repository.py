@@ -40,8 +40,9 @@ async def get_host_downs(municipality_id, dispId, subtype_id) -> pd.DataFrame:
 async def get_host_downs_dependientes() -> pd.DataFrame:
     db_model = DB()
     try:
-        # ACTUALIZAR NOMBRE
-        query_get_host_downs_dependientes = DBQueries().query_get_host_downs_dependientes
+        # PINK
+        query_get_host_downs_dependientes = DBQueries(
+        ).query_get_host_downs_dependientes_test
         await db_model.start_connection()
         host_downs_dependientes_data = await db_model.run_query(query_get_host_downs_dependientes)
         host_downs_dependientes_df = pd.DataFrame(
@@ -58,8 +59,9 @@ async def get_host_downs_dependientes() -> pd.DataFrame:
 async def get_host_downs_dependientes_filtro(municipality_id, dispId) -> pd.DataFrame:
     db_model = DB()
     try:
+        # PINK
         sp_get_host_dependientes_filtro = DBQueries(
-        ).stored_name_get_dependents_diagnostic_problems  # ACTUALIZAR NOMBRE
+        ).stored_name_get_dependents_diagnostic_problems_test  # ACTUALIZAR NOMBRE
         await db_model.start_connection()
         host_downs_dependientes_data = await db_model.run_stored_procedure(sp_get_host_dependientes_filtro, (municipality_id, dispId))
         host_downs_dependientes_df = pd.DataFrame(

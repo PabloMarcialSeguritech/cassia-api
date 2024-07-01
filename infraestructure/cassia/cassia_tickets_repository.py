@@ -6,6 +6,8 @@ import pytz
 from infraestructure.database_model import DB
 from infraestructure.db_queries_model import DBQueries
 from models.cassia_tickets_async import CassiaTicketAsync
+from models.cassia_tickets_async_test import CassiaTicketAsyncTest  # PINK
+
 from fastapi import status, HTTPException
 
 
@@ -13,7 +15,8 @@ async def create_cassia_ticket(ticket_data, user_id, is_cassia_event):
     db_model = DB()
     try:
         session = await db_model.get_session()
-        ticket = CassiaTicketAsync(
+        # PINK
+        ticket = CassiaTicketAsyncTest(
             tracker_id=ticket_data.tracker_id,
             user_id=user_id,
             clock=ticket_data.clock,
@@ -40,8 +43,9 @@ async def create_cassia_ticket(ticket_data, user_id, is_cassia_event):
 async def delete_cassia_ticket(ticket_id):
     db_model = DB()
     try:
+        # PINK
         query_delete_ticket = DBQueries(
-        ).builder_query_statement_delete_cassia_ticket_by_id(ticket_id)
+        ).builder_query_statement_delete_cassia_ticket_by_id_test(ticket_id)
         await db_model.start_connection()
         await db_model.run_query(query_delete_ticket)
         return True
@@ -58,8 +62,9 @@ async def delete_cassia_ticket(ticket_id):
 async def get_cassia_ticket(ticket_id):
     db_model = DB()
     try:
+        # PINK
         query_get_ticket = DBQueries(
-        ).builder_query_statement_get_cassia_ticket_by_id(ticket_id)
+        ).builder_query_statement_get_cassia_ticket_by_id_test(ticket_id)
         await db_model.start_connection()
         ticket_data = await db_model.run_query(query_get_ticket)
         ticket_df = pd.DataFrame(ticket_data).replace(np.nan, None)

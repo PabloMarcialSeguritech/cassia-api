@@ -359,10 +359,12 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
         else:
             hostids = "(0)"
     corelations = pd.DataFrame(await host_repository.get_host_correlation(hostids))
+
     data3 = pd.DataFrame(
         await host_repository.get_problems_by_severity(municipalityId, dispId_filter, subtype_id)).replace(np.nan, "")
     if dispId == rfid_id:
         if municipalityId == '0':
+
             alertas_rfid = pd.DataFrame(await host_repository.get_arch_traffic_events_date_close_null())
         else:
             municipios = pd.DataFrame(await host_repository.get_catalog_city()).replace(np.nan, "")
@@ -372,6 +374,7 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
                 municipio = municipio['name'].item()
             else:
                 municipio = ''
+
             alertas_rfid = await host_repository.get_arch_traffic_events_date_close_null_municipality(municipio)
 
         """ alertas_rfid = pd.DataFrame([(
@@ -386,7 +389,9 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
                 [data3, alertas_rfid], ignore_index=True)
             data3 = problems_count.groupby(
                 ['severity']).sum().reset_index()
+
     data4 = pd.DataFrame(await host_repository.get_host_available_ping_loss(municipalityId, dispId)).replace(np.nan, "")
+    # GIO
     downs_filtro = await downs_count(municipalityId, dispId, subtype_id)
     if not data4.empty:
         if 'Down' in data4.columns:  # Verifica si la columna 'Down' existe

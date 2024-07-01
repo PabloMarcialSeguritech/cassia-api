@@ -94,8 +94,9 @@ async def get_arch_traffic_events_date_close_null():
 
     try:
         await db_connection.start_connection()
+        # PINK
         database_response = await db_connection.run_query(
-            db_queries.query_statement_get_arch_traffic_events_date_close_null)
+            db_queries.query_statement_get_arch_traffic_events_date_close_null_test)
         return database_response
 
     except Exception as e:
@@ -135,7 +136,7 @@ async def get_arch_traffic_events_date_close_null_municipality(municipality):
     try:
         await db_connection.start_connection()
         database_response = await db_connection.run_query(
-            db_queries.builder_query_statement_get_arch_traffic_events_date_close_null_municipality(municipality))
+            db_queries.builder_query_statement_get_arch_traffic_events_date_close_null_municipality_test(municipality))
         return database_response
 
     except Exception as e:
