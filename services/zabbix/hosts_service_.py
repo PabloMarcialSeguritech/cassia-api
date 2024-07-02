@@ -394,8 +394,6 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
     data4 = pd.DataFrame(await host_repository.get_host_available_ping_loss(municipalityId, dispId)).replace(np.nan, "")
     # GIO
     downs = await layers_repository.get_host_downs(municipalityId, dispId, subtype_id)
-    print(downs)
-    downs_origen_filtro = await CassiaDiagnostaRepository.get_downs_origen(municipalityId, dispId)
     if not data4.empty:
         if 'Down' in data4.columns:  # Verifica si la columna 'Down' existe
             # Obtener el valor de la primera fila
@@ -411,9 +409,14 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
             downs_totales = 0
     else:
         downs_totales = 0
+    dependientes = await layers_repository.get_host_downs_dependientes()
+    if not dependientes.empty:
+        origenes = downs[~downs['hostid'].isin(dependientes['hostid'].to_list())]
+        origenes_count = len(origenes)
+    else:
+        origenes_count=0
 
-    origenes = len(downs_origen_filtro)
-    data4['Downs_origen'] = origenes
+    data4['Downs_origen'] = origenes_count
     data2 = corelations.replace(np.nan, "")
     # aditional data
     subgroup_data = pd.DataFrame([])

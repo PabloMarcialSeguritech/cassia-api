@@ -561,6 +561,8 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
             if not problems.empty:
                 problems.loc[problems.index.isin(
                     indexes.index.to_list()), 'tipo'] = 0
+                problems.loc[~problems.index.isin(
+                    indexes.index.to_list()), 'tipo'] = 1
 
     sincronizados = await CassiaDiagnostaRepository.get_open_problems_diagnosta()
     if not sincronizados.empty:
@@ -620,7 +622,9 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
         problems = pd.concat([problems_zabbix, problems_cassia])
         problems = problems.sort_values(by='fecha', ascending=False)
 
-    resolveds = problems[problems['Estatus'] == "RESOLVED"]
+    print(len(problems))
+    origenes = problems[problems['tipo'] == 1]
+    print(len(origenes))
 
     return problems
 

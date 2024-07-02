@@ -105,6 +105,7 @@ where closed_at is null and depends_hostid is not null""")
 async def get_downs_layer_async(municipality_id, dispId, subtype_id):
 
     downs = await layers_repository.get_host_downs(municipality_id, dispId, subtype_id)
+    print(downs)
     dependientes = await layers_repository.get_host_downs_dependientes()
     downs_origen_filtro = await CassiaDiagnostaRepository.get_downs_origen(municipality_id, dispId)
     downs_origen = await CassiaDiagnostaRepository.get_downs_origen(0, '')
@@ -128,15 +129,15 @@ async def get_downs_layer_async(municipality_id, dispId, subtype_id):
             downs_origen = downs_origen.drop_duplicates()
             downs.loc[downs['hostid'].isin(
                 downs_origen['hostid'].to_list()), 'origen'] = 1
+            if not downs_origen_filtro.empty:
+                downs_odd_no_analizados = downs[~downs['hostid'].isin(
+                    dependientes['hostid'].to_list())]
 
-            downs_odd_no_analizados = downs[~downs['hostid'].isin(
-                dependientes['hostid'].to_list())]
-
-            downs_odd_analizados = downs[downs['hostid'].isin(
-                downs_origen_filtro['hostid'].to_list())]
-            downs_origen_filtro = pd.concat(
-                [downs_odd_no_analizados, downs_odd_analizados])
-            downs_origen_filtro = downs_origen_filtro.drop_duplicates()
+                downs_odd_analizados = downs[downs['hostid'].isin(
+                    downs_origen_filtro['hostid'].to_list())]
+                downs_origen_filtro = pd.concat(
+                    [downs_odd_no_analizados, downs_odd_analizados])
+                downs_origen_filtro = downs_origen_filtro.drop_duplicates()
             """ downs[downs['hostid'].isin(downs_origen['hostid'].to_list())] = 1 """
 
     downs_totales = await layers_repository.get_host_downs(0, '', '')
