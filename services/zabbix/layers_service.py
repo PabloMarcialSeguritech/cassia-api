@@ -304,12 +304,17 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
     if 'hostid' in downs_filtro.columns:
         downs_origen = downs_filtro
         if not downs.empty:
-            downs_odd_no_analizados = downs[~downs['hostid'].isin(
-                dependientes['hostid'].to_list())]
-            downs_odd_analizados = downs[downs['hostid'].isin(
-                downs_origen['hostid'].to_list())]
-            downs = pd.concat([downs_odd_no_analizados, downs_odd_analizados])
-            downs = downs.drop_duplicates()
+            downs_odd_no_analizados = pd.DataFrame(columns=downs.columns)
+            downs_odd_analizados = pd.DataFrame(columns=downs.columns)
+            if not dependientes.empty:
+                downs_odd_no_analizados = downs[~downs['hostid'].isin(
+                    dependientes['hostid'].to_list())]
+            if not downs_origen.empty:
+                downs_odd_analizados = downs[downs['hostid'].isin(
+                    downs_origen['hostid'].to_list())]
+                downs = pd.concat(
+                    [downs_odd_no_analizados, downs_odd_analizados])
+                downs = downs.drop_duplicates()
             origenes = len(downs)
     filtro = {'downs_totales': downs_totales,
               'downs_dependientes': 0,
@@ -325,13 +330,18 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
         downs_totales = len(downs_globales)
         origenes_globales = len(downs_globales_problems)
         if not downs_globales.empty:
-            downs_odd_globales_no_analizados = downs_globales[~downs_globales['hostid'].isin(
-                dependientes['hostid'].to_list())]
-            downs_odd_globales_analizados = downs_globales[downs_globales['hostid'].isin(
-                downs_globales_problems['hostid'].to_list())]
-            downs_globales = pd.concat(
-                [downs_odd_globales_no_analizados, downs_odd_globales_analizados])
-            downs_globales = downs_globales.drop_duplicates()
+            downs_odd_globales_no_analizados = pd.DataFrame(
+                columns=downs.columns)
+            downs_odd_globales_analizados = pd.DataFrame(columns=downs.columns)
+            if not dependientes.empty:
+                downs_odd_globales_no_analizados = downs_globales[~downs_globales['hostid'].isin(
+                    dependientes['hostid'].to_list())]
+            if not downs_globales_problems.empty:
+                downs_odd_globales_analizados = downs_globales[downs_globales['hostid'].isin(
+                    downs_globales_problems['hostid'].to_list())]
+                downs_globales = pd.concat(
+                    [downs_odd_globales_no_analizados, downs_odd_globales_analizados])
+                downs_globales = downs_globales.drop_duplicates()
             origenes_globales = len(downs_globales)
     glob = {
         'downs_totales': downs_totales,
