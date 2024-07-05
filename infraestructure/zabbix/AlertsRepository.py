@@ -90,6 +90,7 @@ async def get_host_alerts(hostid):
         ping_loss_message = await CassiaConfigRepository.get_config_ping_loss_message()
 
         zabbix_alerts = await normalizar_alertas_zabbix(zabbix_alerts, ping_loss_message)
+        zabbix_alerts = await eliminar_downs_zabbix(zabbix_alerts, ping_loss_message)
         cassia_alerts = await get_host_cassia_alerts(hostid)
 
         problems = zabbix_alerts
@@ -125,7 +126,7 @@ async def get_host_alerts(hostid):
             problems = await procesar_fechas_problemas(problems)
 
         if not problems.empty:
-            # AQUI
+
             exceptions = await get_exceptions_async(problems['hostid'].to_list())
             problems = pd.merge(problems, exceptions, on='hostid',
                                 how='left').replace(np.nan, None)
@@ -166,6 +167,13 @@ async def normalizar_alertas_zabbix(zabbix_alerts: pd.DataFrame, ping_loss_messa
                           ping_loss_message, 'tipo'] = 1
         zabbix_alerts['dependents'] = 0
         zabbix_alerts['alert_type'] = ""
+    return zabbix_alerts
+
+
+async def eliminar_downs_zabbix(zabbix_alerts: pd.DataFrame, ping_loss_message):
+    if not zabbix_alerts.empty:
+        zabbix_alerts = zabbix_alerts[zabbix_alerts['Problem']
+                                      != ping_loss_message]
     return zabbix_alerts
 
 
@@ -287,7 +295,6 @@ async def get_alerts(municipalityId, tech_host_type, subtype, severities):
 
 
 async def process_alerts_local(data, municipalityId,  tech_id, severities, tipo):
-    print("entra aqui")
     if municipalityId == '0':
         print("AAAAAA")
         # PINK
@@ -535,6 +542,7 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
         municipalityId, tech_host_type, subtype, severities)
 
     problems = await normalizar_alertas_zabbix(problems, ping_loss_message)
+    problems = await eliminar_downs_zabbix(problems, ping_loss_message)
     if tech_host_type == lpr_id or tech_host_type == '':
         problems = await process_alerts_local(
             problems, municipalityId,  lpr_id, severities, 'lpr')
@@ -589,7 +597,7 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
         if not problems_zabbix.empty:
             zabbix_eventids = ','.join(
                 problems_zabbix_ids.astype('str').to_list())
-
+        # AQUI
         acks_zabbix = await get_zabbix_acks(zabbix_eventids)
         if not acks_zabbix.empty:
             acks_zabbix_mensajes = acks_zabbix.groupby('eventid')[
