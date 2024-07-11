@@ -39,6 +39,7 @@ class CassiaExceptions(CassiaExceptionsBase):
         ...,
         example="1"
     )
+    updated_at: datetime = Field(..., example="2024-01-31 18:08:47")
 
 
 class CassiaExceptionsClose(BaseModel):
