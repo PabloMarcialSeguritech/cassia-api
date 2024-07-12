@@ -152,3 +152,60 @@ async def get_cassia_exceptions_detail() -> pd.DataFrame:
         )
     finally:
         await db_model.close_connection()
+
+
+async def update_cassia_exception(exception):
+    db_model = DB()
+    try:
+        session = await db_model.get_session()
+        # Asegurarse de que la instancia esté adjunta a la sesión
+        exception = await session.merge(exception)
+        await session.commit()
+        await session.refresh(exception)
+        return exception
+    except Exception as e:
+        print(f"Excepcion generada en update_cassia_exception_by_id: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion generada en update_cassia_exception_by_id {e}"
+        )
+    finally:
+        await db_model.close_connection()
+
+
+async def get_cassia_instance_exception_by_id(exception_id: int = None):
+    db_model = DB()
+    try:
+        session = await db_model.get_session()
+        exception = None
+        if exception_id is not None:
+            exception = await session.get(CassiaExceptionsAsyncTest, exception_id)
+        return exception
+    except Exception as e:
+        print(f"Excepcion generada en get_cassia_instance_exception_by_id: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion generada en get_cassia_instance_exception_by_id {e}"
+        )
+    finally:
+        await db_model.close_connection()
+
+
+async def delete_cassia_exception(exception_id, formatted_time) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        query_delete_exception = DBQueries(
+        ).builder_query_statement_logic_delete_cassia_exception(exception_id, formatted_time)
+
+        await db_model.start_connection()
+        result = await db_model.run_query(query_delete_exception)
+        print(result)
+        return True
+    except Exception as e:
+        print(f"Excepcion generada en delete_cassia_exception: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion generada en delete_cassia_exception {e}"
+        )
+    finally:
+        await db_model.close_connection()

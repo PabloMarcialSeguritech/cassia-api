@@ -14,3 +14,4 @@ class CassiaExceptionsAsyncTest(DB.Base):
     closed_at = Column(DateTime, default=None, nullable=True)
     session_id = Column(String(length=120), nullable=False)
     hostid = Column(Integer, nullable=False)
+    updated_at = Column(DateTime, default=None, nullable=True)

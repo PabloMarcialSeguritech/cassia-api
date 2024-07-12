@@ -1,3 +1,4 @@
+from models.cassia_exceptions_async_test import CassiaExceptionsAsyncTest
 from schemas import cassia_auto_action_condition_schema
 from schemas import cassia_auto_action_schema
 from schemas import cassia_technologies_schema
@@ -182,6 +183,11 @@ inner join cassia_exception_agencies cea
 on cea.exception_agency_id = ce.exception_agency_id
 WHERE closed_at is NULL """
 
+        # PINK
+        self.query_statement_update_exception = None
+        # PINK
+        self.query_statement_delete_exception = None
+
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
         return self.query_statement_get_metrics_template
@@ -190,6 +196,7 @@ WHERE closed_at is NULL """
         # ACTUALIZAR NOMBRE
         self.query_statement_get_cassia_event = f"""select cassia_arch_traffic_events_id,created_at  from cassia_arch_traffic_events p where cassia_arch_traffic_events_id ='{eventid}'"""
         return self.query_statement_get_cassia_event
+
     # PINK
 
     def builder_query_statement_get_cassia_event_test(self, eventid):
@@ -524,6 +531,7 @@ group by c.latitude, c.longitude """
     def builder_query_statement_get_exception_by_id(self, exception_id):
         self.query_statement_get_exception_by_id = f"""select * from cassia_exceptions where exception_id={exception_id}"""
         return self.query_statement_get_exception_by_id
+
     # PINK
 
     def builder_query_statement_get_exception_by_id_test(self, exception_id):
@@ -549,7 +557,6 @@ group by c.latitude, c.longitude """
 
     # PINK
     def builder_query_statement_close_event_by_id_test(self, event_id, date):
-
         self.query_statement_close_event_by_id = f"""update cassia_events_test set closed_at='{date}',
           message='Evento cerrado manualmente',
           status='Cerrada manualmente'
@@ -613,7 +620,6 @@ VALUES
         return self.query_insert_user_reports
 
     def builder_query_insert_user_reports_values(self, values):
-
         self.query_insert_user_reports_values = f"""
 INSERT INTO cassia_user_reports(user_id, cassia_report_frequency_schedule_id)
 VALUES
@@ -735,7 +741,8 @@ WHERE caa.action_auto_id={action_auto_id}"""
         WHERE condition_id={condition_id}"""
         return self.query_update_action_condition_by_id
 
-    def builder_query_update_action_condition_detail_by_id(self, condition_detail_data: cassia_auto_action_condition_schema.AutoActionConditionDetailUpdateSchema):
+    def builder_query_update_action_condition_detail_by_id(self,
+                                                           condition_detail_data: cassia_auto_action_condition_schema.AutoActionConditionDetailUpdateSchema):
         self.query_update_action_condition_detail_by_id = f"""
         UPDATE cassia_auto_condition_detail
         SET condition_id='{condition_detail_data.condition_id}',
@@ -764,7 +771,8 @@ WHERE caa.action_auto_id={action_auto_id}"""
         tech_id={cassia_technology_id}"""
         return self.query_get_cassia_technology_by_id
 
-    def builder_query_update_cassia_technology_by_id(self, cassia_technology_id, tech_data: cassia_technologies_schema.CassiaTechnologySchema):
+    def builder_query_update_cassia_technology_by_id(self, cassia_technology_id,
+                                                     tech_data: cassia_technologies_schema.CassiaTechnologySchema):
         self.query_update_cassia_technology_by_id = f"""
         UPDATE cassia_technologies
         SET technology_name='{tech_data.technology_name}',
@@ -840,3 +848,19 @@ WHERE
     and cce.tech_id={tech_id}
     """
         return self.query_get_technology_devices_by_tech_id
+
+    # PINK
+    def builder_query_statement_update_exception(self, exception_data: CassiaExceptionsAsyncTest):
+        self.query_statement_update_exception = f"""update cassia_exceptions_test set 
+                                                    exception_agency_id={exception_data.exception_agency_id},  
+                                                    description='{exception_data.description}', 
+                                                    session_id
+                                                    closed_at='{exception_data}' 
+                                                    where exception_id={exception_data.exception_id}"""
+        return self.query_statement_close_exception_by_id
+
+    def builder_query_statement_logic_delete_cassia_exception(self, exception_id, date):
+        self.query_statement_delete_exception = f"""update cassia_exceptions_test set 
+                                                            deleted_at='{date}'  
+                                                            where exception_id={exception_id}"""
+        return self.query_statement_delete_exception

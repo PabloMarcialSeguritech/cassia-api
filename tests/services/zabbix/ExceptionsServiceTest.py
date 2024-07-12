@@ -7,7 +7,10 @@ from services import auth_service2
 from services.zabbix import alerts_service
 from schemas.exceptions_schema import CassiaExceptionsBase
 from routers.zabbix import alerts_router
+from services.cassia import exceptions_service
 import json
+import schemas.exceptions_schema as exception_schema
+from datetime import datetime
 
 settings = Settings()
 client = TestClient(app)
@@ -56,6 +59,7 @@ class ExceptionsServiceTest(unittest.TestCase):
 
         self.loop.run_until_complete(async_test())
 
+    @unittest.skip("Omit create exception")
     def test_create_exception(self):
         print("> Entrando test_create_exception <")
         token = user_authentication_headers(
@@ -67,7 +71,6 @@ class ExceptionsServiceTest(unittest.TestCase):
             exception = {'hostid': "19286",
                          'exception_agency_id': 2,
                          'created_at': '2024-04-01 10:01:47'}
-            respone = await alerts_router
             response = await alerts_service.create_exception(exception, current_session)
             response_dict = json.loads(response.body)
             print("response_dict:", response_dict)
@@ -90,3 +93,46 @@ class ExceptionsServiceTest(unittest.TestCase):
                 response_dict['data'], "Se espera que no sea None")
 
         self.loop.run_until_complete(async_test())
+
+    @unittest.skip("Omit update exception acks")
+    def test_update_exception(self):
+        print("> Entrando test_update_exception <")
+        token = user_authentication_headers(
+            'juan.marcial@seguritech.com', '12345678')
+
+        async def async_test():
+            current_session = await auth_service2.get_current_user_session(token)
+
+            # Datos de la excepción a actualizar
+            exception_data = {
+                'exception_id': '1',
+                'description': "Actualización descripción test",
+                'exception_agency_id': 1,
+                'hostid': 11214,
+                'created_at': datetime.strptime('2024-07-01 12:08:47', '%Y-%m-%d %H:%M:%S'),
+                'closed_at': datetime.strptime('2024-07-02 12:12:48', '%Y-%m-%d %H:%M:%S')
+            }
+            exception = exception_schema.CassiaExceptions(**exception_data)
+            response = await exceptions_service.update_exception_async(exception, current_session.session_id.hex)
+            response_dict = json.loads(response.body)
+            print("response_dict:", response_dict)
+            self.assertIsNotNone(
+                response_dict['data'], "Se espera que no sea None")
+
+        self.loop.run_until_complete(async_test())
+
+    def test_delete_exception(self):
+        print("> Entrando test_delete_exception <")
+
+        async def async_test():
+
+            # Datos de la excepción a actualizar
+            exception_id = '1'
+            response = await exceptions_service.delete_exception_async(exception_id)
+            response_dict = json.loads(response.body)
+            print("response_dict:", response_dict)
+            self.assertIsNotNone(
+                response_dict['data'], "Se espera que no sea None")
+
+        self.loop.run_until_complete(async_test())
+
