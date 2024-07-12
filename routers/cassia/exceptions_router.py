@@ -42,7 +42,8 @@ async def create_agency_async(exception_agency: exception_agency_schemas.CassiaE
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def update_exception_agency_async(exception_agency_id,
-                                        exception_agency: exception_agency_schemas.CassiaExceptionAgencyBase = Body(...)):
+                                        exception_agency: exception_agency_schemas.CassiaExceptionAgencyBase = Body(
+                                            ...)):
     return await exceptions_service.update_exception_agency_async(exception_agency_id=exception_agency_id,
                                                                   exception_agency_data=exception_agency)
 
@@ -91,7 +92,8 @@ async def get_exceptions_async(municipalityId: str = "0", dispId: str = "0"):
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def create_exception_async(exception: exception_schema.CassiaExceptionsBase = Body(...),
-                                 current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+                                 current_user_session: CassiaUserSession = Depends(
+                                     auth_service2.get_current_user_session)):
     return await exceptions_service.create_exception_async(exception=exception,
                                                            current_user_session=current_user_session.session_id.hex)
 
@@ -104,7 +106,8 @@ async def create_exception_async(exception: exception_schema.CassiaExceptionsBas
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def close_exception_async(exception_id, exception_data: exception_schema.CassiaExceptionsClose = Body(...),
-                                current_user_session: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+                                current_user_session: CassiaUserSession = Depends(
+                                    auth_service2.get_current_user_session)):
     return await exceptions_service.close_exception_async(exception_id=exception_id, exception_data=exception_data,
                                                           current_user_session=current_user_session.session_id.hex)
 
@@ -118,3 +121,31 @@ async def close_exception_async(exception_id, exception_data: exception_schema.C
 )
 async def get_exceptions_detail_async():
     return await exceptions_service.get_exceptions_detail_async()
+
+
+@exceptions_router.post(
+    '/exceptions/update',
+    tags=["Zabbix - Problems(Alerts) - Exceptions"],
+    status_code=status.HTTP_200_OK,
+    summary="Update an Exception",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def update_exception_async(exception_data: exception_schema.CassiaExceptions = Body(...),
+                                 current_user_session: CassiaUserSession = Depends(
+                                     auth_service2.get_current_user_session)):
+    print("Entre.....")
+    response = await exceptions_service.update_exception_async(exception=exception_data,
+                                                               current_user_session=current_user_session.session_id.hex)
+    return response
+
+
+@exceptions_router.delete(
+    '/exceptions/{exception_id}',
+    tags=["Zabbix - Problems(Alerts) - Exceptions"],
+    status_code=status.HTTP_200_OK,
+    summary="Delete an Exception",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def delete_exception_async(exception_id):
+    response = await exceptions_service.delete_exception_async(exception_id)
+    return response
