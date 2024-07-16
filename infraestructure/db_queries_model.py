@@ -181,6 +181,13 @@ inner join hosts h on h.hostid =ce.hostid
 inner join cassia_exception_agencies cea
 on cea.exception_agency_id = ce.exception_agency_id
 WHERE closed_at is NULL """
+        self.query_get_events_config = "SELECT * FROM cassia_events_config"
+        self.query_get_cassia_criticalities = "SELECT * FROM cassia_criticalities where deleted_at is NULL"
+        self.query_get_cassia_tech_services = """select cts.*,cc.level as criticality_level FROM cassia_tech_services cts
+        left join cassia_criticalities cc on cc.cassia_criticality_id=cts.cassia_criticality_id
+        where cts.deleted_at is null
+        """
+        self.sp_get_host_validation_down = "sp_validationDown"
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -840,3 +847,103 @@ WHERE
     and cce.tech_id={tech_id}
     """
         return self.query_get_technology_devices_by_tech_id
+
+    def builder_query_get_cassia_criticality_by_id(self, cassia_criticality_id):
+        self.query_get_cassia_criticality_by_id = f"""select * from cassia_criticalities where 
+        cassia_criticality_id={cassia_criticality_id} and deleted_at is NULL"""
+        return self.query_get_cassia_criticality_by_id
+
+    def builder_query_delete_cassia_criticality_by_id(self, cassia_criticality_id):
+        self.query_delete_cassia_criticality_by_id = f"""
+        UPDATE cassia_criticalities
+        SET deleted_at='{traits.get_datetime_now_str_with_tz()}'
+        WHERE cassia_criticality_id={cassia_criticality_id}"""
+        return self.query_delete_cassia_criticality_by_id
+
+    def builder_query_update_cassia_criticality_by_id(self, cassia_criticality_id, criticality_data, file_dest, filename):
+        self.query_update_cassia_criticality_by_id = f"""
+        UPDATE cassia_criticalities
+        SET level={criticality_data.level},
+        name='{criticality_data.name}',
+        description='{criticality_data.description}',
+        icon='{file_dest}',
+         filename='{filename}' WHERE cassia_criticality_id={cassia_criticality_id}
+""" if file_dest else f"""
+        UPDATE cassia_criticalities
+        SET level={criticality_data.level},
+        name='{criticality_data.name}',
+        description='{criticality_data.description}' WHERE cassia_criticality_id={cassia_criticality_id}
+"""
+        return self.query_update_cassia_criticality_by_id
+
+    def builder_query_get_cassia_service_tech_by_id(self, cassia_service_tech_id):
+        self.query_get_cassia_service_tech_by_id = f"""select cts.*,cc.level as criticality_level from cassia_tech_services cts 
+        left join cassia_criticalities cc on cc.cassia_criticality_id= cts.cassia_criticality_id where 
+        cassia_tech_service_id={cassia_service_tech_id} and cts.deleted_at is null"""
+        return self.query_get_cassia_service_tech_by_id
+
+    def builder_query_update_cassia_service_tech_by_id(self, cassia_service_tech_id, service_data):
+        self.query_update_cassia_service_tech_by_id = f"""
+        UPDATE cassia_tech_services
+        SET service_name='{service_data.service_name}',
+         description='{service_data.description}',
+          cassia_criticality_id={service_data.cassia_criticality_id},
+           updated_at='{traits.get_datetime_now_str_with_tz()}'
+        WHERE cassia_tech_service_id={cassia_service_tech_id}"""
+        return self.query_update_cassia_service_tech_by_id
+
+    def builder_query_delete_cassia_tech_service_by_id(self, cassia_tech_service_id):
+        self.query_delete_cassia_tech_service_by_id = f"""
+        UPDATE cassia_tech_services
+        SET deleted_at='{traits.get_datetime_now_str_with_tz()}'
+        WHERE cassia_tech_service_id={cassia_tech_service_id}"""
+        return self.query_delete_cassia_tech_service_by_id
+
+    def builder_query_get_cassia_criticality_level(self, level):
+        self.query_get_cassia_criticality_level = f"""
+        SELECT * FROM cassia_criticalities where
+        level={level} AND deleted_at is NULL"""
+        return self.query_get_cassia_criticality_level
+
+    def builder_query_get_techs_by_service_id(self, service_id):
+        self.query_get_techs_by_service_id = f"""
+        SELECT ct.*,cc.level as criticality_level FROM cassia_techs ct left join 
+        cassia_criticalities cc on cc.cassia_criticality_id=ct.cassia_criticality_id
+        where
+        service_id={service_id} AND ct.deleted_at is NULL
+        """
+        return self.query_get_techs_by_service_id
+
+    def builder_query_get_cassia_tech_by_id(self, tech_id):
+        self.query_get_cassia_tech_by_id = f"""select ct.*,cc.level as criticality_level from cassia_techs ct 
+        left join cassia_criticalities cc on cc.cassia_criticality_id=ct.cassia_criticality_id
+        where
+        cassia_tech_id={tech_id} and ct.deleted_at is NULL"""
+        return self.query_get_cassia_tech_by_id
+
+    def builder_query_update_cassia_tech_by_id(self, cassia_tech_id, tech_data):
+        self.query_update_cassia_tech_by_id = f"""
+        UPDATE cassia_techs
+        SET tech_name='{tech_data.tech_name}',
+         tech_description='{tech_data.tech_description}',
+         service_id={tech_data.service_id},
+          cassia_criticality_id={tech_data.cassia_criticality_id},
+           updated_at='{traits.get_datetime_now_str_with_tz()}'
+        WHERE cassia_tech_id={cassia_tech_id}"""
+        return self.query_update_cassia_tech_by_id
+
+    def builder_query_delete_cassia_tech_by_id(self, cassia_tech_id):
+        self.query_delete_cassia_tech_by_id = f"""
+        UPDATE cassia_techs
+        SET deleted_at='{traits.get_datetime_now_str_with_tz()}'
+        WHERE cassia_tech_id={cassia_tech_id}"""
+        return self.query_delete_cassia_tech_by_id
+
+    def builder_query_get_devices_by_tech_id(self, tech_id):
+        self.query_get_devices_by_tech_id = f"""
+        select h.hostid ,h.host,h.name,hi.alias,hi.location,hi.location_lat ,hi.location_lon,hi.device_id,ctd.criticality_id,cc.level as criticality_level  from hosts h 
+inner join host_inventory hi on hi.hostid =h.hostid 
+inner join cassia_tech_devices ctd on ctd.hostid =h.hostid 
+left join cassia_criticalities cc on cc.cassia_criticality_id = ctd.criticality_id
+where ctd.cassia_tech_id ={tech_id}"""
+        return self.query_get_devices_by_tech_id
