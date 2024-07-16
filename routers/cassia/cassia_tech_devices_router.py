@@ -10,6 +10,7 @@ from services.cassia import cassia_techs_devices_service
 from schemas import cassia_technologies_schema
 from schemas import cassia_auto_action_schema
 from schemas import cassia_service_tech_schema
+from schemas import cassia_tech_device_schema
 from schemas import cassia_techs_schema
 cassia_techs_devices_router = APIRouter(prefix="/services/techs/devices")
 
@@ -18,13 +19,60 @@ cassia_techs_devices_router = APIRouter(prefix="/services/techs/devices")
     '/{tech_id}',
     tags=["Cassia - Services - Techs - Devices"],
     status_code=status.HTTP_200_OK,
-    summary="Get cassia tech catalog by service id",
+    summary="Get cassia tech catalog by tech id",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def get_devices_by_tech(tech_id):
     return await cassia_techs_devices_service.get_devices_by_tech(tech_id)
 
-""" 
+
+@cassia_techs_devices_router.get(
+    '/detail/{device_id}',
+    tags=["Cassia - Services - Techs"],
+    status_code=status.HTTP_200_OK,
+    summary="Get cassia technologies by id",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_tech_device_by_id(device_id):
+    return await cassia_techs_devices_service.get_tech_device_by_id(device_id)
+
+
+@cassia_techs_devices_router.post(
+    '/',
+    tags=["Cassia - Services - Techs - Devices"],
+    status_code=status.HTTP_200_OK,
+    summary="Create cassia tech device",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def create_tech_device(device_data: cassia_tech_device_schema.CassiaTechDeviceSchema):
+    return await cassia_techs_devices_service.create_tech_device(device_data)
+
+
+@cassia_techs_devices_router.put(
+    '/{cassia_tech_device_id}',
+    tags=["Cassia - Services - Techs - Devices"],
+    status_code=status.HTTP_200_OK,
+    summary="Update cassia tech device",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def update_device(cassia_tech_device_id, device_data: cassia_tech_device_schema.UpdateCassiaTechDeviceSchema):
+    return await cassia_techs_devices_service.update_device(cassia_tech_device_id, device_data)
+
+
+@cassia_techs_devices_router.delete(
+    '/{cassia_tech_device_id}',
+    tags=["Cassia - Services - Techs - Devices"],
+    status_code=status.HTTP_200_OK,
+    summary="Delete cassia tech device",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def delete_device(cassia_tech_device_id):
+    return await cassia_techs_devices_service.delete_device(cassia_tech_device_id)
+
+
+"""
+
+
 @cassia_techs_devices_router.post(
     '/',
     tags=["Cassia - Services - Techs"],
@@ -36,13 +84,15 @@ async def create_tech_device(tech_data: cassia_techs_schema.CassiaTechSchema):
     return await cassia_techs_devices_service.create_tech_device(tech_data) """
 
 
-""" @cassia_techs_devices_router.get(
+""" @ cassia_techs_devices_router.get(
     '/detail/{tech_id}',
     tags=["Cassia - Services - Techs"],
     status_code=status.HTTP_200_OK,
     summary="Get cassia technologies by id",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
+
+
 async def get_tech_by_id(tech_id):
     return await cassia_techs_devices_service.get_tech_by_id(tech_id)
 
