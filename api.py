@@ -24,9 +24,9 @@ app.add_middleware(ErrorHandler)
 app.include_router(auth_router)
 app.include_router(zabbix_router)
 app.include_router(cassia_router)
-app.mount("/uploads/criticality_icons",
+""" app.mount("/uploads/criticality_icons",
           StaticFiles(directory="uploads/criticality_icons"), name="criticality_icons")
-
+ """
 html = """
 <!DOCTYPE html>
 <html>

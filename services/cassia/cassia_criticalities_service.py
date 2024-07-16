@@ -16,6 +16,8 @@ from starlette.datastructures import UploadFile as UploadFileInstance
 
 async def get_criticalities():
     criticalities = await cassia_criticalities_repository.get_criticalities()
+    if not criticalities.empty:
+        criticalities['id'] = criticalities['cassia_criticality_id']
     return success_response(data=criticalities.to_dict(orient="records"))
 
 

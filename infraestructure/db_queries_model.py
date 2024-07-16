@@ -2,6 +2,7 @@ from models.cassia_exceptions_async_test import CassiaExceptionsAsyncTest
 from schemas import cassia_auto_action_condition_schema
 from schemas import cassia_auto_action_schema
 from schemas import cassia_technologies_schema
+from schemas import cassia_tech_device_schema
 from utils import traits
 
 
@@ -856,7 +857,6 @@ WHERE
     """
         return self.query_get_technology_devices_by_tech_id
 
-
     def builder_query_get_cassia_criticality_by_id(self, cassia_criticality_id):
         self.query_get_cassia_criticality_by_id = f"""select * from cassia_criticalities where 
         cassia_criticality_id={cassia_criticality_id} and deleted_at is NULL"""
@@ -954,7 +954,8 @@ WHERE
 inner join host_inventory hi on hi.hostid =h.hostid 
 inner join cassia_tech_devices ctd on ctd.hostid =h.hostid 
 left join cassia_criticalities cc on cc.cassia_criticality_id = ctd.criticality_id
-where ctd.cassia_tech_id ={tech_id}"""
+where ctd.cassia_tech_id ={tech_id}
+and ctd.deleted_at is null"""
         return self.query_get_devices_by_tech_id
 
     # PINK
@@ -973,3 +974,35 @@ where ctd.cassia_tech_id ={tech_id}"""
                                                             where exception_id={exception_id}"""
         return self.query_statement_delete_exception
 
+    def builder_query_update_cassia_tech_device_by_id(self, cassia_tech_device_id, device_data: cassia_tech_device_schema):
+        self.query_update_cassia_tech_device_by_id = f"""
+        UPDATE cassia_tech_devices
+        SET criticality_id={device_data.criticality_id},
+         hostid={device_data.hostid},
+         cassia_tech_id={device_data.cassia_tech_id},
+         updated_at='{traits.get_datetime_now_str_with_tz()}'
+        WHERE cassia_tech_device_id={cassia_tech_device_id}"""
+        return self.query_update_cassia_tech_device_by_id
+
+    def builder_query_get_tech_device_by_id(self, device_id):
+        self.query_get_tech_device_by_id = f"""
+        select h.hostid ,h.host,h.name,hi.alias,hi.location,hi.location_lat ,hi.location_lon,hi.device_id,ctd.criticality_id,cc.level as criticality_level  from hosts h 
+inner join host_inventory hi on hi.hostid =h.hostid 
+inner join cassia_tech_devices ctd on ctd.hostid =h.hostid 
+left join cassia_criticalities cc on cc.cassia_criticality_id = ctd.criticality_id
+where ctd.cassia_tech_device_id={device_id}
+and ctd.deleted_at is NULL"""
+        return self.query_get_tech_device_by_id
+
+    def builder_query_delete_cassia_tech_device_by_id(self, cassia_tech_device_id):
+        self.query_delete_cassia_tech_device_by_id = f"""
+        UPDATE cassia_tech_devices
+        SET deleted_at='{traits.get_datetime_now_str_with_tz()}'
+        WHERE cassia_tech_device_id={cassia_tech_device_id}"""
+        return self.query_delete_cassia_tech_device_by_id
+
+    def builder_query_get_created_devices_by_ids(self, hostids):
+        self.query_get_created_devices_by_ids = f"""
+        SELECT * FROM cassia_tech_devices
+        where hostid in ({hostids})"""
+        return self.query_get_created_devices_by_ids
