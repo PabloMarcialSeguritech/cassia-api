@@ -134,18 +134,18 @@ async def update_device(cassia_tech_device_id, device_data: cassia_tech_device_s
         await db_model.close_connection()
 
 
-async def delete_tech_device_by_id(cassia_tech_device_id) -> bool:
+async def delete_tech_device_by_ids(device_ids) -> bool:
     db_model = DB()
     try:
-        query_delete_cassia_tech_device_by_id = DBQueries(
-        ).builder_query_delete_cassia_tech_device_by_id(cassia_tech_device_id)
+        query_delete_cassia_tech_device_by_ids = DBQueries(
+        ).builder_query_delete_cassia_tech_device_by_ids(device_ids)
         await db_model.start_connection()
-        deleted_tech = await db_model.run_query(query_delete_cassia_tech_device_by_id)
+        deleted_tech = await db_model.run_query(query_delete_cassia_tech_device_by_ids)
         return True
 
     except Exception as e:
-        print(f"Excepcion en delete_tech_device_by_id: {e}")
+        print(f"Excepcion en delete_tech_device_by_ids: {e}")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Excepcion en delete_tech_device_by_id: {e}")
+                            detail=f"Excepcion en delete_tech_device_by_ids: {e}")
     finally:
         await db_model.close_connection()

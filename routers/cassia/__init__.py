@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from .maintenance_router import maintenance_router
 from .users_routers import users_router
 from .roles_router import roles_router
 from .configurations_router import configuration_router
@@ -37,3 +38,4 @@ cassia_router.include_router(cassia_criticalities_router)
 cassia_router.include_router(cassia_services_router)
 cassia_router.include_router(cassia_techs_router)
 cassia_router.include_router(cassia_techs_devices_router)
+cassia_router.include_router(maintenance_router)

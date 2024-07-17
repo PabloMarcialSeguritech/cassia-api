@@ -60,14 +60,14 @@ async def update_device(cassia_tech_device_id, device_data: cassia_tech_device_s
 
 
 @cassia_techs_devices_router.delete(
-    '/{cassia_tech_device_id}',
+    '/',
     tags=["Cassia - Services - Techs - Devices"],
     status_code=status.HTTP_200_OK,
     summary="Delete cassia tech device",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def delete_device(cassia_tech_device_id):
-    return await cassia_techs_devices_service.delete_device(cassia_tech_device_id)
+async def delete_device(cassia_tech_device_ids: List):
+    return await cassia_techs_devices_service.delete_device(cassia_tech_device_ids)
 
 
 """

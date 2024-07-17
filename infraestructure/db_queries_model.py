@@ -182,7 +182,7 @@ INNER JOIN host_inventory hi ON hi.hostid =ce.hostid
 inner join hosts h on h.hostid =ce.hostid
 inner join cassia_exception_agencies cea
 on cea.exception_agency_id = ce.exception_agency_id
-WHERE closed_at is NULL """
+WHERE closed_at is NULL and deleted_at is NULL"""
         self.query_get_events_config = "SELECT * FROM cassia_events_config"
         self.query_get_cassia_criticalities = "SELECT * FROM cassia_criticalities where deleted_at is NULL"
         self.query_get_cassia_tech_services = """select cts.*,cc.level as criticality_level FROM cassia_tech_services cts
@@ -195,6 +195,14 @@ WHERE closed_at is NULL """
         self.query_statement_update_exception = None
         # PINK
         self.query_statement_delete_exception = None
+        # PINK
+        self.query_statement_delete_maintenance = None
+        # PINK
+        self.query_get_maintenances = """select 
+                        m.maintenance_id, m.date_start, m.date_end, m.description, m.created_at, m.updated_at
+                        from cassia_maintenance m inner join hosts h on m.hostid = h.hostid  WHERE m.deleted_at is null"""
+        #PINK
+        self.query_statement_get_maintenance_between_dates_and_id = None
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -950,9 +958,10 @@ WHERE
 
     def builder_query_get_devices_by_tech_id(self, tech_id):
         self.query_get_devices_by_tech_id = f"""
-        select h.hostid ,h.host,h.name,hi.alias,hi.location,hi.location_lat ,hi.location_lon,hi.device_id,ctd.criticality_id,cc.level as criticality_level  from hosts h 
+        select ctd.cassia_tech_device_id,h.hostid ,i.ip,h.host,h.name,hi.alias,hi.location,hi.location_lat ,hi.location_lon,hi.device_id,ctd.criticality_id,cc.level as criticality_level  from hosts h 
 inner join host_inventory hi on hi.hostid =h.hostid 
 inner join cassia_tech_devices ctd on ctd.hostid =h.hostid 
+inner join interface i on i.hostid =h.hostid 
 left join cassia_criticalities cc on cc.cassia_criticality_id = ctd.criticality_id
 where ctd.cassia_tech_id ={tech_id}
 and ctd.deleted_at is null"""
@@ -994,15 +1003,31 @@ where ctd.cassia_tech_device_id={device_id}
 and ctd.deleted_at is NULL"""
         return self.query_get_tech_device_by_id
 
-    def builder_query_delete_cassia_tech_device_by_id(self, cassia_tech_device_id):
-        self.query_delete_cassia_tech_device_by_id = f"""
+    def builder_query_delete_cassia_tech_device_by_ids(self, device_ids):
+        self.query_delete_cassia_tech_device_by_ids = f"""
         UPDATE cassia_tech_devices
         SET deleted_at='{traits.get_datetime_now_str_with_tz()}'
-        WHERE cassia_tech_device_id={cassia_tech_device_id}"""
-        return self.query_delete_cassia_tech_device_by_id
+        WHERE cassia_tech_device_id in ({device_ids})"""
+        return self.query_delete_cassia_tech_device_by_ids
 
     def builder_query_get_created_devices_by_ids(self, hostids):
         self.query_get_created_devices_by_ids = f"""
         SELECT * FROM cassia_tech_devices
         where hostid in ({hostids})"""
         return self.query_get_created_devices_by_ids
+
+    def builder_query_statement_get_maintenance_between_dates_and_id(self, host_id, date_start, date_end):
+        self.query_statement_get_maintenance_between_dates_and_id = f"""
+        SELECT * FROM cassia_maintenance 
+        WHERE hostid = {host_id} 
+        AND (date_start BETWEEN '{date_start}' AND '{date_end}' 
+        OR date_end BETWEEN '{date_start}' AND '{date_end}');
+        """
+        return self.query_statement_get_maintenance_between_dates_and_id
+
+    def builder_query_statement_logic_delete_maintenance(self, maintenance_id, date, current_user_session):
+        self.query_statement_delete_maintenance = f"""update cassia_maintenance set 
+                                                            deleted_at='{date}',
+                                                            session_id='{current_user_session}'
+                                                            where maintenance_id={maintenance_id}"""
+        return self.query_statement_delete_maintenance
