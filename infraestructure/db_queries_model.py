@@ -182,7 +182,7 @@ INNER JOIN host_inventory hi ON hi.hostid =ce.hostid
 inner join hosts h on h.hostid =ce.hostid
 inner join cassia_exception_agencies cea
 on cea.exception_agency_id = ce.exception_agency_id
-WHERE closed_at is NULL and deleted_at is NULL"""
+WHERE ce.closed_at is NULL and ce.deleted_at is NULL"""
         self.query_get_events_config = "SELECT * FROM cassia_events_config"
         self.query_get_cassia_criticalities = "SELECT * FROM cassia_criticalities where deleted_at is NULL"
         self.query_get_cassia_tech_services = """select cts.*,cc.level as criticality_level FROM cassia_tech_services cts
