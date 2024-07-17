@@ -133,7 +133,7 @@ async def get_exceptions_detail_async():
 async def update_exception_async(exception_data: exception_schema.CassiaExceptions = Body(...),
                                  current_user_session: CassiaUserSession = Depends(
                                      auth_service2.get_current_user_session)):
-    print("Entre.....")
+
     response = await exceptions_service.update_exception_async(exception=exception_data,
                                                                current_user_session=current_user_session.session_id.hex)
     return response
