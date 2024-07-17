@@ -81,10 +81,8 @@ async def update_device(cassia_tech_device_id, device_data: cassia_tech_device_s
     return success_response(message="Registro actualizado correctamente")
 
 
-async def delete_device(cassia_tech_device_id):
-    cassia_tech_device = await cassia_tech_devices_repository.get_tech_device_by_id(cassia_tech_device_id)
-    if cassia_tech_device.empty:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail="Dispositivo no encontrado")
-    deleted_device = await cassia_tech_devices_repository.delete_tech_device_by_id(cassia_tech_device_id)
-    return success_response(message="Registro eliminado correctamente")
+async def delete_device(cassia_tech_device_ids):
+    print(cassia_tech_device_ids)
+    device_ids = ", ".join([str(hostid) for hostid in cassia_tech_device_ids])
+    deleted_devices = await cassia_tech_devices_repository.delete_tech_device_by_ids(device_ids)
+    return success_response(message="Registros eliminados correctamente")
