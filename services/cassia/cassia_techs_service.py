@@ -10,7 +10,7 @@ from schemas import cassia_techs_schema
 async def get_techs_by_service(service_id):
     service_exist = await cassia_services_tech_repository.get_service_tech_by_id(service_id)
     if service_exist.empty:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Servicio no encontrado")
     techs = await cassia_techs_repository.get_techs_by_service_id(service_id)
     if not techs.empty:
@@ -30,14 +30,20 @@ async def get_tech_by_id(tech_id):
 async def create_tech(tech_data: cassia_techs_schema.CassiaTechSchema):
     service_exist = await cassia_services_tech_repository.get_service_tech_by_id(tech_data.service_id)
     if service_exist.empty:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Servicio no encontrado")
-    if tech_data.cassia_criticality_id is not None:
+    if tech_data.cassia_criticality_id is not None and tech_data.cassia_criticality_id != 0:
         get_criticality = await cassia_criticalities_repository.get_criticality_by_id(
             tech_data.cassia_criticality_id)
         if get_criticality.empty:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="Criticidad no encontrada")
+    else:
+        tech_data.cassia_criticality_id = None
+    name_exist = await cassia_services_tech_repository.get_service_tech_by_name(tech_data.service_id, tech_data.tech_name)
+    if not name_exist.empty:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="El nombre de la tecnologia en este servicio ya existe")
     created_tech = await cassia_techs_repository.create_tech(
         tech_data)
     return success_response(message="Registro creado correctamente")
@@ -51,14 +57,16 @@ async def update_tech(cassia_tech_id, tech_data: cassia_techs_schema.CassiaTechS
                             detail="Tecnologia no encontrada")
     service_exist = await cassia_services_tech_repository.get_service_tech_by_id(tech_data.service_id)
     if service_exist.empty:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Servicio no encontrado")
-    if tech_data.cassia_criticality_id is not None:
+    if tech_data.cassia_criticality_id is not None and tech_data.cassia_criticality_id != 0:
         get_criticality = await cassia_criticalities_repository.get_criticality_by_id(
             tech_data.cassia_criticality_id)
         if get_criticality.empty:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="Criticidad no encontrada")
+    else:
+        tech_data.cassia_criticality_id = None
     update_tech = await cassia_techs_repository.update_tech(
         cassia_tech_id, tech_data)
     return success_response(message="Registro actualizado correctamente")

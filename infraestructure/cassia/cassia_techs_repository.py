@@ -63,6 +63,7 @@ async def create_tech(tech_data: cassia_techs_schema.CassiaTechSchema):
             cassia_criticality_id=tech_data.cassia_criticality_id,
             created_at=now,
             updated_at=now,
+            sla_hours=tech_data.sla_hours
         )
 
         session.add(cassia_tech)

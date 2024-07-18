@@ -24,12 +24,14 @@ async def get_service(cassia_tech_service_id):
 
 
 async def create_service(service_data: cassia_service_tech_schema.CassiaTechServiceSchema):
-    if service_data.cassia_criticality_id is not None:
+    if service_data.cassia_criticality_id is not None and service_data.cassia_criticality_id != 0:
         get_criticality = await cassia_criticalities_repository.get_criticality_by_id(
             service_data.cassia_criticality_id)
         if get_criticality.empty:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail="Criticidad no encontrada")
+    else:
+        service_data.cassia_criticality_id = None
     created_service = await cassia_services_tech_repository.create_service(
         service_data)
     return success_response(message="Registro creado correctamente")
@@ -41,12 +43,14 @@ async def update_service(cassia_tech_service_id, service_data: cassia_service_te
     if cassia_service.empty:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Servicio no encontrado")
-    if service_data.cassia_criticality_id is not None:
+    if service_data.cassia_criticality_id is not None and service_data.cassia_criticality_id != 0:
         get_criticality = await cassia_criticalities_repository.get_criticality_by_id(
             service_data.cassia_criticality_id)
         if get_criticality.empty:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail="Criticidad no encontrada")
+    else:
+        service_data.cassia_criticality_id = None
     update_service = await cassia_services_tech_repository.update_service(
         cassia_tech_service_id, service_data)
 
