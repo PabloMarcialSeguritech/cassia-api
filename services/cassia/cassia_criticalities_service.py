@@ -35,7 +35,7 @@ def check_images(file_type):
     return True
 
 
-async def create_criticality(criticality_data: cassia_criticality_schema.CassiaCriticalitySchema, icon):
+""" async def create_criticality(criticality_data: cassia_criticality_schema.CassiaCriticalitySchema, icon):
     exist_level = await cassia_criticalities_repository.get_criticality_level(
         criticality_data.level)
     if not exist_level.empty:
@@ -67,10 +67,21 @@ async def create_criticality(criticality_data: cassia_criticality_schema.CassiaC
     print(file_dest)
     create_register = await cassia_criticalities_repository.create_criticality(criticality_data, file_dest, filename)
     print(create_register)
+    return success_response(message="Registro creado correctamente", data=create_register) """
+
+
+async def create_criticality(criticality_data: cassia_criticality_schema.CassiaCriticalitySchema, icon):
+    exist_level = await cassia_criticalities_repository.get_criticality_level(
+        criticality_data.level)
+    if not exist_level.empty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El nivel de criticidad ya existe.")
+    create_register = await cassia_criticalities_repository.create_criticality(criticality_data, icon)
     return success_response(message="Registro creado correctamente", data=create_register)
 
 
-async def update_criticality(cassia_criticality_id, criticality_data: cassia_criticality_schema.CassiaCriticalitySchema, icon):
+""" async def update_criticality(cassia_criticality_id, criticality_data: cassia_criticality_schema.CassiaCriticalitySchema, icon):
     criticality_exist = await cassia_criticalities_repository.get_criticality_by_id(cassia_criticality_id)
     if criticality_exist.empty:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
@@ -112,6 +123,25 @@ async def update_criticality(cassia_criticality_id, criticality_data: cassia_cri
     print(filename)
 
     update_register = await cassia_criticalities_repository.update_criticality(cassia_criticality_id, criticality_data, file_dest, filename)
+    return success_response(message="Registro actualizado correctamente") """
+
+
+async def update_criticality(cassia_criticality_id, criticality_data: cassia_criticality_schema.CassiaCriticalitySchema, icon):
+    criticality_exist = await cassia_criticalities_repository.get_criticality_by_id(cassia_criticality_id)
+    if criticality_exist.empty:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Criticidad no encontrada")
+    exist_level = await cassia_criticalities_repository.get_criticality_level(
+        criticality_data.level)
+
+    if not exist_level.empty:
+
+        if str(exist_level['cassia_criticality_id'][0]) != str(cassia_criticality_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El nivel de criticidad ya existe.")
+
+    update_register = await cassia_criticalities_repository.update_criticality(cassia_criticality_id, criticality_data, icon)
     return success_response(message="Registro actualizado correctamente")
 
 

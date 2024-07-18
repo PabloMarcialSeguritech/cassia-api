@@ -12,6 +12,7 @@ class CassiaTechSchema(BaseModel):
     service_id: int = Field(..., example="1")
     cassia_criticality_id: Optional[int] = Field(...,
                                                  example="1")
+    sla_hours: float = Field(..., example=32)
 
 
 """ class AutoActionUpdateSchema(CassiaTechnologySchema):

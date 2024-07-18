@@ -91,13 +91,13 @@ async def get_devices_by_tech_id(tech_id) -> pd.DataFrame:
         await db_model.close_connection()
 
 
-async def create_device(hostid, device_data: cassia_tech_device_schema.CassiaTechDeviceSchema):
+async def create_device(hostid, criticidad, device_data: cassia_tech_device_schema.CassiaTechDeviceSchema):
     db_model = DB()
     try:
         session = await db_model.get_session()
         now = traits.get_datetime_now_with_tz()
         cassia_tech = CassiaTechDeviceModel(
-            criticality_id=device_data.criticality_id,
+            criticality_id=criticidad,
             hostid=hostid,
             cassia_tech_id=device_data.cassia_tech_id,
             created_at=now,
@@ -121,7 +121,7 @@ async def update_device(cassia_tech_device_id, device_data: cassia_tech_device_s
     try:
         query_update_cassia_tech_device_by_id = DBQueries(
         ).builder_query_update_cassia_tech_device_by_id(cassia_tech_device_id, device_data)
-
+        print(query_update_cassia_tech_device_by_id)
         await db_model.start_connection()
         updated_tech = await db_model.run_query(query_update_cassia_tech_device_by_id)
         return True

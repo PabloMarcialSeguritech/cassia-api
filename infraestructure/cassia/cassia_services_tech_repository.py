@@ -11,6 +11,26 @@ import utils.traits as traits
 from datetime import datetime
 
 
+async def get_service_tech_by_name(service_id, tech_name) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        tech_name_lower = tech_name.lower()
+        query_get_cassia_service_techs_by_name = DBQueries(
+        ).builder_query_get_cassia_service_techs_by_name(service_id, tech_name_lower)
+        await db_model.start_connection()
+        cassia_service_tech_data = await db_model.run_query(query_get_cassia_service_techs_by_name)
+        cassia_service_tech_df = pd.DataFrame(
+            cassia_service_tech_data).replace(np.nan, None)
+        return cassia_service_tech_df
+
+    except Exception as e:
+        print(f"Excepcion en get_service_tech_by_id: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_service_tech_by_id: {e}")
+    finally:
+        await db_model.close_connection()
+
+
 async def get_service_tech_by_id(tech_service_id) -> pd.DataFrame:
     db_model = DB()
     try:
