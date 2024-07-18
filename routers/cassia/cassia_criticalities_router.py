@@ -35,7 +35,7 @@ async def get_criticality(cassia_criticality_id):
     return await cassia_criticalities_service.get_criticality(cassia_criticality_id)
 
 
-@cassia_criticalities_router.post(
+""" @cassia_criticalities_router.post(
     '/',
     tags=["Cassia - Criticalities"],
     status_code=status.HTTP_200_OK,
@@ -57,6 +57,34 @@ async def create_criticality(level: int = Form(...), name: str = Form(...), desc
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def update_criticality(cassia_criticality_id, level: int = Form(...), name: str = Form(...), description: str = Form(...), icon: Optional[UploadFile] = File(None)):
+    criticality_data = cassia_criticality_schema.CassiaCriticalitySchema(
+        level=level, name=name, description=description)
+    return await cassia_criticalities_service.update_criticality(cassia_criticality_id, criticality_data, icon)
+ """
+
+
+@cassia_criticalities_router.post(
+    '/',
+    tags=["Cassia - Criticalities"],
+    status_code=status.HTTP_200_OK,
+    summary="Create cassia technology register",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def create_criticality(level: int = Form(...), name: str = Form(...), description: str = Form(...), icon: str = Form(...)):
+    criticality_data = cassia_criticality_schema.CassiaCriticalitySchema(
+        level=level, name=name, description=description)
+
+    return await cassia_criticalities_service.create_criticality(criticality_data, icon)
+
+
+@cassia_criticalities_router.put(
+    '/{cassia_criticality_id}',
+    tags=["Cassia - Criticalities"],
+    status_code=status.HTTP_200_OK,
+    summary="Update cassia technology register",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def update_criticality(cassia_criticality_id, level: int = Form(...), name: str = Form(...), description: str = Form(...), icon:  str = Form(...)):
     criticality_data = cassia_criticality_schema.CassiaCriticalitySchema(
         level=level, name=name, description=description)
     return await cassia_criticalities_service.update_criticality(cassia_criticality_id, criticality_data, icon)

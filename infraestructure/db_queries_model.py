@@ -201,7 +201,7 @@ WHERE closed_at is NULL and deleted_at is NULL"""
         self.query_get_maintenances = """select 
                         m.maintenance_id, m.date_start, m.date_end, m.description, m.created_at, m.updated_at
                         from cassia_maintenance m inner join hosts h on m.hostid = h.hostid  WHERE m.deleted_at is null"""
-        #PINK
+        # PINK
         self.query_statement_get_maintenance_between_dates_and_id = None
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
@@ -906,6 +906,12 @@ WHERE
          description='{service_data.description}',
           cassia_criticality_id={service_data.cassia_criticality_id},
            updated_at='{traits.get_datetime_now_str_with_tz()}'
+        WHERE cassia_tech_service_id={cassia_service_tech_id}""" if service_data.cassia_criticality_id is not None else f"""
+        UPDATE cassia_tech_services
+        SET service_name='{service_data.service_name}',
+         description='{service_data.description}',
+          cassia_criticality_id=Null,
+           updated_at='{traits.get_datetime_now_str_with_tz()}'
         WHERE cassia_tech_service_id={cassia_service_tech_id}"""
         return self.query_update_cassia_service_tech_by_id
 
@@ -945,6 +951,15 @@ WHERE
          tech_description='{tech_data.tech_description}',
          service_id={tech_data.service_id},
           cassia_criticality_id={tech_data.cassia_criticality_id},
+          sla_hours={tech_data.sla_hours},
+           updated_at='{traits.get_datetime_now_str_with_tz()}'
+        WHERE cassia_tech_id={cassia_tech_id}""" if tech_data.cassia_criticality_id is not None else f"""
+        UPDATE cassia_techs
+        SET tech_name='{tech_data.tech_name}',
+         tech_description='{tech_data.tech_description}',
+         service_id={tech_data.service_id},
+          cassia_criticality_id=Null,
+          sla_hours={tech_data.sla_hours},
            updated_at='{traits.get_datetime_now_str_with_tz()}'
         WHERE cassia_tech_id={cassia_tech_id}"""
         return self.query_update_cassia_tech_by_id
@@ -990,7 +1005,13 @@ and ctd.deleted_at is null"""
          hostid={device_data.hostid},
          cassia_tech_id={device_data.cassia_tech_id},
          updated_at='{traits.get_datetime_now_str_with_tz()}'
-        WHERE cassia_tech_device_id={cassia_tech_device_id}"""
+    WHERE cassia_tech_device_id={cassia_tech_device_id}""" if device_data.criticality_id is not None else f"""
+        UPDATE cassia_tech_devices
+        SET criticality_id=Null,
+         hostid={device_data.hostid},
+         cassia_tech_id={device_data.cassia_tech_id},
+         updated_at='{traits.get_datetime_now_str_with_tz()}'
+    WHERE cassia_tech_device_id={cassia_tech_device_id}"""
         return self.query_update_cassia_tech_device_by_id
 
     def builder_query_get_tech_device_by_id(self, device_id):
@@ -1013,7 +1034,7 @@ and ctd.deleted_at is NULL"""
     def builder_query_get_created_devices_by_ids(self, hostids):
         self.query_get_created_devices_by_ids = f"""
         SELECT * FROM cassia_tech_devices
-        where hostid in ({hostids})"""
+        where hostid in ({hostids}) and deleted_at is null"""
         return self.query_get_created_devices_by_ids
 
     def builder_query_statement_get_maintenance_between_dates_and_id(self, host_id, date_start, date_end):
@@ -1031,3 +1052,9 @@ and ctd.deleted_at is NULL"""
                                                             session_id='{current_user_session}'
                                                             where maintenance_id={maintenance_id}"""
         return self.query_statement_delete_maintenance
+
+    def builder_query_get_cassia_service_techs_by_name(self, service_id, tech_name):
+        self.query_get_cassia_service_techs_by_name = f"""
+        SELECT * FROM cassia_techs where service_id={service_id}
+and LOWER(tech_name) like '{tech_name}' and deleted_at IS NULL"""
+        return self.query_get_cassia_service_techs_by_name

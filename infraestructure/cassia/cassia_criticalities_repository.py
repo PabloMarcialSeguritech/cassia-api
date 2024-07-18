@@ -68,7 +68,7 @@ async def get_criticality_by_id(cassia_criticality_id) -> pd.DataFrame:
         await db_model.close_connection()
 
 
-async def create_criticality(criticality_data, file_dest, filename):
+""" async def create_criticality(criticality_data, file_dest, filename):
     db_model = DB()
     try:
         session = await db_model.get_session()
@@ -80,6 +80,34 @@ async def create_criticality(criticality_data, file_dest, filename):
             icon=file_dest,
             updated_at=now,
             filename=filename
+        )
+
+        session.add(cassia_criticality)
+        await session.commit()
+        await session.refresh(cassia_criticality)
+        return cassia_criticality
+
+    except Exception as e:
+        print(f"Excepcion en create_criticality: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en create_criticality: {e}")
+    finally:
+        await session.close()
+ """
+
+
+async def create_criticality(criticality_data, icon):
+    db_model = DB()
+    try:
+        session = await db_model.get_session()
+        now = traits.get_datetime_now_with_tz()
+        cassia_criticality = CassiaCriticalitiesModel(
+            level=criticality_data.level,
+            name=criticality_data.name,
+            description=criticality_data.description,
+            icon=icon,
+            updated_at=now,
+            filename=icon
         )
 
         session.add(cassia_criticality)
@@ -112,11 +140,28 @@ async def update_technology(cassia_technology_id, tech_data) -> bool:
         await db_model.close_connection()
 
 
-async def update_criticality(cassia_criticality_id, criticality_data, file_dest, filename) -> bool:
+""" async def update_criticality(cassia_criticality_id, criticality_data, file_dest, filename) -> bool:
     db_model = DB()
     try:
         query_update_cassia_criticality_by_id = DBQueries(
         ).builder_query_update_cassia_criticality_by_id(cassia_criticality_id, criticality_data, file_dest, filename)
+        await db_model.start_connection()
+        updated_criticality = await db_model.run_query(query_update_cassia_criticality_by_id)
+        return True
+
+    except Exception as e:
+        print(f"Excepcion en update_technology: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en update_technology: {e}")
+    finally:
+        await db_model.close_connection() """
+
+
+async def update_criticality(cassia_criticality_id, criticality_data, icon) -> bool:
+    db_model = DB()
+    try:
+        query_update_cassia_criticality_by_id = DBQueries(
+        ).builder_query_update_cassia_criticality_by_id(cassia_criticality_id, criticality_data, icon, icon)
         await db_model.start_connection()
         updated_criticality = await db_model.run_query(query_update_cassia_criticality_by_id)
         return True
