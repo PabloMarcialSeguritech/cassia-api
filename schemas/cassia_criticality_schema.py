@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
 from pydantic import Field
 
@@ -9,8 +9,8 @@ class CassiaCriticalitySchema(BaseModel):
                        example=1)
     name: str = Field(..., max_length=100,
                       example="Info")
-    description: str = Field(..., max_length=255,
-                             example="Severidad informativa")
+    description: Optional[str] = Field(max_length=255,
+                                       example="Severidad informativa")
 
 
 """ class AutoActionUpdateSchema(CassiaTechnologySchema):

@@ -70,10 +70,10 @@ async def update_criticality(cassia_criticality_id, level: int = Form(...), name
     summary="Create cassia technology register",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def create_criticality(level: int = Form(...), name: str = Form(...), description: str = Form(...), icon: str = Form(...)):
+async def create_criticality(level: int = Form(...), name: str = Form(...), description: str = Form(None), icon: str = Form(...)):
     criticality_data = cassia_criticality_schema.CassiaCriticalitySchema(
         level=level, name=name, description=description)
-
+    return
     return await cassia_criticalities_service.create_criticality(criticality_data, icon)
 
 
@@ -84,9 +84,10 @@ async def create_criticality(level: int = Form(...), name: str = Form(...), desc
     summary="Update cassia technology register",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def update_criticality(cassia_criticality_id, level: int = Form(...), name: str = Form(...), description: str = Form(...), icon:  str = Form(...)):
+async def update_criticality(cassia_criticality_id, level: int = Form(...), name: str = Form(...), description: str = Form(None), icon:  str = Form(...)):
     criticality_data = cassia_criticality_schema.CassiaCriticalitySchema(
         level=level, name=name, description=description)
+    return
     return await cassia_criticalities_service.update_criticality(cassia_criticality_id, criticality_data, icon)
 
 
