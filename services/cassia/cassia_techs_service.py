@@ -2,6 +2,7 @@ from fastapi import status, HTTPException
 from infraestructure.cassia import cassia_services_tech_repository
 from infraestructure.cassia import cassia_criticalities_repository
 from infraestructure.cassia import cassia_techs_repository
+from infraestructure.cassia import cassia_tech_devices_repository
 from utils.traits import success_response
 from schemas import cassia_service_tech_schema
 from schemas import cassia_techs_schema
@@ -16,6 +17,10 @@ async def get_techs_by_service(service_id):
     if not techs.empty:
         techs['sla'] = 100
         techs['formatted_sla'] = "100.00%"
+        for ind in techs.index:
+            tech_sla = await cassia_tech_devices_repository.get_sla_by_tech(techs['cassia_tech_id'][ind], techs['sla_hours'][ind])
+            techs['sla'][ind] = tech_sla
+            techs['formatted_sla'][ind] = f"{tech_sla}%" if tech_sla != "NA" else "NA"
     return success_response(data=techs.to_dict(orient="records"))
 
 
