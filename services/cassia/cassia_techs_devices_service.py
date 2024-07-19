@@ -7,6 +7,8 @@ from utils.traits import success_response
 from schemas import cassia_service_tech_schema
 from schemas import cassia_tech_device_schema
 from schemas import cassia_techs_schema
+from utils import traits
+import pytz
 
 
 async def get_devices_by_tech(tech_id):
@@ -23,6 +25,29 @@ async def get_devices_by_tech(tech_id):
         if not downs.empty:
             devices.loc[devices['hostid'].isin(
                 downs['hostid'].to_list()), 'status'] = 0
+        hostids = ",".join([str(hostid)
+                           for hostid in devices['hostid'].to_list()])
+        down_events = await cassia_tech_devices_repository.get_down_events_by_hostids(
+            hostids)
+        now = traits.get_datetime_now_with_tz()
+        tz = pytz.timezone('America/Mexico_City')
+        sla = tech_exist['sla_hours'][0]
+        print(sla)
+        if not down_events.empty:
+            for ind in devices.index:
+                event = down_events.loc[down_events['hostid']
+                                        == devices['hostid'][ind]]
+                if not event.empty:
+                    event = event.iloc[0].to_dict()
+                    problem_date = tz.localize(event['created_at'])
+                    tiempo = (now-problem_date).total_seconds()/3600
+                    porcentaje_sla = (tiempo/sla)*100
+                    porcentaje_sla_rounded = round(porcentaje_sla, 2)
+                    sla_restante = 100-porcentaje_sla_rounded
+                    sla_restante = sla_restante if sla_restante > 0 else 0
+                    devices['sla'][ind] = sla_restante
+                    devices["formatted_sla"][ind] = f"{sla_restante}%"
+                    print(sla_restante)
 
     return success_response(data=devices.to_dict(orient="records"))
 

@@ -37,6 +37,8 @@ async def process_problems():
     db_zabbix = DB_Zabbix()
     with db_zabbix.Session() as session:
         downs = get_downs(session)
+        if downs.empty:
+            return
         cassia_events = get_cassia_events(session)
         downs_totales = get_df_down_totales(downs, cassia_events)
         sincronizados = get_sincronizados(session)
