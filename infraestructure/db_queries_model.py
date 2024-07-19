@@ -973,10 +973,10 @@ WHERE
 
     def builder_query_get_devices_by_tech_id(self, tech_id):
         self.query_get_devices_by_tech_id = f"""
-        select ctd.cassia_tech_device_id,h.hostid ,i.ip,h.host,h.name,hi.alias,hi.location,hi.location_lat ,hi.location_lon,hi.device_id,ctd.criticality_id,cc.level as criticality_level  from hosts h 
+select ctd.cassia_tech_device_id,h.hostid ,i.ip,h.host,h.name,hi.alias,hi.location,hi.location_lat ,hi.location_lon,hi.device_id,ctd.criticality_id,cc.level as criticality_level  from hosts h 
 inner join host_inventory hi on hi.hostid =h.hostid 
 inner join cassia_tech_devices ctd on ctd.hostid =h.hostid 
-inner join interface i on i.hostid =h.hostid 
+inner join (select DISTINCT hostid,ip from interface i) i on i.hostid =h.hostid 
 left join cassia_criticalities cc on cc.cassia_criticality_id = ctd.criticality_id
 where ctd.cassia_tech_id ={tech_id}
 and ctd.deleted_at is null"""
@@ -1016,9 +1016,10 @@ and ctd.deleted_at is null"""
 
     def builder_query_get_tech_device_by_id(self, device_id):
         self.query_get_tech_device_by_id = f"""
-        select h.hostid ,h.host,h.name,hi.alias,hi.location,hi.location_lat ,hi.location_lon,hi.device_id,ctd.criticality_id,cc.level as criticality_level  from hosts h 
+select h.hostid ,i.ip,h.host,h.name,hi.alias,hi.location,hi.location_lat ,hi.location_lon,hi.device_id,ctd.criticality_id,cc.level as criticality_level  from hosts h 
 inner join host_inventory hi on hi.hostid =h.hostid 
 inner join cassia_tech_devices ctd on ctd.hostid =h.hostid 
+inner join (select DISTINCT hostid,ip from interface i) i on i.hostid =h.hostid 
 left join cassia_criticalities cc on cc.cassia_criticality_id = ctd.criticality_id
 where ctd.cassia_tech_device_id={device_id}
 and ctd.deleted_at is NULL"""
