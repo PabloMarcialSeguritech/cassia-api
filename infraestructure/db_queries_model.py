@@ -1058,3 +1058,16 @@ and ctd.deleted_at is NULL"""
         SELECT * FROM cassia_techs where service_id={service_id}
 and LOWER(tech_name) like '{tech_name}' and deleted_at IS NULL"""
         return self.query_get_cassia_service_techs_by_name
+
+    def builder_query_get_down_events_by_hostids(self, hostids):
+        self.query_get_down_events_by_hostids = f"""
+        SELECT * FROM cassia_events_test
+        where hostid in ({hostids}) and closed_at is null
+        and alert_type='down'"""
+        return self.query_get_down_events_by_hostids
+
+    def builder_query_get_tech_ids_by_service_id(self, service_id):
+        self.query_get_tech_ids_by_service_id = f"""
+        SELECT * FROM cassia_techs
+        where service_id={service_id} and deleted_at is null"""
+        return self.query_get_tech_ids_by_service_id
