@@ -204,6 +204,15 @@ WHERE ce.closed_at is NULL and ce.deleted_at is NULL"""
         # PINK
         self.query_statement_get_maintenance_between_dates_and_id = None
 
+        self.query_get_notification_types = """SELECT * FROM cassia_notification_types"""
+        self.query_get_user_notification_types = """select DISTINCT user_id,cu.cassia_notification_type_id,cnt.name  from cassia_user_notification_types cu
+inner join cassia_notification_types cnt on cnt.cassia_notification_type_id =cu.cassia_notification_type_id """
+        self.query_get_users = """select user_id, mail, name from cassia_users where deleted_at is NULL"""
+        self.query_get_tech_names_with_service = """select ct.cassia_tech_id,CONCAT( ct.tech_name," (Servicio: ",cts.service_name,")") as tech_name from cassia_techs ct 
+inner join cassia_tech_services cts 
+on cts.cassia_tech_service_id =ct.service_id 
+where ct.deleted_at  is NULL"""
+
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
         return self.query_statement_get_metrics_template
@@ -1072,3 +1081,29 @@ and LOWER(tech_name) like '{tech_name}' and deleted_at IS NULL"""
         SELECT * FROM cassia_techs
         where service_id={service_id} and deleted_at is null"""
         return self.query_get_tech_ids_by_service_id
+
+    def builder_query_statement_get_user(self, user_id):
+        self.query_statement_get_user = f"""SELECT * FROM cassia_users where user_id={user_id} and deleted_at IS NULL"""
+        return self.query_statement_get_user
+
+    def builder_query_statement_get_user_notifications_techs(self, user_id):
+        self.query_statement_get_user_notifications_techs = f"""select DISTINCT cu.cassia_notification_type_id,cnt.name ,cu.cassia_tech_id,ct.tech_name 
+from cassia_user_notification_types cu left join cassia_techs ct  
+on ct.cassia_tech_id =cu.cassia_tech_id 
+inner join cassia_notification_types cnt  on cnt.cassia_notification_type_id = cu.cassia_notification_type_id 
+where cu.user_id ={user_id}"""
+        return self.query_statement_get_user_notifications_techs
+
+    def builder_query_insert_user_notification_types(self, user_id, cassia_notification_type_id, techs_list):
+        values = ", ".join(
+            [f"({user_id}, {cassia_notification_type_id},{tech_id})" for tech_id in techs_list])
+        self.query_insert_user_notification_types = f"""
+INSERT INTO cassia_user_notification_types(user_id, cassia_notification_type_id,cassia_tech_id)
+VALUES
+{values}
+"""
+        return self.query_insert_user_notification_types
+
+    def builder_query_statement_delete_user_notification_types_by_user_id(self, user_id):
+        self.query_statement_delete_user_notification_types_by_user_id = f"""DELETE FROM cassia_user_notification_types where user_id={user_id}"""
+        return self.query_statement_delete_user_notification_types_by_user_id
