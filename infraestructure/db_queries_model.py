@@ -215,7 +215,7 @@ inner join cassia_tech_services cts
 on cts.cassia_tech_service_id =ct.service_id 
 where ct.deleted_at  is NULL"""
 
-        #RESETS
+        # RESETS
         self.query_get_resets = """SELECT reset_id, affiliation, object_id, updated_at, imei FROM cassia_reset"""
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
@@ -1109,14 +1109,14 @@ where cunt.user_id={user_id})"""
         values = ", ".join(
             [f"({user_id}, {cassia_notification_type_id},{tech_id})" for tech_id in techs_list])
         self.query_insert_user_notification_types = f"""
-INSERT INTO cassia_user_notification_types(user_id, cassia_notification_type_id,cassia_tech_id)
+INSERT INTO cassia_user_notification_types_techs(user_id, cassia_notification_type_id,cassia_tech_id)
 VALUES
 {values}
 """
         return self.query_insert_user_notification_types
 
     def builder_query_statement_delete_user_notification_types_by_user_id(self, user_id):
-        self.query_statement_delete_user_notification_types_by_user_id = f"""DELETE FROM cassia_user_notification_types where user_id={user_id}"""
+        self.query_statement_delete_user_notification_types_by_user_id = f"""DELETE FROM cassia_user_notification_types_techs where user_id={user_id}"""
         return self.query_statement_delete_user_notification_types_by_user_id
 
     def builder_query_statement_get_host_data_gs_ticket_by_host_id(self, host_id):
