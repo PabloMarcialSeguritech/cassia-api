@@ -205,10 +205,12 @@ WHERE ce.closed_at is NULL and ce.deleted_at is NULL"""
         self.query_statement_get_maintenance_between_dates_and_id = None
 
         self.query_get_notification_types = """SELECT * FROM cassia_notification_types"""
-        self.query_get_user_notification_types = """select DISTINCT user_id,cu.cassia_notification_type_id,cnt.name  from cassia_user_notification_types cu
+        self.query_get_user_notification_types_old = """select DISTINCT user_id,cu.cassia_notification_type_id,cnt.name  from cassia_user_notification_types cu
 inner join cassia_notification_types cnt on cnt.cassia_notification_type_id =cu.cassia_notification_type_id """
+        self.query_get_user_notification_types = """select DISTINCT user_id ,cunt.cassia_notification_type_id,cnt.name  from cassia_user_notification_types cunt 
+inner join cassia_notification_types cnt on cnt.cassia_notification_type_id =cunt.cassia_notification_type_id"""
         self.query_get_users = """select user_id, mail, name from cassia_users where deleted_at is NULL"""
-        self.query_get_tech_names_with_service = """select ct.cassia_tech_id,CONCAT( ct.tech_name," (Servicio: ",cts.service_name,")") as tech_name from cassia_techs ct 
+        self.query_get_tech_names_with_service = """select ct.cassia_tech_id,ct.tech_name,cts.service_name,cts.cassia_tech_service_id from cassia_techs ct 
 inner join cassia_tech_services cts 
 on cts.cassia_tech_service_id =ct.service_id 
 where ct.deleted_at  is NULL"""
@@ -1090,11 +1092,17 @@ and LOWER(tech_name) like '{tech_name}' and deleted_at IS NULL"""
         return self.query_statement_get_user
 
     def builder_query_statement_get_user_notifications_techs(self, user_id):
-        self.query_statement_get_user_notifications_techs = f"""select DISTINCT cu.cassia_notification_type_id,cnt.name ,cu.cassia_tech_id,ct.tech_name 
-from cassia_user_notification_types cu left join cassia_techs ct  
+        self.query_statement_get_user_notifications_techs = f"""select DISTINCT cu.cassia_notification_type_id,cnt.name ,
+cu.cassia_tech_id,ct.tech_name 
+from cassia_user_notification_types_techs cu 
+left join cassia_techs ct  
 on ct.cassia_tech_id =cu.cassia_tech_id 
-inner join cassia_notification_types cnt  on cnt.cassia_notification_type_id = cu.cassia_notification_type_id 
-where cu.user_id ={user_id}"""
+inner join cassia_notification_types cnt 
+on cnt.cassia_notification_type_id = cu.cassia_notification_type_id 
+where cu.user_id ={user_id}
+and cu.cassia_notification_type_id in
+(SELECT cassia_notification_type_id from cassia_user_notification_types cunt
+where cunt.user_id={user_id})"""
         return self.query_statement_get_user_notifications_techs
 
     def builder_query_insert_user_notification_types(self, user_id, cassia_notification_type_id, techs_list):
@@ -1110,3 +1118,42 @@ VALUES
     def builder_query_statement_delete_user_notification_types_by_user_id(self, user_id):
         self.query_statement_delete_user_notification_types_by_user_id = f"""DELETE FROM cassia_user_notification_types where user_id={user_id}"""
         return self.query_statement_delete_user_notification_types_by_user_id
+
+    def builder_query_statement_get_host_data_gs_ticket_by_host_id(self, host_id):
+        self.query_statement_get_host_data_gs_ticket_by_host_id = f"""
+select h.hostid ,h.host ,hi.alias , cch.software_version,cch.hardware_no_serie from hosts h 
+inner join host_inventory hi on hi.hostid =h.hostid 
+left join cassia_ci_element cce on cce.host_id =h.hostid 
+left join (select cch.element_id, software_version,hardware_no_serie  from cassia_ci_history cch 
+inner join cassia_ci_element cce2 on cce2.element_id = cch.element_id
+where cce2.host_id  ={host_id} and cch.status ="Cerrada" order by closed_at desc 
+limit 1) cch on cch.element_id =cce.element_id 
+where host_id ={host_id}"""
+        return self.query_statement_get_host_data_gs_ticket_by_host_id
+
+    def builder_query_statement_get_active_tickets_by_afiliation(self, afiliacion):
+        self.query_statement_get_active_tickets_by_afiliation = f"""
+select * from cassia_gs_tickets cgt 
+where cgt.afiliacion ='{afiliacion}'
+and status !='cerrado'"""
+        return self.query_statement_get_active_tickets_by_afiliation
+
+    def builder_query_statement_get_ticket_by_ticket_id(self, ticket_id):
+        self.query_statement_get_ticket_by_ticket_id = f"""
+select * from cassia_gs_tickets cgt 
+where cgt.ticket_id ={ticket_id}
+and status !='cerrado'
+and status !='procesando'"""
+        return self.query_statement_get_ticket_by_ticket_id
+
+    def builder_query_statement_delete_users_notifications_types_by_user_ids(self, user_ids):
+        user_ids = ", ".join([str(user_id) for user_id in user_ids]) if len(
+            user_ids) > 0 else 0
+        self.query_statement_delete_users_notifications_types_by_user_ids = f"""DELETE FROM cassia_user_notification_types where user_id in ({user_ids})"""
+        return self.query_statement_delete_users_notifications_types_by_user_ids
+
+    def builder_query_insert_users_notification_types(self, values):
+        self.query_insert_users_notification_types = f"""
+        INSERT INTO cassia_user_notification_types (user_id,cassia_notification_type_id) values {values}"""
+
+        return self.query_insert_users_notification_types

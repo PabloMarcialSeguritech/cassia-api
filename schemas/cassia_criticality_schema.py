@@ -11,7 +11,3 @@ class CassiaCriticalitySchema(BaseModel):
                       example="Info")
     description: Optional[str] = Field(max_length=255,
                                        example="Severidad informativa")
-
-
-""" class AutoActionUpdateSchema(CassiaTechnologySchema):
-    action_auto_id: int = Field(..., example="1") """

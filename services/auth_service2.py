@@ -194,7 +194,7 @@ async def get_current_user_session(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
 
     session_user = get_session(token=token)
-
+    session_user.mail = username
     if session_user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
