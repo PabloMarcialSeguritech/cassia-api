@@ -30,6 +30,7 @@ pymssql = {version = "<2.2.9"}
 slack-sdk = "*"
 aiomysql = "*"
 asyncssh = "*"
+azure-servicebus = "*"
 
 [dev-packages]
 

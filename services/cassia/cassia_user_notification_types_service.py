@@ -15,6 +15,28 @@ async def get_notification_types():
     return success_response(data=notification_types.to_dict(orient="records"))
 
 
+async def get_users_notification_types_old():
+    users = await cassia_user_notification_types_repository.get_users()
+    user_notifications = await cassia_user_notification_types_repository.get_users_notifications_types()
+    response = []
+    if not users.empty:
+        for ind in users.index:
+            registros_usuario = user_notifications.loc[user_notifications['user_id']
+                                                       == users['user_id'][ind]]
+            notification_types = []
+            for ind2 in registros_usuario.index:
+                notification_types.append({
+                    'cassia_notification_type_id': int(registros_usuario['cassia_notification_type_id'][ind2]),
+                    'name': registros_usuario['name'][ind2],
+                })
+            response_row = {'user_id': int(users['user_id'][ind]),
+                            'mail': users['mail'][ind],
+                            'name': users['name'][ind],
+                            'user_notification_types': notification_types}
+            response.append(response_row)
+    return success_response(data=response)
+
+
 async def get_users_notification_types():
     users = await cassia_user_notification_types_repository.get_users()
     user_notifications = await cassia_user_notification_types_repository.get_users_notifications_types()
@@ -94,3 +116,18 @@ async def update_user_notification_tech(notification_data: cassia_user_notificat
         created_registers = await cassia_user_notification_types_repository.create_user_notification_type(notification_data.user_id, cassia_notification_type_id, techs_list)
 
     return success_response(message="Información almacenada correctamente")
+
+
+async def update_users_notifications(users_notification_data: cassia_user_notification_types_schema.CassiaUserNotificationSchema):
+    delete_info = await cassia_user_notification_types_repository.delete_info_users(users_notification_data.user_ids)
+    values = []
+    for user_id, cassia_notification_types in zip(users_notification_data.user_ids, users_notification_data.cassia_notification_type_ids):
+        for cassia_notification_type_id in cassia_notification_types:
+            values.append(f"({user_id},{cassia_notification_type_id})")
+
+    if len(values) > 0:
+        values = ", ".join([value for value in values])
+
+        created_registers = await cassia_user_notification_types_repository.create_users_notification_types(values)
+
+    return success_response(message="Registros actualizados correctamente")

@@ -29,6 +29,19 @@ async def get_notification_types():
     return await cassia_user_notification_types_service.get_notification_types()
 
 
+""" @cassia_user_notification_type_router.get(
+    '/',
+    tags=["Cassia - User - Notifications"],
+    status_code=status.HTTP_200_OK,
+    summary="Get cassia notification types",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_users_notification_types_old():
+    return await cassia_user_notification_types_service.get_users_notification_types_old()
+
+ """
+
+
 @cassia_user_notification_type_router.get(
     '/',
     tags=["Cassia - User - Notifications"],
@@ -38,6 +51,17 @@ async def get_notification_types():
 )
 async def get_users_notification_types():
     return await cassia_user_notification_types_service.get_users_notification_types()
+
+
+@cassia_user_notification_type_router.put(
+    '/',
+    tags=["Cassia - User - Notifications"],
+    status_code=status.HTTP_200_OK,
+    summary="Get cassia notification types",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def update_users_notifications(users_notification_data: cassia_user_notification_types_schema.CassiaUserNotificationSchema):
+    return await cassia_user_notification_types_service.update_users_notifications(users_notification_data)
 
 
 @cassia_user_notification_type_router.get(
@@ -52,7 +76,7 @@ async def get_user_notification_types(user_id):
 
 
 @cassia_user_notification_type_router.put(
-    '/',
+    '/techs',
     tags=["Cassia - User - Notifications"],
     status_code=status.HTTP_200_OK,
     summary="Update cassia notification types to user, include insert, update and delete",

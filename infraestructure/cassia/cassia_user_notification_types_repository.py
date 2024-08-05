@@ -51,6 +51,25 @@ async def get_notification_types() -> pd.DataFrame:
         await db_model.close_connection()
 
 
+async def get_users_notifications_types_old() -> pd.DataFrame:
+    db_model = DB()
+    try:
+        query_get_user_notification_types = DBQueries(
+        ).query_get_user_notification_types_old
+        await db_model.start_connection()
+        user_notification_types_data = await db_model.run_query(query_get_user_notification_types)
+        user_notification_types_df = pd.DataFrame(
+            user_notification_types_data).replace(np.nan, None)
+        return user_notification_types_df
+
+    except Exception as e:
+        print(f"Excepcion en get_users_notifications_types: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_users_notifications_types: {e}")
+    finally:
+        await db_model.close_connection()
+
+
 async def get_users_notifications_types() -> pd.DataFrame:
     db_model = DB()
     try:
@@ -144,6 +163,24 @@ async def create_user_notification_type(user_id, cassia_notification_type_id, te
         await db_model.close_connection()
 
 
+async def create_users_notification_types(values) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        query_insert_users_notification_types = DBQueries(
+        ).builder_query_insert_users_notification_types(values)
+        print(query_insert_users_notification_types)
+        await db_model.start_connection()
+        user_notification_techs_inserted = await db_model.run_query(query_insert_users_notification_types)
+        return True
+
+    except Exception as e:
+        print(f"Excepcion en create_user_notification_type: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en create_user_notification_type: {e}")
+    finally:
+        await db_model.close_connection()
+
+
 async def delete_info(user_id) -> pd.DataFrame:
     db_model = DB()
     try:
@@ -157,5 +194,22 @@ async def delete_info(user_id) -> pd.DataFrame:
         print(f"Excepcion en delete_info: {e}")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Excepcion en delete_info: {e}")
+    finally:
+        await db_model.close_connection()
+
+
+async def delete_info_users(user_ids) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        query_statement_delete_users_notifications_types_by_user_ids = DBQueries(
+        ).builder_query_statement_delete_users_notifications_types_by_user_ids(user_ids)
+        await db_model.start_connection()
+        deleted_info_data = await db_model.run_query(query_statement_delete_users_notifications_types_by_user_ids)
+        return True
+
+    except Exception as e:
+        print(f"Excepcion en delete_info_users: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en delete_info_users: {e}")
     finally:
         await db_model.close_connection()

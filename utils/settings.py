@@ -197,3 +197,8 @@ class Settings(BaseSettings):
             os.getenv('AUTOMATION_ACTIONS')) == 1 else False
     except:
         pass
+    gs_connection_string: str = ""
+    try:
+        gs_connection_string: str = os.getenv('GS_CONNECTION_STRING')
+    except:
+        pass
