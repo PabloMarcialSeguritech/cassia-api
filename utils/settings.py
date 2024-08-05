@@ -202,3 +202,17 @@ class Settings(BaseSettings):
         gs_connection_string: str = os.getenv('GS_CONNECTION_STRING')
     except:
         pass
+    resets_auth_url: str = ""
+    resets_device_url: str = ""
+    resets_username: str = ""
+    resets_passwd: str = ""
+    resets_role: str = ""
+
+    try:
+        resets_auth_url: str = os.getenv("RESETS_AUTH_URL")
+        resets_device_url: str = os.getenv('RESETS_DEVICE_URL')
+        resets_username: str = os.getenv('RESETS_USERNAME')
+        resets_passwd: str = os.getenv('RESETS_PASSWD')
+        resets_role: str = os.getenv('RESETS_ROLE')
+    except:
+        pass

@@ -215,6 +215,9 @@ inner join cassia_tech_services cts
 on cts.cassia_tech_service_id =ct.service_id 
 where ct.deleted_at  is NULL"""
 
+        #RESETS
+        self.query_get_resets = """SELECT reset_id, affiliation, object_id, updated_at, imei FROM cassia_reset"""
+
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
         return self.query_statement_get_metrics_template
