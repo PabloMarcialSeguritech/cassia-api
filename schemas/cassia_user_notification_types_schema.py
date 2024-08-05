@@ -12,3 +12,10 @@ class CassiaUserNotificationTechsSchema(BaseModel):
 
     cassia_tech_id: List[List[int]] = Field(...,
                                             example=[[1], [0]])
+
+
+class CassiaUserNotificationSchema(BaseModel):
+    user_ids: List[int] = Field(...,
+                                example=[1, 2, 3, 4])
+    cassia_notification_type_ids: List[List[int]] = Field(...,
+                                                          example=[[1, 2], [1, 2]])
