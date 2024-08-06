@@ -1,6 +1,6 @@
 
 
-class ResetServiceFace:
+class ResetServiceFacade:
 
     async def authenticate(self):
         raise NotImplementedError("Método no implementado")
@@ -15,4 +15,7 @@ class ResetServiceFace:
         raise NotImplementedError("Método no implementado")
 
     async def merge_resets(self):
+        raise NotImplementedError("Método no implementado")
+
+    async def restart_reset(self, object_id):
         raise NotImplementedError("Método no implementado")
