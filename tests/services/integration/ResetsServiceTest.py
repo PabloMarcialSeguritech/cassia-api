@@ -69,7 +69,6 @@ class ResetsServiceTest(unittest.TestCase):
 
         self.loop.run_until_complete(async_test())
 
-
     def test_compare_and_add_or_update_reset(self):
         print("> Entrando test_compare_and_add_or_update_reset <")
 
@@ -79,5 +78,19 @@ class ResetsServiceTest(unittest.TestCase):
             resets = await reset_service.merge_resets()
 
             print(resets)
+
+        self.loop.run_until_complete(async_test())
+
+    @unittest.skip("Omit test_restart_reset")
+    def test_restart_reset(self):
+        print("> Entrando test_restart_reset <")
+
+        reset_service = ResetServiceImpl()
+
+        async def async_test():
+            object_id = '64e6848929dd4b3df7a90f60'
+            resets = await reset_service.restart_reset(object_id)
+            response_dict = json.loads(resets.body)
+            print(response_dict)
 
         self.loop.run_until_complete(async_test())

@@ -1,15 +1,18 @@
-from services.integration.reset_service_facade import ResetServiceFace
+from services.integration.reset_service_facade import ResetServiceFacade
 from utils.settings import Settings
 import requests
 import pandas as pd
 from infraestructure.cassia import CassiaResetRepository
+from utils.traits import success_response
+from fastapi import Depends
+from typing import Optional
 
 
-class ResetServiceImpl(ResetServiceFace):
+class ResetServiceImpl(ResetServiceFacade):
     settings = None
 
-    def __init__(self):
-        self.settings = Settings()
+    def __init__(self, settings: Optional[Settings] = None):
+        self.settings = settings if settings is not None else Settings()
 
     async def authenticate(self):
         headers = {'Content-Type': 'application/json'}
@@ -66,7 +69,7 @@ class ResetServiceImpl(ResetServiceFace):
 
         # Aplicar la función a cada elemento de la columna 'info'
         if 'info' in devices_df.columns:
-            devices_df['affiliation'] = devices_df['info'].apply(get_first_info_value)
+            devices_df['affiliation'] = devices_df['info'].apply(get_first_info_value).str.strip()
 
         devices_df['longitude'] = devices_df['gis'].apply(
             lambda x: x['coordinates'][0] if 'coordinates' in x and len(x['coordinates']) > 0 else 'N/A')
@@ -145,3 +148,39 @@ class ResetServiceImpl(ResetServiceFace):
     async def get_cassia_resets(self):
         resets = await CassiaResetRepository.get_resets()
         return resets
+
+    async def restart_reset(self, object_id) -> pd.DataFrame:
+        token = await self.authenticate()
+
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {token}'
+        }
+        try:
+
+            response = requests.post(
+                f'http://172.16.4.191:5978/api/secure/device/{object_id}/cmd/relayctl',
+                json={
+                    "operation": "pulse",
+                    "relay": 1,
+                    "interval": 1,
+                    "times": 9,
+                    "period": 1,
+                    "tag": "TODOS LOS DISPOSITIVOS durante 1 min",
+                    "user": {}
+                },
+                headers=headers)
+            if response.status_code == 200:
+                print("Successfully restart device")
+                print("response::::", response)
+                reset_json = response.json()
+                print("response_json::::", reset_json)
+                return success_response(
+                    data=reset_json
+                )
+            else:
+                print(f"Failed to post device, status code: {response.status_code}, response: {response.text}")
+                return pd.DataFrame()
+        except requests.exceptions.RequestException as e:
+            print(f"Request exception occurred: {e}")
+            return pd.DataFrame()

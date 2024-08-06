@@ -193,3 +193,21 @@ async def update_cassia_resets_bulk(resets_data: list):
     finally:
         if session:
             await session.close()
+
+
+async def get_affiliations_by_hosts_ids(hosts_ids: list):
+    db_model = DB()
+    try:
+        session = await db_model.get_session()
+        # RESETS
+        query = text(
+            "SELECT DISTINCT h.hostid, RIGHT(h.host, 16) AS affiliation, cr.object_id FROM hosts h INNER JOIN host_inventory hi ON h.hostid = hi.hostid LEFT JOIN cassia_reset cr ON RIGHT(h.host, 16) = cr.affiliation WHERE h.hostid in :hostids ")
+        affiliations = pd.DataFrame(await session.execute(
+            query, {'hostids': hosts_ids})).replace(np.nan, "")
+        return affiliations
+    except Exception as e:
+        print(f"Excepcion generada en get_affiliations_by_hosts_ids: {e}")
+        affiliations = pd.DataFrame(columns=['hostid', 'affiliation', 'object_id'])
+        return affiliations
+    finally:
+        await session.close()
