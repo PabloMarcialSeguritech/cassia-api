@@ -198,7 +198,7 @@ WHERE ce.closed_at is NULL and ce.deleted_at is NULL"""
         # PINK
         self.query_statement_delete_maintenance = None
         # PINK
-        self.query_get_maintenances = """select 
+        self.query_get_maintenances = """select
                         m.maintenance_id, m.date_start, m.date_end, m.description, m.created_at, m.updated_at
                         from cassia_maintenance m inner join hosts h on m.hostid = h.hostid  WHERE m.deleted_at is null"""
         # PINK
@@ -207,24 +207,27 @@ WHERE ce.closed_at is NULL and ce.deleted_at is NULL"""
         self.query_get_notification_types = """SELECT * FROM cassia_notification_types"""
         self.query_get_user_notification_types_old = """select DISTINCT user_id,cu.cassia_notification_type_id,cnt.name  from cassia_user_notification_types cu
 inner join cassia_notification_types cnt on cnt.cassia_notification_type_id =cu.cassia_notification_type_id """
-        self.query_get_user_notification_types = """select DISTINCT user_id ,cunt.cassia_notification_type_id,cnt.name  from cassia_user_notification_types cunt 
+        self.query_get_user_notification_types = """select DISTINCT user_id ,cunt.cassia_notification_type_id,cnt.name  from cassia_user_notification_types cunt
 inner join cassia_notification_types cnt on cnt.cassia_notification_type_id =cunt.cassia_notification_type_id"""
         self.query_get_users = """select user_id, mail, name from cassia_users where deleted_at is NULL"""
-        self.query_get_tech_names_with_service = """select ct.cassia_tech_id,ct.tech_name,cts.service_name,cts.cassia_tech_service_id from cassia_techs ct 
-inner join cassia_tech_services cts 
-on cts.cassia_tech_service_id =ct.service_id 
+        self.query_get_tech_names_with_service = """select ct.cassia_tech_id,ct.tech_name,cts.service_name,cts.cassia_tech_service_id from cassia_techs ct
+inner join cassia_tech_services cts
+on cts.cassia_tech_service_id =ct.service_id
 where ct.deleted_at  is NULL"""
 
         # RESETS
         self.query_get_resets = """SELECT reset_id, affiliation, object_id, updated_at, imei FROM cassia_reset"""
-
+        self.query_get_active_gs_tickets = f"""
+select * from cassia_gs_tickets cgt
+where status !='cerrado'
+and status !='error'"""
         # RESETS
         self.storeProcedure_getDispositivosCapa1 = 'sp_dragDiagnosis_C1'
 
         # RESETS
         self.stored_name_get_proxy_credential = 'sp_proxy_credential'
 
-        #RESETS
+        # RESETS
         self. query_statement_get_reset_by_affiliation = None
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
@@ -1152,7 +1155,9 @@ and status !='cerrado'"""
 select * from cassia_gs_tickets cgt 
 where cgt.ticket_id ={ticket_id}
 and status !='cerrado'
-and status !='procesando'"""
+and status !='solicitado'
+and status !='error'
+"""
         return self.query_statement_get_ticket_by_ticket_id
 
     def builder_query_statement_delete_users_notifications_types_by_user_ids(self, user_ids):
@@ -1166,6 +1171,15 @@ and status !='procesando'"""
         INSERT INTO cassia_user_notification_types (user_id,cassia_notification_type_id) values {values}"""
 
         return self.query_insert_users_notification_types
+
+    def builder_query_statement_get_ticket_detail_by_ticket_id(self, ticket_id):
+        self.query_statement_get_ticket_detail_by_ticket_id = f"""
+select * from cassia_gs_tickets_detail cgtd
+where cgtd.ticket_id ={ticket_id}
+and status !='solicitado'
+and status !='error'
+"""
+        return self.query_statement_get_ticket_detail_by_ticket_id
 
     def builder_query_statement_get_reset_by_affiliation(self, affiliation):
         self.query_statement_get_reset_by_affiliation = \
