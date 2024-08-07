@@ -218,6 +218,11 @@ where ct.deleted_at  is NULL"""
         # RESETS
         self.query_get_resets = """SELECT reset_id, affiliation, object_id, updated_at, imei FROM cassia_reset"""
 
+        self.query_get_active_gs_tickets = f"""
+select * from cassia_gs_tickets cgt 
+where status !='cerrado'
+and status !='error'"""
+
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
         return self.query_statement_get_metrics_template
@@ -1143,7 +1148,9 @@ and status !='cerrado'"""
 select * from cassia_gs_tickets cgt 
 where cgt.ticket_id ={ticket_id}
 and status !='cerrado'
-and status !='procesando'"""
+and status !='solicitado'
+and status !='error'
+"""
         return self.query_statement_get_ticket_by_ticket_id
 
     def builder_query_statement_delete_users_notifications_types_by_user_ids(self, user_ids):
@@ -1157,3 +1164,12 @@ and status !='procesando'"""
         INSERT INTO cassia_user_notification_types (user_id,cassia_notification_type_id) values {values}"""
 
         return self.query_insert_users_notification_types
+
+    def builder_query_statement_get_ticket_detail_by_ticket_id(self, ticket_id):
+        self.query_statement_get_ticket_detail_by_ticket_id = f"""
+select * from cassia_gs_tickets_detail cgtd
+where cgtd.ticket_id ={ticket_id}
+and status !='solicitado'
+and status !='error'
+"""
+        return self.query_statement_get_ticket_detail_by_ticket_id
