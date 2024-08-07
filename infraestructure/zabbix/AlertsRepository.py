@@ -9,6 +9,7 @@ from infraestructure.db_queries_model import DBQueries
 from infraestructure.cassia import CassiaConfigRepository
 from infraestructure.cassia import CassiaDiagnostaRepository
 from infraestructure.cassia import CassiaEventRepository
+from infraestructure.cassia import CassiaResetRepository
 from fastapi import status, HTTPException
 
 
@@ -23,27 +24,32 @@ async def get_exceptions_async(hostids: list):
             query, {'hostids': hostids})).replace(np.nan, "")
         if exceptions.empty:
             exceptions = pd.DataFrame(columns=['exception_agency_id', 'description',
-                                               'created_at', 'closed_at', 'session_id', 'exception_id', 'hostid', 'agency_name', 'exception_message'])
+                                               'created_at', 'closed_at', 'session_id', 'exception_id', 'hostid',
+                                               'agency_name', 'exception_message'])
         else:
             now = datetime.now(pytz.timezone('America/Mexico_City'))
-            exceptions['created_at'] = pd.to_datetime(exceptions['created_at'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
+            exceptions['created_at'] = pd.to_datetime(exceptions['created_at'],
+                                                      format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
                 pytz.timezone('America/Mexico_City'))
-            exceptions['diferencia'] = now-exceptions['created_at']
+            exceptions['diferencia'] = now - exceptions['created_at']
             exceptions['dias'] = exceptions['diferencia'].dt.days
             exceptions['horas'] = exceptions['diferencia'].dt.components.hours
             exceptions['minutos'] = exceptions['diferencia'].dt.components.minutes
-            exceptions = exceptions.drop(columns=['diferencia',])
+            exceptions = exceptions.drop(columns=['diferencia', ])
             exceptions['diferencia'] = exceptions.apply(
                 lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
             exceptions['exception_message'] = exceptions.apply(
-                lambda x: f"Agencia: {x['agency_name']} --- Afectado desde: {x['diferencia']} --- Nota: {x['description']}", axis=1)
+                lambda
+                    x: f"Agencia: {x['agency_name']} --- Afectado desde: {x['diferencia']} --- Nota: {x['description']}",
+                axis=1)
             exceptions = exceptions.drop(
                 columns=['diferencia', 'dias', 'horas', 'minutos'])
         return exceptions
     except Exception as e:
         print(f"Excepcion generada en get_exceptions_async: {e}")
         exceptions = pd.DataFrame(columns=['exception_agency_id', 'description',
-                                           'created_at', 'closed_at', 'session_id', 'exception_id', 'hostid', 'agency_name', 'exception_message'])
+                                           'created_at', 'closed_at', 'session_id', 'exception_id', 'hostid',
+                                           'agency_name', 'exception_message'])
         return exceptions
     finally:
         await session.close()
@@ -59,27 +65,32 @@ async def get_exceptions(hostids: list, session):
 
         if exceptions.empty:
             exceptions = pd.DataFrame(columns=['exception_agency_id', 'description',
-                                               'created_at', 'closed_at', 'session_id', 'exception_id', 'hostid', 'agency_name', 'exception_message'])
+                                               'created_at', 'closed_at', 'session_id', 'exception_id', 'hostid',
+                                               'agency_name', 'exception_message'])
         else:
             now = datetime.now(pytz.timezone('America/Mexico_City'))
-            exceptions['created_at'] = pd.to_datetime(exceptions['created_at'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
+            exceptions['created_at'] = pd.to_datetime(exceptions['created_at'],
+                                                      format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
                 pytz.timezone('America/Mexico_City'))
-            exceptions['diferencia'] = now-exceptions['created_at']
+            exceptions['diferencia'] = now - exceptions['created_at']
             exceptions['dias'] = exceptions['diferencia'].dt.days
             exceptions['horas'] = exceptions['diferencia'].dt.components.hours
             exceptions['minutos'] = exceptions['diferencia'].dt.components.minutes
-            exceptions = exceptions.drop(columns=['diferencia',])
+            exceptions = exceptions.drop(columns=['diferencia', ])
             exceptions['diferencia'] = exceptions.apply(
                 lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
             exceptions['exception_message'] = exceptions.apply(
-                lambda x: f"Agencia: {x['agency_name']} --- Afectado desde: {x['diferencia']} --- Nota: {x['description']}", axis=1)
+                lambda
+                    x: f"Agencia: {x['agency_name']} --- Afectado desde: {x['diferencia']} --- Nota: {x['description']}",
+                axis=1)
             exceptions = exceptions.drop(
                 columns=['diferencia', 'dias', 'horas', 'minutos'])
         return exceptions
     except Exception as e:
         print(f"Excepcion generada en get_exceptions: {e}")
         exceptions = pd.DataFrame(columns=['exception_agency_id', 'description',
-                                           'created_at', 'closed_at', 'session_id', 'exception_id', 'hostid', 'agency_name', 'exception_message'])
+                                           'created_at', 'closed_at', 'session_id', 'exception_id', 'hostid',
+                                           'agency_name', 'exception_message'])
         return exceptions
 
 
@@ -111,7 +122,6 @@ async def get_host_alerts(hostid):
         dependientes = await CassiaDiagnostaRepository.get_host_dependientes()
 
         if not dependientes.empty:
-
             problems = await process_dependientes_data(problems, ping_loss_message, dependientes)
 
         problemas_sincronizados_diagnosta = await CassiaDiagnostaRepository.get_open_problems_diagnosta()
@@ -119,14 +129,13 @@ async def get_host_alerts(hostid):
         if not problemas_sincronizados_diagnosta.empty:
 
             if not problems.empty:
-
-                problems = await process_sincronizados_data(problems, ping_loss_message, problemas_sincronizados_diagnosta)
+                problems = await process_sincronizados_data(problems, ping_loss_message,
+                                                            problemas_sincronizados_diagnosta)
 
         if not problems.empty:
             problems = await procesar_fechas_problemas(problems)
 
         if not problems.empty:
-
             exceptions = await get_exceptions_async(problems['hostid'].to_list())
             problems = pd.merge(problems, exceptions, on='hostid',
                                 how='left').replace(np.nan, None)
@@ -150,7 +159,8 @@ async def get_host_zabbix_alerts(hositd) -> pd.DataFrame:
             zabbix_alerts_data).replace(np.nan, None)
         if zabbix_alerts_df.empty:
             zabbix_alerts_df = pd.DataFrame(columns=['Time', 'severity', 'hostid', 'Host', 'latitude',
-                                                     'longitude', 'ip', 'Problem', 'Estatus', 'r_eventid', 'Ack_message', 'local', 'tipo', 'dependents', 'alert_type'])
+                                                     'longitude', 'ip', 'Problem', 'Estatus', 'r_eventid',
+                                                     'Ack_message', 'local', 'tipo', 'dependents', 'alert_type'])
         return zabbix_alerts_df
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -197,7 +207,6 @@ async def get_host_cassia_alerts(hositd) -> pd.DataFrame:
 
 
 async def process_cassia_alerts(cassia_alerts) -> pd.DataFrame:
-
     cassia_alerts['r_eventid'] = [
         '' for i in range(len(cassia_alerts))]
     cassia_alerts['Ack'] = [0 for i in range(len(cassia_alerts))]
@@ -237,7 +246,6 @@ async def process_dependientes_data(problems, ping_loss_message, dependientes) -
 
 
 async def process_sincronizados_data(problems, ping_loss_message, sincronizados: pd.DataFrame):
-
     for ind in problems.index:
 
         if problems['Problem'][ind] == ping_loss_message:
@@ -251,7 +259,7 @@ async def process_sincronizados_data(problems, ping_loss_message, sincronizados:
             dependientes = dependientes.drop_duplicates(
                 subset=['depends_hostid'])
             problems.loc[problems.index == ind,
-                         'dependents'] = len(dependientes)
+            'dependents'] = len(dependientes)
 
     return problems
 
@@ -260,15 +268,19 @@ async def procesar_fechas_problemas(problems):
     now = datetime.now(pytz.timezone('America/Mexico_City'))
     problems['fecha'] = pd.to_datetime(problems['Time'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
         pytz.timezone('America/Mexico_City'))
-    problems['diferencia'] = now-problems['fecha']
+    problems['diferencia'] = now - problems['fecha']
     problems['dias'] = problems['diferencia'].dt.days
     problems['horas'] = problems['diferencia'].dt.components.hours
     problems['minutos'] = problems['diferencia'].dt.components.minutes
     problems.loc[problems['alert_type'].isin(
-        ['rfid', 'lpr']), 'Problem'] = problems.loc[problems['alert_type'].isin(['rfid', 'lpr']), ['dias', 'horas', 'minutos']].apply(lambda x:
-                                                                                                                                      f"Este host no ha tenido lecturas por más de {x['dias']} dias {x['horas']} hrs {x['minutos']} min" if x['dias'] > 0
-                                                                                                                                      else f"Este host no ha tenido lecturas por más de {x['horas']} hrs {x['minutos']} min" if x['horas'] > 0
-                                                                                                                                      else f"Este host no ha tenido lecturas por más de {x['minutos']} min", axis=1)
+        ['rfid', 'lpr']), 'Problem'] = problems.loc[
+        problems['alert_type'].isin(['rfid', 'lpr']), ['dias', 'horas', 'minutos']].apply(lambda x:
+                                                                                          f"Este host no ha tenido lecturas por más de {x['dias']} dias {x['horas']} hrs {x['minutos']} min" if
+                                                                                          x['dias'] > 0
+                                                                                          else f"Este host no ha tenido lecturas por más de {x['horas']} hrs {x['minutos']} min" if
+                                                                                          x['horas'] > 0
+                                                                                          else f"Este host no ha tenido lecturas por más de {x['minutos']} min",
+                                                                                          axis=1)
     problems = problems.drop(columns=['diferencia'])
     problems['diferencia'] = problems.apply(
         lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
@@ -283,7 +295,8 @@ async def get_alerts(municipalityId, tech_host_type, subtype, severities):
         ).stored_name_get_alerts
 
         await db_model.start_connection()
-        cassia_alerts_data = await db_model.run_stored_procedure(sp_name_get_alerts, (municipalityId, tech_host_type, subtype, severities))
+        cassia_alerts_data = await db_model.run_stored_procedure(sp_name_get_alerts,
+                                                                 (municipalityId, tech_host_type, subtype, severities))
         cassia_alerts_df = pd.DataFrame(
             cassia_alerts_data).replace(np.nan, None)
         return cassia_alerts_df
@@ -294,7 +307,7 @@ async def get_alerts(municipalityId, tech_host_type, subtype, severities):
         await db_model.close_connection()
 
 
-async def process_alerts_local(data, municipalityId,  tech_id, severities, tipo):
+async def process_alerts_local(data, municipalityId, tech_id, severities, tipo):
     if municipalityId == '0':
         print("AAAAAA")
         # PINK
@@ -407,7 +420,7 @@ async def process_open_diagnosta_events(problems, sincronizados: pd.DataFrame, p
             dependientes = dependientes.drop_duplicates(
                 subset=['depends_hostid'])
             problems.loc[problems.index == ind,
-                         'dependents'] = len(dependientes)
+            'dependents'] = len(dependientes)
     return problems
 
 
@@ -428,7 +441,8 @@ async def get_problems_filter_backup(municipalityId, tech_host_type=0, subtype="
     switch_df = await CassiaConfigRepository.get_config_value_by_name('switch_id')
     switch_id = switch_df['value'][0] if not switch_df.empty else '12'
     metric_switch_df = await CassiaConfigRepository.get_config_value_by_name('switch_throughtput')
-    metric_switch_val = metric_switch_df['value'][0] if not metric_switch_df.empty else 'Interface Bridge-Aggregation_: Bits'
+    metric_switch_val = metric_switch_df['value'][
+        0] if not metric_switch_df.empty else 'Interface Bridge-Aggregation_: Bits'
     if subtype == metric_switch_val:
         subtype = ""
     problems = await get_alerts(
@@ -436,10 +450,10 @@ async def get_problems_filter_backup(municipalityId, tech_host_type=0, subtype="
     problems = await normalizar_alertas_zabbix(problems, ping_loss_message)
     if tech_host_type == lpr_id or tech_host_type == '':
         problems = await process_alerts_local(
-            problems, municipalityId,  lpr_id, severities, 'lpr')
+            problems, municipalityId, lpr_id, severities, 'lpr')
     if tech_host_type == rfid_id or tech_host_type == '':
         problems = await process_alerts_local(
-            problems, municipalityId,  rfid_id, severities, 'rfid')
+            problems, municipalityId, rfid_id, severities, 'rfid')
     downs_origen = await CassiaDiagnostaRepository.get_downs_origen(municipalityId, tech_host_type)
     if not downs_origen.empty:
         hostids = downs_origen['hostid'].tolist()
@@ -534,7 +548,8 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
     switch_df = await CassiaConfigRepository.get_config_value_by_name('switch_id')
     switch_id = switch_df['value'][0] if not switch_df.empty else '12'
     metric_switch_df = await CassiaConfigRepository.get_config_value_by_name('switch_throughtput')
-    metric_switch_val = metric_switch_df['value'][0] if not metric_switch_df.empty else 'Interface Bridge-Aggregation_: Bits'
+    metric_switch_val = metric_switch_df['value'][
+        0] if not metric_switch_df.empty else 'Interface Bridge-Aggregation_: Bits'
     if subtype == metric_switch_val:
         subtype = ""
 
@@ -545,10 +560,10 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
     problems = await eliminar_downs_zabbix(problems, ping_loss_message)
     if tech_host_type == lpr_id or tech_host_type == '':
         problems = await process_alerts_local(
-            problems, municipalityId,  lpr_id, severities, 'lpr')
+            problems, municipalityId, lpr_id, severities, 'lpr')
     if tech_host_type == rfid_id or tech_host_type == '':
         problems = await process_alerts_local(
-            problems, municipalityId,  rfid_id, severities, 'rfid')
+            problems, municipalityId, rfid_id, severities, 'rfid')
 
     downs_origen = await CassiaDiagnostaRepository.get_downs_origen(municipalityId, tech_host_type)
     if not downs_origen.empty:
@@ -557,7 +572,6 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
 
         data_problems = await CassiaEventRepository.get_cassia_events_with_hosts_filter(hostids_str)
         if not data_problems.empty:
-
             problems = await normalizar_eventos_cassia(problems, data_problems, severities, ping_loss_message)
 
     dependientes = await CassiaDiagnostaRepository.get_host_dependientes()
@@ -575,7 +589,6 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
     sincronizados = await CassiaDiagnostaRepository.get_open_problems_diagnosta()
     if not sincronizados.empty:
         if not problems.empty:
-
             problems = await process_open_diagnosta_events(problems, sincronizados, ping_loss_message)
     if not problems.empty:
         problems = await procesar_fechas_problemas(problems)
@@ -633,6 +646,10 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
     print(len(problems))
     origenes = problems[problems['tipo'] == 1]
     print(len(origenes))
+    affiliations_df = await CassiaResetRepository.get_affiliations_by_hosts_ids(problems['hostid'].tolist())
+    if not affiliations_df.empty:
+        # Realizar el merge para agregar las columnas de affiliations_df a problems
+        problems = pd.merge(problems, affiliations_df, on='hostid', how='left')
 
     return problems
 
@@ -670,3 +687,6 @@ async def get_cassia_acks(eventids) -> pd.DataFrame:
                             detail=f"Error en get_cassia_acks {e}")
     finally:
         await db_model.close_connection()
+
+
+

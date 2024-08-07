@@ -3,7 +3,7 @@ import os
 from pydantic import BaseSettings
 from dotenv import load_dotenv
 
-env = os.getenv('ENVIRONMENT', 'qa')
+env = os.getenv('ENVIRONMENT', 'dev')
 dotenv_path = f'.env.{env}'
 load_dotenv(dotenv_path=dotenv_path, verbose=True)
 
@@ -202,17 +202,22 @@ class Settings(BaseSettings):
         gs_connection_string: str = os.getenv('GS_CONNECTION_STRING')
     except:
         pass
+    resets_base_url: str = ""
     resets_auth_url: str = ""
     resets_device_url: str = ""
     resets_username: str = ""
     resets_passwd: str = ""
     resets_role: str = ""
+    resets_command_path: str = ""
 
     try:
-        resets_auth_url: str = os.getenv("RESETS_AUTH_URL")
+        resets_base_url: str = os.getenv('RESETS_BASE_URL')
+        resets_auth_url: str = os.getenv('RESETS_AUTH_URL')
         resets_device_url: str = os.getenv('RESETS_DEVICE_URL')
         resets_username: str = os.getenv('RESETS_USERNAME')
         resets_passwd: str = os.getenv('RESETS_PASSWD')
         resets_role: str = os.getenv('RESETS_ROLE')
+        resets_command_path: str = os.getenv('RESETS_CMD_PATH')
+
     except:
         pass

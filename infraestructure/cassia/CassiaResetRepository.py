@@ -8,6 +8,11 @@ from sqlalchemy import update, text
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
 from utils.traits import get_datetime_now_with_tz
 import asyncio
+from cryptography.fernet import Fernet
+from utils.settings import Settings
+
+settings = Settings()
+
 
 async def create_cassia_reset(reset_data: dict):
     db_model = DB()
@@ -193,3 +198,92 @@ async def update_cassia_resets_bulk(resets_data: list):
     finally:
         if session:
             await session.close()
+
+
+async def get_affiliations_by_hosts_ids(hosts_ids: list):
+    db_model = DB()
+    try:
+        session = await db_model.get_session()
+        # RESETS
+        query = text(
+            "SELECT DISTINCT h.hostid, RIGHT(h.host, 16) AS affiliation, "
+            "CASE WHEN cr.object_id IS NOT NULL THEN TRUE ELSE FALSE END as object_id "
+            "FROM hosts h INNER JOIN host_inventory hi ON h.hostid = hi.hostid LEFT JOIN "
+            "cassia_reset cr ON RIGHT(h.host, 16) = cr.affiliation WHERE h.hostid in :hostids ")
+        affiliations = pd.DataFrame(await session.execute(
+            query, {'hostids': hosts_ids})).replace(np.nan, "")
+        return affiliations
+    except Exception as e:
+        print(f"Excepcion generada en get_affiliations_by_hosts_ids: {e}")
+        affiliations = pd.DataFrame(columns=['hostid', 'affiliation', 'object_id'])
+        return affiliations
+    finally:
+        await session.close()
+
+
+async def get_devices_related_layer1(hostid):
+    db_model = DB()
+    session = None
+    try:
+        session = await db_model.get_session()
+        sp_get_devices_related = DBQueries().storeProcedure_getDispositivosCapa1
+        await db_model.start_connection()
+        devices_related_data = await db_model.run_stored_procedure(sp_get_devices_related, (f"{hostid}",))
+        devices_related_data_df = pd.DataFrame(
+            devices_related_data).replace(np.nan, None)
+        return devices_related_data_df
+    except Exception as e:
+        print(f"Excepcion generada en get_devices_related_layer1: {e}")
+        affiliations = pd.DataFrame(columns=['hostid', 'affiliation', 'object_id'])
+        return affiliations
+    finally:
+        await session.close()
+
+
+async def get_credentials_for_proxy(ip):
+    db_model = DB()
+    session = None
+    try:
+        session = await db_model.get_session()
+        sp_get_proxy_credential = DBQueries().stored_name_get_proxy_credential
+        await db_model.start_connection()
+        credential_data = await db_model.run_stored_procedure(sp_get_proxy_credential, (f"{ip}",))
+        if credential_data:
+            credential_data_df = pd.DataFrame(credential_data).replace(
+                np.nan, "").to_dict(orient="records")
+            ip_proxy = credential_data_df[0]['ip']
+            user_proxy = decrypt(
+                credential_data_df[0]['usr'], settings.ssh_key_gen).decode()
+            password_proxy = decrypt(
+                credential_data_df[0]['psswrd'], settings.ssh_key_gen).decode()
+        else:
+            raise ValueError(
+                "El proxy no esta configurado o las credenciales configuradas son incorrectas")
+    finally:
+        await session.close()
+
+    return ip_proxy, user_proxy, password_proxy
+
+
+def decrypt(encripted_text, key):
+    fernet = Fernet(key)
+    return fernet.decrypt(encripted_text.encode())
+
+
+async def get_reset_by_affiliation(affiliation) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        query_get_reset = DBQueries().builder_query_statement_get_reset_by_affiliation(affiliation)
+        await db_model.start_connection()
+        reset_data = await db_model.run_query(query_get_reset)
+        reset_df = pd.DataFrame(
+            reset_data).replace(np.nan, None)
+        return reset_df
+    except Exception as e:
+        print(f"Excepcion generada en get_reset_by_affiliation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion generada en get_reset_by_affiliation {e}"
+        )
+    finally:
+        await db_model.close_connection()
