@@ -218,6 +218,15 @@ where ct.deleted_at  is NULL"""
         # RESETS
         self.query_get_resets = """SELECT reset_id, affiliation, object_id, updated_at, imei FROM cassia_reset"""
 
+        # RESETS
+        self.storeProcedure_getDispositivosCapa1 = 'sp_dragDiagnosis_C1'
+
+        # RESETS
+        self.stored_name_get_proxy_credential = 'sp_proxy_credential'
+
+        #RESETS
+        self. query_statement_get_reset_by_affiliation = None
+
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
         return self.query_statement_get_metrics_template
@@ -1157,3 +1166,8 @@ and status !='procesando'"""
         INSERT INTO cassia_user_notification_types (user_id,cassia_notification_type_id) values {values}"""
 
         return self.query_insert_users_notification_types
+
+    def builder_query_statement_get_reset_by_affiliation(self, affiliation):
+        self.query_statement_get_reset_by_affiliation = \
+            f"""SELECT * FROM cassia_reset where affiliation='{affiliation}' """
+        return self.query_statement_get_reset_by_affiliation
