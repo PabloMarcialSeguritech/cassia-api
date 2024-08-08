@@ -13,7 +13,7 @@ resets_router = APIRouter(prefix="/resets")
     summary="Restart a Reset",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def reset_pmi_async(affiliation: str = "", hostid: str = ""):
+async def reset_pmi_async(affiliation: str = ""):
     reset_service = ResetServiceImpl()
-    result = await reset_service.reset_pmi(affiliation, hostid)
+    result = await reset_service.reset_pmi(affiliation)
     return result

@@ -221,14 +221,14 @@ async def get_affiliations_by_hosts_ids(hosts_ids: list):
         await session.close()
 
 
-async def get_devices_related_layer1(hostid):
+async def get_devices_related_layer1(affiliation):
     db_model = DB()
     session = None
     try:
         session = await db_model.get_session()
         sp_get_devices_related = DBQueries().storeProcedure_getDispositivosCapa1
         await db_model.start_connection()
-        devices_related_data = await db_model.run_stored_procedure(sp_get_devices_related, (f"{hostid}",))
+        devices_related_data = await db_model.run_stored_procedure(sp_get_devices_related, (f"{affiliation}",))
         devices_related_data_df = pd.DataFrame(
             devices_related_data).replace(np.nan, None)
         return devices_related_data_df

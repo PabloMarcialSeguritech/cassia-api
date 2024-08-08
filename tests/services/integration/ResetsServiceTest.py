@@ -70,7 +70,7 @@ class ResetsServiceTest(unittest.TestCase):
 
         self.loop.run_until_complete(async_test())
 
-    @unittest.skip("Omit test_compare_and_add_or_update_reset")
+    @unittest.skip("Omit test_extract_device_info")
     def test_compare_and_add_or_update_reset(self):
         print("> Entrando test_compare_and_add_or_update_reset <")
 
@@ -160,7 +160,7 @@ class ResetsServiceTest(unittest.TestCase):
 
         self.loop.run_until_complete(async_test())
 
-
+    @unittest.skip("Omit test_reset_pmi_5_min_arriba")
     def test_reset_pmi_5_min_arriba(self):
         print("> Entrando test_reset_pmi <")
         '''
@@ -175,6 +175,24 @@ class ResetsServiceTest(unittest.TestCase):
             hostid = '15098'
             devices_df = await reset_service.reset_pmi(affiliation, hostid)
             print(devices_df)
+
+        self.loop.run_until_complete(async_test())
+
+
+    def test_reset_pmi_5_min_arriba(self):
+        print("> Entrando test_reset_pmi <")
+        '''
+            Prueba de 5 min y no response
+            PMI Arriba
+        '''
+
+        reset_service = ResetServiceImpl()
+
+        async def async_test():
+            affiliation = 'GTO-VVU-GUAN-023'
+            hostid = '15098'
+            devices_df = await reset_service.reset_pmi(affiliation)
+            print("devices_df:::::", devices_df)
 
         self.loop.run_until_complete(async_test())
 

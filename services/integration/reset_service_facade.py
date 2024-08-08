@@ -23,7 +23,7 @@ class ResetServiceFacade:
     async def getDispositivosRelacionadosCapa1(self, hostid):
         raise NotImplementedError("Método no implementado")
 
-    async def reset_pmi(self, afiliacion, hostid):
+    async def reset_pmi(self, afiliacion):
         raise NotImplementedError("Método no implementado")
 
     async def get_object_id_by_affiliation(self, affiliation):

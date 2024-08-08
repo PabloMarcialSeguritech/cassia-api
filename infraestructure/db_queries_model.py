@@ -222,7 +222,7 @@ select * from cassia_gs_tickets cgt
 where status !='cerrado'
 and status !='error'"""
         # RESETS
-        self.storeProcedure_getDispositivosCapa1 = 'sp_dragDiagnosis_C1'
+        self.storeProcedure_getDispositivosCapa1 = 'sp_dragAfilition'
 
         # RESETS
         self.stored_name_get_proxy_credential = 'sp_proxy_credential'
