@@ -221,6 +221,7 @@ where ct.deleted_at  is NULL"""
 select * from cassia_gs_tickets cgt
 where status !='cerrado'
 and status !='error'"""
+
         # RESETS
         self.storeProcedure_getDispositivosCapa1 = 'sp_dragDiagnosis_C1'
 
@@ -243,7 +244,9 @@ and status !='error'"""
 
     def builder_query_statement_get_cassia_event_test(self, eventid):
         # ACTUALIZAR NOMBRE
-        self.query_statement_get_cassia_event = f"""select cassia_arch_traffic_events_id,created_at  from cassia_events_test p where cassia_arch_traffic_events_id ='{eventid}'"""
+        self.query_statement_get_cassia_event = f"""select cassia_arch_traffic_events_id,created_at,hi.alias  from cassia_events_test p
+inner join host_inventory hi on hi.hostid =p.hostid  
+where cassia_arch_traffic_events_id ={eventid}"""
         return self.query_statement_get_cassia_event
 
     def builder_query_statement_get_cassia_event_2(self, eventid):
@@ -260,7 +263,12 @@ and status !='error'"""
         return self.query_statement_get_cassia_event_tickets
 
     def builder_query_statement_get_zabbix_event(self, eventid):
-        self.query_statement_get_zabbix_event = f"select eventid,clock  from events p where eventid ='{eventid}'"
+        self.query_statement_get_zabbix_event = f"""select p.eventid ,p.clock,hi.alias  from events p
+inner join items i on i.itemid =p.objectid 
+inner join host_inventory hi on hi.hostid =i.hostid 
+INNER JOIN functions f ON (i.itemid=f.itemid)
+INNER JOIN triggers t ON (f.triggerid=t.triggerid)
+where eventid ='{eventid}'"""
         return self.query_statement_get_zabbix_event
 
     def builder_query_statement_get_last_zabbix_event_acknowledge(self, eventid):
@@ -1147,7 +1155,10 @@ where host_id ={host_id}"""
         self.query_statement_get_active_tickets_by_afiliation = f"""
 select * from cassia_gs_tickets cgt 
 where cgt.afiliacion ='{afiliacion}'
-and status !='cerrado'"""
+and status !='cerrado'
+and status !='error'
+"""
+
         return self.query_statement_get_active_tickets_by_afiliation
 
     def builder_query_statement_get_ticket_by_ticket_id(self, ticket_id):
@@ -1185,3 +1196,12 @@ and status !='error'
         self.query_statement_get_reset_by_affiliation = \
             f"""SELECT * FROM cassia_reset where affiliation='{affiliation}' """
         return self.query_statement_get_reset_by_affiliation
+
+    def builder_query_statement_get_last_ticket_with_error(self, date):
+
+        self.query_statement_get_last_ticket_with_error = f"""
+select * from cassia_gs_tickets cgt
+where status ='error'
+and requested_at>='{date}'"""
+
+        return self.query_statement_get_last_ticket_with_error

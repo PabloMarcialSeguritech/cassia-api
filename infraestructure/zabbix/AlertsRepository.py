@@ -10,6 +10,7 @@ from infraestructure.cassia import CassiaConfigRepository
 from infraestructure.cassia import CassiaDiagnostaRepository
 from infraestructure.cassia import CassiaEventRepository
 from infraestructure.cassia import CassiaResetRepository
+from infraestructure.cassia import cassia_gs_tickets_repository
 from fastapi import status, HTTPException
 
 
@@ -40,7 +41,7 @@ async def get_exceptions_async(hostids: list):
                 lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
             exceptions['exception_message'] = exceptions.apply(
                 lambda
-                    x: f"Agencia: {x['agency_name']} --- Afectado desde: {x['diferencia']} --- Nota: {x['description']}",
+                x: f"Agencia: {x['agency_name']} --- Afectado desde: {x['diferencia']} --- Nota: {x['description']}",
                 axis=1)
             exceptions = exceptions.drop(
                 columns=['diferencia', 'dias', 'horas', 'minutos'])
@@ -81,7 +82,7 @@ async def get_exceptions(hostids: list, session):
                 lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
             exceptions['exception_message'] = exceptions.apply(
                 lambda
-                    x: f"Agencia: {x['agency_name']} --- Afectado desde: {x['diferencia']} --- Nota: {x['description']}",
+                x: f"Agencia: {x['agency_name']} --- Afectado desde: {x['diferencia']} --- Nota: {x['description']}",
                 axis=1)
             exceptions = exceptions.drop(
                 columns=['diferencia', 'dias', 'horas', 'minutos'])
@@ -259,7 +260,7 @@ async def process_sincronizados_data(problems, ping_loss_message, sincronizados:
             dependientes = dependientes.drop_duplicates(
                 subset=['depends_hostid'])
             problems.loc[problems.index == ind,
-            'dependents'] = len(dependientes)
+                         'dependents'] = len(dependientes)
 
     return problems
 
@@ -420,7 +421,7 @@ async def process_open_diagnosta_events(problems, sincronizados: pd.DataFrame, p
             dependientes = dependientes.drop_duplicates(
                 subset=['depends_hostid'])
             problems.loc[problems.index == ind,
-            'dependents'] = len(dependientes)
+                         'dependents'] = len(dependientes)
     return problems
 
 
@@ -650,7 +651,26 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
     if not affiliations_df.empty:
         # Realizar el merge para agregar las columnas de affiliations_df a problems
         problems = pd.merge(problems, affiliations_df, on='hostid', how='left')
-
+    last_error_tickets = await cassia_gs_tickets_repository.get_last_error_tickets()
+    problems['has_ticket'] = False
+    problems['ticket_id'] = None
+    problems['ticket_error'] = None
+    problems['ticket_status'] = None
+    for index in last_error_tickets.index:
+        problems.loc[problems['affiliation'] == last_error_tickets['afiliacion']
+                     [index], 'ticket_error'] = last_error_tickets['error'][index]
+        problems.loc[problems['affiliation'] == last_error_tickets['afiliacion']
+                     [index], 'ticket_status'] = 'error'
+    active_tickets = await cassia_gs_tickets_repository.get_active_tickets()
+    for index in active_tickets.index:
+        problems.loc[problems['affiliation'] == active_tickets['afiliacion']
+                     [index], 'has_ticket'] = True
+        problems.loc[problems['affiliation'] == active_tickets['afiliacion']
+                     [index], 'ticket_id'] = active_tickets['ticket_id'][index]
+        problems.loc[problems['affiliation'] == active_tickets['afiliacion']
+                     [index], 'ticket_error'] = None
+        problems.loc[problems['affiliation'] == active_tickets['afiliacion']
+                     [index], 'ticket_status'] = active_tickets['status'][index]
     return problems
 
 
@@ -687,6 +707,3 @@ async def get_cassia_acks(eventids) -> pd.DataFrame:
                             detail=f"Error en get_cassia_acks {e}")
     finally:
         await db_model.close_connection()
-
-
-

@@ -36,7 +36,7 @@ async def create_ticket(ticket_data: cassia_gs_ticket_schema.CassiaGSTicketSchem
                             detail="Ya existe un ticket activo en esta afiliación")
 
     created_ticket = await cassia_gs_tickets_repository.create_ticket(host_data.loc[0].to_dict(), ticket_data.comment, current_session.mail)
-    save_ticket_data = await cassia_gs_tickets_repository.save_ticket_data(ticket_data, host_data.loc[0].to_dict(), created_ticket, current_session.user_id)
+    save_ticket_data = await cassia_gs_tickets_repository.save_ticket_data(ticket_data, host_data.loc[0].to_dict(), created_ticket, current_session)
     return success_response(message="Ticket solicitado correctamente")
 
 

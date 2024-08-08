@@ -9,8 +9,32 @@ from azure.servicebus import ServiceBusClient, ServiceBusMessage
 from schemas import cassia_gs_ticket_schema
 from models import cassia_gs_tickets, cassia_gs_tickets_detail
 from utils import traits
+from datetime import datetime, timedelta
 SETTINGS = Settings()
 gs_connection_string = SETTINGS.gs_connection_string
+
+
+async def get_last_error_tickets():
+    db_model = DB()
+    try:
+        now = traits.get_datetime_now_with_tz()
+        date = now - timedelta(hours=2)
+        formatted_time = date.strftime("%Y-%m-%d %H:%M:%S")
+        query_get_active_gs_tickets = DBQueries(
+        ).builder_query_statement_get_last_ticket_with_error(formatted_time)
+        await db_model.start_connection()
+
+        tickets_error_data = await db_model.run_query(query_get_active_gs_tickets)
+        tickets_error_df = pd.DataFrame(
+            tickets_error_data).replace(np.nan, None)
+        return tickets_error_df
+
+    except Exception as e:
+        print(f"Excepcion en get_last_error_tickets: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_last_error_tickets: {e}")
+    finally:
+        await db_model.close_connection()
 
 
 async def get_active_tickets():
@@ -114,7 +138,7 @@ async def create_ticket(host_data, comment, mail):
         "serviceId": 3738,
         "location": "BAJ01-ARC-MEXI-003",
         "comment": comment,
-        "engineer": "engineer.cassia@seguritech.com",
+        "engineer": mail,
         "serialNumber": "864606041949339"
     } """
     message_data = {
@@ -170,20 +194,22 @@ async def create_ticket_comment(ticket_data: cassia_gs_ticket_schema.CassiaGSTic
                             detail="Error al agregar comentario al ticket en SGS")
 
 
-async def save_ticket_data(ticket_data, host_data, created_ticket, user_id) -> pd.DataFrame:
+async def save_ticket_data(ticket_data, host_data, created_ticket, user) -> pd.DataFrame:
     db_model = DB()
     try:
         session = await db_model.get_session()
         now = traits.get_datetime_now_with_tz()
         cassia_gs_ticket = cassia_gs_tickets.CassiaGSTicketsModel(
-            user_id=user_id,
+            user_id=user.user_id,
             afiliacion=host_data['alias'],
             no_serie=host_data['hardware_no_serie'],
             host_id=ticket_data.hostid,
-            created_at=now,
             last_update=now,
             status="solicitado",
-            message_id=created_ticket.message_id
+            message_id=created_ticket.message_id,
+            requested_at=now,
+            created_with_mail=None,
+            user_mail=user.mail
         )
 
         session.add(cassia_gs_ticket)
@@ -210,13 +236,14 @@ async def save_ticket_comment_data(ticket_data, created_ticket_comment, mail, cr
             type=created_ticket_comment.subject,
             comment=ticket_data.comment,
             status="creado",
-            created_at=now,
             user_email=mail,
             file_url=None,
             last_update=now,
-            message_id=created_ticket_comment.message_id
+            message_id=created_ticket_comment.message_id,
+            requested_at=now,
+            created_at=now,
+            created_with_mail='engineer.cassia@seguritech.com'
         )
-
         session.add(cassia_gs_ticket_detail)
         await session.commit()
         await session.refresh(cassia_gs_ticket_detail)
