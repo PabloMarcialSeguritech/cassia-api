@@ -16,7 +16,6 @@ from fastapi.responses import JSONResponse
 import json
 
 
-
 class ResetServiceImpl(ResetServiceFacade):
     settings = None
 
@@ -212,113 +211,38 @@ class ResetServiceImpl(ResetServiceFacade):
         devices_related_df = await CassiaResetRepository.get_devices_related_layer1(hostid)
         return devices_related_df
 
-    async def reset_pmi(self, afiliacion, hostid):
+    async def reset_pmi(self, afiliacion):
         # Checar estatus de dispositivos en PMI
-        devices_pmi_df = await self.get_devices_pmi(hostid)
-        devices_pmi_status_connection_df = await self.get_devices_pmi_status_connection(devices_pmi_df)
+        devices_pmi_df = await self.get_devices_pmi(afiliacion)
+        print("devices_pmi_df[deviceid = 4]::::::::::::::::::::::::", devices_pmi_df['device_id'].eq(4))
+
+        devices_pmi_status_connection_df = await self.get_devices_pmi_status_connection(
+            devices_pmi_df, is_initial_status=True)  # PMI ddispositivos estado inicial
+        print("Estado inicial PMI::::", devices_pmi_status_connection_df)
         pmi_status: bool = False
         object_id = await self.get_object_id_by_affiliation(afiliacion)
         print("object_id:::::::", object_id)
-        is_pmi_up = await self.is_pmi_up(devices_pmi_status_connection_df)
-
+        is_pmi_up = await self.is_pmi_up(devices_pmi_status_connection_df, is_initial_status=True)
+        response = None
         if is_pmi_up:
             print("PMI arriba")
-            pmi_status = True
-            response = None
-            if object_id:
-             response = await self.send_request_api_reset(object_id)
-            else:
-                return failure_response(message="Object ID necesario para la petición")
-            if not await self.is_response_good(response):
-                print("PMI Arriba No se realizó con éxito el reset, hubo falla en la petición")
-                return failure_response(message="PMI Arriba No se realizó con éxito el reset, hubo falla en la petición")
-
-            # Monitorear durante 4 minutos para verificar que todo esté abajo
-            timeout_offline = 4 * 60  # 4 minutos
-            start_time_offline = time.time()
-            devices_pmi_status_df = None
-
-            while True:
-                try:
-                    # Ping de todos los dispositivos
-                    devices_pmi_status_df = await self.get_devices_pmi_status_connection(devices_pmi_df)
-                    # Evaluar si todos los dispositivos están abajo
-                    is_pmi_up = await self.is_pmi_up(devices_pmi_status_df)
-
-                    if not is_pmi_up:
-                        # Verificar que todos estén arriba nuevamente
-                        pmi_status, devices_pmi_status_df = await self.monitoring_all_devices_up(devices_pmi_df)
-
-                        if pmi_status:
-                            print("Reset de PMI exitoso")
-                            # El listado de dispositivos con el estatus y mensaje de respuesta
-                            return success_response(
-                                data=devices_pmi_status_df.to_dict(orient="records"),
-                                message="Reset de PMI exitoso"
-                            )
-                        else:
-                            print("Reset de PMI no exitoso")
-                            return failure_response(
-                                message="No se realizó con éxito el reset"
-                            )
-                    else:
-                        # Al menos un dispositivo está arriba
-                        # Monitorear los dispositivos y si al menos uno está abajo, se realizó el reset
-                        pmi_status, devices_pmi_status_df = await self.monitoring_all_devices_up(devices_pmi_df)
-                        is_any_device_pmi_up = await self.is_any_pmi_up(devices_pmi_status_df)
-                        if not is_any_device_pmi_up:
-                            return success_response(
-                                data=devices_pmi_status_df.to_dict(orient="records"),
-                                message="Reset de PMI exitoso"
-                            )
-                except Exception as e:
-                    print(f"Error durante ping de PMIs: {str(e)}")
-                    return failure_response(message="Error durante ping de PMIs")
-
-                if time.time() - start_time_offline > timeout_offline:
-                    print("Tiempo fuera de línea agotado en PMI.")
-                    # Al terminar los 5 minutos to-do sigue arriba
-                    if is_pmi_up:
-                        return failure_response(message="No se realizó con éxito el reset, PMI sigue conectado",
-                                                recommendation="Reintentar el reset")
-
-                    return failure_response(message="Verificación de reboot tiempo de espera agotado para PMI")
-
-                # Ajustar el intervalo entre intentos de ping
-                await asyncio.sleep(10)
+            # caso de reset cuando todos los disp de reset comienzan en up
+            return await self.reset_pmi_case_all_up(object_id, devices_pmi_df)
         else:
             print("PMI abajo total")
-            pmi_status = False
-            if object_id:
-                response = await self.send_request_api_reset(object_id)
-            else:
-                return failure_response(message="Object ID necesario para la petición")
-            if not await self.is_response_good(response):
-                print("No se realizó con éxito el reset, hubo falla en la petición")
-                # Agregar la lógica para retornar el error por endpoint
-                return failure_response(message="Verificación de reboot tiempo de espera agotado para PMI")
+            # caso de reset cuando todos los disp de reset comienzan en down
+            return await self.reset_pmi_case_all_down(object_id, devices_pmi_df)
 
-            pmi_status, devices_pmi_status_df = await self.monitoring_all_devices_up(devices_pmi_df)
-
-            if pmi_status:
-                print("Reset de PMI exitoso")
-                # El listado de dispositivos con el estatus y mensaje de respuesta
-                return success_response(
-                    data=devices_pmi_status_df.to_dict(orient="records"),
-                    message="Reset de PMI exitoso"
-                )
-
-            return failure_response(message="No se realizó con éxito el reset")
-
-    async def get_devices_pmi(self, hostid):
-        devices_related_df = await CassiaResetRepository.get_devices_related_layer1(hostid)
+    async def get_devices_pmi(self, affiliation):
+        devices_related_df = await CassiaResetRepository.get_devices_related_layer1(affiliation)
         return devices_related_df
 
     '''
         Extraer lo objs por separa y mandar hacer ping 
         devuelve un un atributo de columna que es su estatus
     '''
-    async def get_devices_pmi_status_connection(self, devices_pmi_df):
+
+    async def get_devices_pmi_status_connection(self, devices_pmi_df, is_initial_status):
         # Lista para almacenar las tareas
         tasks = []
         for _, row in devices_pmi_df.iterrows():
@@ -338,8 +262,10 @@ class ResetServiceImpl(ResetServiceFacade):
         results = await asyncio.gather(*tasks)
 
         # Asignar los resultados a las columnas del DataFrame
-        devices_pmi_df['status'] = [result[0] for result in results]
-        devices_pmi_df['ping_message'] = [result[1] for result in results]
+        if is_initial_status:
+            devices_pmi_df['initial_status'] = [result[0] for result in results]
+        else:
+            devices_pmi_df['current_status'] = [result[0] for result in results]
 
         return devices_pmi_df
 
@@ -460,23 +386,40 @@ class ResetServiceImpl(ResetServiceFacade):
         ip_proxy, user_proxy, password_proxy = await CassiaResetRepository.get_credentials_for_proxy(ip)
         return ip_proxy, user_proxy, password_proxy
 
-    async def is_pmi_up(self, devices_pmi_status_connection_df):
+    async def is_pmi_up(self, devices_pmi_status_connection_df, is_initial_status):
 
-        # Verificar si todos los dispositivos 'True'
-        if devices_pmi_status_connection_df['status'].eq(True).all():
-            return True
-        elif devices_pmi_status_connection_df['status'].eq(False).all():
-            return False
+        if is_initial_status:
+            # Verificar si todos los dispositivos 'True' con initial status
+            if devices_pmi_status_connection_df['initial_status'].eq(True).all():
+                return True
+            elif devices_pmi_status_connection_df['initial_status'].eq(False).all():
+                return False
+            else:
+                return False
         else:
-            return False
+            # Verificar si todos los dispositivos 'True'
+            if devices_pmi_status_connection_df['current_status'].eq(True).all():
+                return True
+            elif devices_pmi_status_connection_df['current_status'].eq(False).all():
+                return False
+            else:
+                return False
 
     async def is_any_pmi_up(self, devices_pmi_status_connection_df):
 
         # Verificar si al menos uno de los dispositivos filtrados tiene el estado 'True'
-        if devices_pmi_status_connection_df['status'].eq(True).any():
-            return True
+        if devices_pmi_status_connection_df['current_status'].eq(True).any():
+            return True # regresa a true si al menos un disp esta arriba
         else:
-            return False
+            return False # regresa false si todos los dispositivos estan abajo
+
+    async def is_any_pmi_down(self, devices_pmi_status_connection_df):
+
+        # Verificar si al menos uno de los dispositivos filtrados tiene el estado 'False'
+        if devices_pmi_status_connection_df['current_status'].eq(False).any():
+            return True # regresa a true si al menos un disp esta abajo
+        else:
+            return False # regresa false si todos los dispositivos estan arriba
 
     async def get_object_id_by_affiliation(self, affiliation):
         reset_df = await CassiaResetRepository.get_reset_by_affiliation(affiliation)
@@ -503,7 +446,7 @@ class ResetServiceImpl(ResetServiceFacade):
         try:
 
             response = requests.post(
-                f'http://172.16.4.191:5978/api/secure/device/{object_id}/cmd/relayctl',
+                f'http://st.gruposeguritech.com:5978/api/secure/device/{object_id}/cmd/relayctl',
                 json={
                     "operation": "pulse",
                     "relay": 1,
@@ -556,17 +499,19 @@ class ResetServiceImpl(ResetServiceFacade):
             # Manejar cualquier excepción al interpretar el JSON
             print(f"Error al interpretar el JSON: {e}")
             return False
-    async def monitoring_all_devices_up(self, devices_pmi_df):
-        pmi_status:bool = False
+
+    async def monitoring_any_device_up(self, devices_pmi_df):
+        pmi_status: bool = False
         timeout_offline = 5 * 60  # 5 min
         start_time_offline = time.time()
         devices_pmi_status_df = None
         while True:
             try:
                 # ping de todos los dispositivos
-                devices_pmi_status_df = await self.get_devices_pmi_status_connection(devices_pmi_df)
+                devices_pmi_status_df = await self.get_devices_pmi_status_connection(devices_pmi_df,
+                                                                                     is_initial_status=False)
                 # evaluar si hay algun dispositivo que ya se levanto
-                is_any_device_up = self.is_pmi_up(devices_pmi_status_df)
+                is_any_device_up = self.is_any_pmi_up(devices_pmi_status_df)  #is_pmi_up(devices_pmi_status_df, is_initial_status=False)
                 if is_any_device_up:
                     # si ya se levanto uno salir del while, sino manetenerse
                     pmi_status = True
@@ -582,3 +527,83 @@ class ResetServiceImpl(ResetServiceFacade):
             time.sleep(10)
 
         return pmi_status, devices_pmi_status_df
+
+    async def reset_pmi_case_all_up(self, object_id, devices_pmi_df):
+        pmi_status = True
+        response = None
+        if object_id:
+            response = await self.send_request_api_reset(object_id)
+        else:
+            return failure_response(message="Object ID necesario para la petición")
+        if not await self.is_response_good(response):
+            print("PMI Arriba No se realizó con éxito el reset, hubo falla en la petición")
+            return failure_response(message="PMI Arriba No se realizó con éxito el reset, hubo falla en la petición")
+        # Monitorear durante 4 minutos para verificar que to-do esté abajo
+        timeout_offline = 4 * 60  # 4 minutos
+        start_time_offline = time.time()
+        devices_pmi_status_df = None
+        while True:
+            try:
+                # Ping de todos los dispositivos
+                devices_pmi_status_df = await self.get_devices_pmi_status_connection(devices_pmi_df,
+                                                                                     is_initial_status=False)
+                # Evaluar si al menos uno está abajo
+                is_pmi_down = await self.is_any_pmi_down(devices_pmi_status_df)   #is_pmi_up(devices_pmi_status_df, is_initial_status=False)
+                if is_pmi_down:
+                    # Verificar que al menos uno este arriba
+                    pmi_status, devices_pmi_status_df = await self.monitoring_any_device_up(devices_pmi_df)
+                    if pmi_status:
+                        print("Reset de PMI exitoso")
+                        # El listado de dispositivos con el estatus y mensaje de respuesta
+                        return success_response(
+                            data=devices_pmi_status_df.to_dict(orient="records"),
+                            message="Reset de PMI exitoso"
+                        )
+                    else:
+                        print("Reset de PMI no exitoso")
+                        return failure_response(
+                            data=devices_pmi_status_df.to_dict(orient="records"),
+                            message="No se realizó con éxito el reset"
+                        )
+            except Exception as e:
+                print(f"Error durante ping de PMIs: {str(e)}")
+                return failure_response(message="Error durante ping de PMIs")
+
+            if time.time() - start_time_offline > timeout_offline:
+                print("Tiempo fuera de línea agotado en PMI.")
+                # Al terminar los 5 minutos to-do sigue arriba
+                if not is_pmi_down:
+                    print("not is_pmi_down")
+                    return failure_response(message="No se realizó con éxito el reset, PMI sigue conectado",
+                                            recommendation="Reintentar el reset",
+                                            data=devices_pmi_status_df.to_dict(orient="records"))
+                print("if is_pmi_up:")
+                return failure_response(message="Verificación de reboot tiempo de espera agotado para PMI")
+
+            # Ajustar el intervalo entre intentos de ping
+            await asyncio.sleep(10)
+
+    async def reset_pmi_case_all_down(self, object_id, devices_pmi_df):
+        pmi_status = False
+        if object_id:
+            response = await self.send_request_api_reset(object_id)
+        else:
+            return failure_response(message="Object ID necesario para la petición")
+        if not await self.is_response_good(response):
+            print("No se realizó con éxito el reset, hubo falla en la petición")
+            # Agregar la lógica para retornar el error por endpoint
+            return failure_response(message="No se realizó con éxito el reset, hubo falla en la petición")
+
+        pmi_status, devices_pmi_status_df = await self.monitoring_any_device_up(devices_pmi_df)
+
+        if pmi_status:
+            print("Reset de PMI exitoso")
+            # El listado de dispositivos con el estatus y mensaje de respuesta
+            return success_response(
+                data=devices_pmi_status_df.to_dict(orient="records"),
+                message="Reset de PMI exitoso"
+            )
+
+        return failure_response(message="No se realizó con éxito el reset")
+
+
