@@ -49,11 +49,11 @@ async def get_acks(eventid, is_cassia_event):
     # Obtiene el acumulado del evento hasta la fecha
     diff = now-clock_problem
     acumulated_cassia = round(diff.days*24 + diff.seconds/3600, 4)
-    messages.append({'type': 'event_creation',
+    messages.append({'type': 'Creación de evento',
                      'message': 'Creación del evento.',
                      'date': clock_problem,
                      'user': None})
-    messages.append({'type': 'end',
+    messages.append({'type': 'Progreso del evento a la fecha.',
                      'message': f'Acumulado del evento: {acumulated_cassia} hrs.',
                      'date': now_str,
                      'user': None})
@@ -61,7 +61,7 @@ async def get_acks(eventid, is_cassia_event):
 
     event_acknowledges = await AcknowledgesRepository.get_acknowledges(eventid, is_cassia_event)
     for ind in event_acknowledges.index:
-        messages.append({'type': 'acknowledge',
+        messages.append({'type': 'Acknowledge',
                          'message': event_acknowledges['message'][ind],
                          'date': event_acknowledges['Time'][ind],
                          'user': event_acknowledges['user'][ind]})
@@ -69,24 +69,25 @@ async def get_acks(eventid, is_cassia_event):
     if not event_tickets.empty:
         ticket = event_tickets.loc[0].to_dict()
         if ticket['requested_at'] is not None:
-            messages.append({'type': 'ticket_request',
+            messages.append({'type': 'Solicitud de ticket',
                              'message': "Ticket solicitado",
                              'date': ticket['requested_at'],
                              'user': ticket['user_mail']})
         if ticket['created_at'] is not None:
-            messages.append({'type': 'ticket_created',
+            messages.append({'type': 'Creación de ticket',
                              'message': f"Ticket creado con folio {ticket['ticket_id']} con correo {ticket['created_with_mail']}",
                              'date': ticket['created_at'],
                              'user': ticket['user_mail']})
         ticket_detail = await cassia_gs_tickets_repository.get_ticket_detail_by_ticket_id(ticket['ticket_id'])
         for ind in ticket_detail.index:
             if ticket_detail['status'][ind] == 'creado':
-
-                messages.append({'type': 'ticket_comment',
-                                 'message': f"Tipo: {ticket_detail['type'][ind]} - Comentario: {ticket_detail['comment'][ind]} - Correo utilizado: {ticket_detail['created_with_mail'][ind]}",
+                tipo = "Nota interna" if ticket_detail['type'][
+                    ind] == "ticketcommentinternalnote" else "Avance y solución" if ticket_detail['type'][ind] == "ticketcommentprogresssolution" else "Comentario"
+                messages.append({'type': 'Comentario de ticket',
+                                 'message': f"Tipo: {tipo} - Comentario: {ticket_detail['comment'][ind]}",
                                  'date': ticket_detail['created_at'][ind],
                                  'user': ticket_detail['user_email'][ind]})
-    print(messages)
+
     messages = sorted(messages, key=lambda x: parse_date(
         x["date"]) or datetime.min)
     return success_response(data=messages)
