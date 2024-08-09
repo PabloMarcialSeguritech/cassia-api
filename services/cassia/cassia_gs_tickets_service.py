@@ -28,7 +28,12 @@ async def create_ticket(ticket_data: cassia_gs_ticket_schema.CassiaGSTicketSchem
     if host_data.empty:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Host no encontrado")
-
+    if host_data['alias'][0] == "" or host_data['alias'][0] is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="La afiliación de este host no esta configurada")
+    if host_data['hardware_no_serie'][0] == "" or host_data['hardware_no_serie'][0] is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="El numero de serie de este host no esta configurado")
     created_tickets_to_afiliation = await cassia_gs_tickets_repository.get_active_tickets_by_afiliation(
         host_data['alias'][0])
     if not created_tickets_to_afiliation.empty:
