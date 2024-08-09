@@ -271,7 +271,7 @@ class ResetServiceImpl(ResetServiceFacade):
     async def async_ping(self, ip, ssh_host, ssh_user, ssh_pass):
         try:
             tasks = {
-                #asyncio.create_task(self.async_ping_by_local(ip)),
+                # asyncio.create_task(self.async_ping_by_local(ip)),
                 asyncio.create_task(self.async_ping_by_proxy(
                     ip, ssh_host, ssh_user, ssh_pass))
             }
@@ -632,13 +632,22 @@ class ResetServiceImpl(ResetServiceFacade):
         if all(pmiDevices_initState['statusInicial'] == False):
             print("**** Todos los dispositivos están caídos inicialmente. ****")
             pmiStatusRecuperacion, pmiDetalleRecuperacion = await self.monitorear_recuperacion(pmiDevices_initState,
-                                                                                          recovery_time=60)  # Monitorear la recuperación durante un tiempo
+                                                                                               recovery_time=360)  # Monitorear la recuperación durante un tiempo
+            '''
             response = {
                 'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron en desconectados/down',
                 'pmiStatusRecuperacion': pmiStatusRecuperacion,
                 'pmiDetalleRecuperacion': pmiDetalleRecuperacion
             }
-            return response
+            '''
+
+            response = {
+                'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron en desconectados/down',
+                'action': pmiStatusRecuperacion,
+                'pmiDetalleRecuperacion': pmiDetalleRecuperacion
+            }
+
+            return success_response(message=pmiDetalleRecuperacion, success=pmiStatusRecuperacion, data=response)
 
         # Caso 2: Todos son up :
         ## Step 1: Monitorear durante un DownTime la caida de algun dispositivo que esta en up originalmente
@@ -647,55 +656,92 @@ class ResetServiceImpl(ResetServiceFacade):
             print("**** Todos los dispositivos están conectados inicialmente. ****")
             ## monitorear caida
             pmiStatusShutDown, pmiDetalleShutDown = await self.monitorear_apagado_fromAllUp(pmiDevices_initState,
-                                                                                       shutDown_time=60)
+                                                                                            shutDown_time=90)
 
             if not pmiStatusShutDown:  # si ningun dispositivo cae
+                '''
                 response = {
                     'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron conectados/up',
                     'pmiStatusRecuperacion': False,
                     'pmiDetalleRecuperacion': pmiDetalleShutDown
                 }
-                return response
+                '''
+                response = {
+                    'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron conectados/up',
+                    'action': False,
+                    'pmiDetalleRecuperacion': pmiDetalleShutDown
+                }
+
+                return failure_response(message=pmiDetalleShutDown, data=response)
 
             ## monitorear recuperacion
             pmiStatusRecuperacion, pmiDetalleRecuperacion = await self.monitorear_recuperacion(pmiDevices_initState,
-                                                                                          recovery_time=60)  # Monitorear la recuperación durante un tiempo
+                                                                                               recovery_time=360)  # Monitorear la recuperación durante un tiempo
+            '''
             response = {
                 'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron conectados/up',
                 'pmiStatusRecuperacion': pmiStatusRecuperacion,
                 'pmiDetalleRecuperacion': pmiDetalleRecuperacion
             }
-            return response
+            '''
+
+            response = {
+                'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron conectados/up',
+                'action': pmiStatusRecuperacion,
+                'pmiDetalleRecuperacion': pmiDetalleRecuperacion
+            }
+
+            return success_response(message=pmiDetalleRecuperacion, success=pmiStatusRecuperacion, data=response)
+
         # Caso 3: No todos comienzan ni up ni down
         # Step1: Monitorear durante un DownTime la caida de un dispositivo que anteriormente estuvo arriba
         # Step2: Monitorear durante un recoveryTime la recuperación de dispositivos
         if not all(pmiDevices_initState['statusInicial'] == True) and not all(
-            pmiDevices_initState['statusInicial'] == False):
+                pmiDevices_initState['statusInicial'] == False):
             print(
-                    "**** No todos los dispositivos están ni completamente conectados ni completamente desconectados inicialmente. ****")
+                "**** No todos los dispositivos están ni completamente conectados ni completamente desconectados inicialmente. ****")
 
             ## Monitorear caída de un dispositivo que estaba up inicialmente
             pmiStatusShutDown, pmiDetalleShutDown = await self.monitorear_caida_fromMixedState(pmiDevices_initState,
-                                                                                              shutDown_time=60)
+                                                                                               shutDown_time=90)
 
             if not pmiStatusShutDown:  # si ningún dispositivo que estaba arriba cae
+                '''
                 response = {
-                        'pmiStatusInicialMessage': 'Dispositivos del pmi comenzaron en estados mixtos (algunos up, otros down)',
-                        'pmiStatusRecuperacion': False,
-                        'pmiDetalleRecuperacion': pmiDetalleShutDown
-                    }
-                return response
+                    'pmiStatusInicialMessage': 'Dispositivos del pmi comenzaron en estados mixtos (algunos up, otros down)',
+                    'pmiStatusRecuperacion': False,
+                    'pmiDetalleRecuperacion': pmiDetalleShutDown
+                }
+                '''
+
+                response = {
+                    'pmiStatusInicialMessage': 'Dispositivos del pmi comenzaron en estados mixtos (algunos up, otros down)',
+                    'action': False,
+                    'pmiDetalleRecuperacion': pmiDetalleShutDown
+                }
+
+                return failure_response(message=pmiDetalleShutDown, data=response)
 
                 ## Monitorear recuperación de dispositivos
             pmiStatusRecuperacion, pmiDetalleRecuperacion = await self.monitorear_recuperacion(pmiDevices_initState,
-                                                                                              recovery_time=60)
+                                                                                               recovery_time=360)
             # Monitorear la recuperación durante un tiempo
+
+            '''
             response = {
-                    'pmiStatusInicialMessage': 'Dispositivos del pmi comenzaron en estados mixtos (algunos up, otros down)',
-                    'pmiStatusRecuperacion': pmiStatusRecuperacion,
-                    'pmiDetalleRecuperacion': pmiDetalleRecuperacion
+                'pmiStatusInicialMessage': 'Dispositivos del pmi comenzaron en estados mixtos (algunos up, otros down)',
+                'pmiStatusRecuperacion': pmiStatusRecuperacion,
+                'pmiDetalleRecuperacion': pmiDetalleRecuperacion
             }
-            return response
+            '''
+
+            response = {
+                'pmiStatusInicialMessage': 'Dispositivos del pmi comenzaron en estados mixtos (algunos up, otros down)',
+                'action': pmiStatusRecuperacion,
+                'pmiDetalleRecuperacion': pmiDetalleRecuperacion
+            }
+
+            return success_response(message=pmiDetalleRecuperacion, success=pmiStatusRecuperacion, data=response)
 
         return {}
 
@@ -723,7 +769,6 @@ class ResetServiceImpl(ResetServiceFacade):
             print("ip para credenciales proxy: ", ip)
             has_proxy, proxy_credentials = await self.proxy_validation(ip)
             if has_proxy:
-                print("ssh proxy credentials: ", proxy_credentials)
                 proxy_ip = proxy_credentials['ip_proxy']
                 proxy_user = proxy_credentials['user_proxy']
                 proxy_password = proxy_credentials['password_proxy']
@@ -748,7 +793,6 @@ class ResetServiceImpl(ResetServiceFacade):
             print("ip para credenciales proxy: ", ip)
             has_proxy, proxy_credentials = await self.proxy_validation(ip)
             if has_proxy:
-                print("ssh proxy credentials: ", proxy_credentials)
                 proxy_ip = proxy_credentials['ip_proxy']
                 proxy_user = proxy_credentials['user_proxy']
                 proxy_password = proxy_credentials['password_proxy']
@@ -773,7 +817,6 @@ class ResetServiceImpl(ResetServiceFacade):
             print("ip para credenciales proxy: ", ip)
             has_proxy, proxy_credentials = await self.proxy_validation(ip)
             if has_proxy:
-                print("ssh proxy credentials: ", proxy_credentials)
                 proxy_ip = proxy_credentials['ip_proxy']
                 proxy_user = proxy_credentials['user_proxy']
                 proxy_password = proxy_credentials['password_proxy']
@@ -835,7 +878,6 @@ class ResetServiceImpl(ResetServiceFacade):
 
         print("Ningún dispositivo ha caído durante el tiempo de apagado.")
         return False, "Ningún dispositivo de PMI ha caído durante el tiempo de apagado, el reset no parece haber funcionado."
-
 
     async def monitorear_caida_fromMixedState(self, dispositivos, shutDown_time):
         """
