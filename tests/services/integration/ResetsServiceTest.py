@@ -70,7 +70,7 @@ class ResetsServiceTest(unittest.TestCase):
 
         self.loop.run_until_complete(async_test())
 
-    @unittest.skip("Omit test_extract_device_info")
+
     def test_compare_and_add_or_update_reset(self):
         print("> Entrando test_compare_and_add_or_update_reset <")
 
@@ -178,7 +178,7 @@ class ResetsServiceTest(unittest.TestCase):
 
         self.loop.run_until_complete(async_test())
 
-
+    @unittest.skip("Omit test_reset_pmi_5_min_arriba")
     def test_reset_pmi_5_min_arriba(self):
         print("> Entrando test_reset_pmi <")
         '''
