@@ -206,10 +206,10 @@ async def get_affiliations_by_hosts_ids(hosts_ids: list):
         session = await db_model.get_session()
         # RESETS
         query = text(
-            "SELECT DISTINCT h.hostid, RIGHT(h.host, 16) AS affiliation, "
+            "SELECT DISTINCT hi.hostid, hi.alias as affiliation, "
             "CASE WHEN cr.object_id IS NOT NULL THEN TRUE ELSE FALSE END as object_id "
-            "FROM hosts h INNER JOIN host_inventory hi ON h.hostid = hi.hostid LEFT JOIN "
-            "cassia_reset cr ON RIGHT(h.host, 16) = cr.affiliation WHERE h.hostid in :hostids ")
+            "FROM host_inventory hi LEFT JOIN cassia_reset cr on hi.alias = cr.affiliation "
+            "WHERE hi.hostid in :hostids ")
         affiliations = pd.DataFrame(await session.execute(
             query, {'hostids': hosts_ids})).replace(np.nan, "")
         return affiliations
