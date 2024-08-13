@@ -231,6 +231,8 @@ and status !='error'"""
         # RESETS
         self. query_statement_get_reset_by_affiliation = None
 
+        self.query_statement_get_service_id = """SELECT * FROM cassia_config where name='gs_service_id'"""
+
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
         return self.query_statement_get_metrics_template
@@ -263,12 +265,15 @@ where cassia_arch_traffic_events_id ={eventid}"""
         return self.query_statement_get_cassia_event_tickets
 
     def builder_query_statement_get_zabbix_event(self, eventid):
-        self.query_statement_get_zabbix_event = f"""select p.eventid ,p.clock,hi.alias  from events p
-inner join items i on i.itemid =p.objectid 
-inner join host_inventory hi on hi.hostid =i.hostid 
-INNER JOIN functions f ON (i.itemid=f.itemid)
-INNER JOIN triggers t ON (f.triggerid=t.triggerid)
-where eventid ='{eventid}'"""
+        self.query_statement_get_zabbix_event = f"""SELECT e.eventid, e.clock, hi.alias 
+FROM events e
+JOIN triggers t ON e.objectid = t.triggerid
+JOIN functions f ON t.triggerid = f.triggerid
+JOIN items i ON f.itemid = i.itemid
+JOIN hosts h ON i.hostid = h.hostid
+JOIN host_inventory hi ON h.hostid = hi.hostid
+WHERE e.eventid = {eventid}
+LIMIT 1"""
         return self.query_statement_get_zabbix_event
 
     def builder_query_statement_get_last_zabbix_event_acknowledge(self, eventid):
@@ -1205,3 +1210,37 @@ where status ='error'
 and requested_at>='{date}'"""
 
         return self.query_statement_get_last_ticket_with_error
+
+    def builder_query_statement_get_serial_numbers_by_host_ids(self, hostids):
+
+        self.query_statement_get_serial_numbers_by_host_ids = f"""
+WITH LatestHistory AS (
+    SELECT 
+        cch.element_id,
+        cch.hardware_no_serie,
+        cch.closed_at,
+        ROW_NUMBER() OVER (PARTITION BY cch.element_id ORDER BY cch.closed_at DESC) AS rn
+    FROM 
+        cassia_ci_history cch
+    INNER JOIN 
+        cassia_ci_element cce 
+    ON 
+        cch.element_id = cce.element_id
+    WHERE 
+        cce.host_id IN ({hostids}) 
+        AND cch.status = "Cerrada"
+)
+SELECT 
+    cce.host_id as hostid,
+    lh.hardware_no_serie as no_serie
+FROM 
+    cassia_ci_element cce
+INNER JOIN 
+    LatestHistory lh 
+ON 
+    cce.element_id = lh.element_id
+WHERE 
+    lh.rn = 1
+    AND cce.host_id IN ({hostids});"""
+
+        return self.query_statement_get_serial_numbers_by_host_ids
