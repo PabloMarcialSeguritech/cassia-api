@@ -15,5 +15,5 @@ resets_router = APIRouter(prefix="/resets")
 )
 async def reset_pmi_async(affiliation: str = ""):
     reset_service = ResetServiceImpl()
-    result = await reset_service.reset_pmi(affiliation)
+    result = await reset_service.reset(affiliation)
     return result
