@@ -102,7 +102,7 @@ async def get_host_alerts(hostid):
         ping_loss_message = await CassiaConfigRepository.get_config_ping_loss_message()
 
         zabbix_alerts = await normalizar_alertas_zabbix(zabbix_alerts, ping_loss_message)
-        zabbix_alerts = await eliminar_downs_zabbix(zabbix_alerts, ping_loss_message)
+        """ zabbix_alerts = await eliminar_downs_zabbix(zabbix_alerts, ping_loss_message) """
         cassia_alerts = await get_host_cassia_alerts(hostid)
 
         problems = zabbix_alerts
@@ -140,6 +140,84 @@ async def get_host_alerts(hostid):
             exceptions = await get_exceptions_async(problems['hostid'].to_list())
             problems = pd.merge(problems, exceptions, on='hostid',
                                 how='left').replace(np.nan, None)
+
+        if not problems.empty:
+            problems_zabbix = problems[problems['local'] == 0]
+            problems_zabbix_ids = problems_zabbix['eventid']
+            zabbix_eventids = '0'
+            if not problems_zabbix.empty:
+                zabbix_eventids = ','.join(
+                    problems_zabbix_ids.astype('str').to_list())
+            # AQUI
+            print(zabbix_eventids)
+            acks_zabbix = await get_zabbix_acks(zabbix_eventids)
+            print(acks_zabbix)
+            if not acks_zabbix.empty:
+                acks_zabbix_mensajes = acks_zabbix.groupby('eventid')[
+                    'message'].agg(lambda x: ' | '.join(x)).reset_index()
+                acks_zabbix_mensajes.columns = [
+                    'eventid', 'acknowledges_concatenados']
+            else:
+                acks_zabbix_mensajes = pd.DataFrame(
+                    columns=['eventid', 'acknowledges_concatenados'])
+            problems_zabbix = pd.merge(
+                problems_zabbix, acks_zabbix_mensajes, how='left', on='eventid').replace(np.nan, None)
+            problems_cassia = problems[problems['local'] == 1]
+            problems_cassia_ids = problems_cassia['eventid']
+            cassia_eventids = '0'
+            if not problems_cassia.empty:
+                cassia_eventids = ','.join(
+                    problems_cassia_ids.astype('str').to_list())
+
+            acks_cassia = await get_cassia_acks(cassia_eventids)
+            if not acks_cassia.empty:
+                acks_cassia_mensajes = acks_cassia.groupby('eventid')[
+                    'message'].agg(lambda x: ' | '.join(x)).reset_index()
+                acks_cassia_mensajes.columns = [
+                    'eventid', 'acknowledges_concatenados']
+            else:
+                acks_cassia_mensajes = pd.DataFrame(
+                    columns=['eventid', 'acknowledges_concatenados'])
+            problems_cassia = pd.merge(
+                problems_cassia, acks_cassia_mensajes, how='left', on='eventid').replace(np.nan, None)
+            problems = pd.concat([problems_zabbix, problems_cassia])
+            problems = problems.sort_values(by='fecha', ascending=False)
+        affiliations_df = await CassiaResetRepository.get_affiliations_by_hosts_ids(problems['hostid'].tolist())
+        if not affiliations_df.empty:
+            # Realizar el merge para agregar las columnas de affiliations_df a problems
+            problems = pd.merge(problems, affiliations_df,
+                                on='hostid', how='left').replace(np.nan, None)
+        hostids_str_2 = ",".join(
+            [str(hostid) for hostid in problems['hostid'].tolist()]) if not problems.empty else "0"
+        serial_numbers_df = await cassia_gs_tickets_repository.get_serial_numbers_by_host_ids(hostids_str_2)
+        if not serial_numbers_df.empty:
+            # Realizar el merge para agregar las columnas de serial_numbers_df a problems
+            problems = pd.merge(problems, serial_numbers_df,
+                                on='hostid', how='left').replace(np.nan, None)
+        problems['create_ticket'] = 0
+        if all(col in problems.columns for col in ['affiliation', 'no_serie']):
+            problems['create_ticket'] = problems.apply(assign_value, axis=1)
+            print("Ambas columnas existen en el DataFrame.")
+        last_error_tickets = await cassia_gs_tickets_repository.get_last_error_tickets()
+        problems['has_ticket'] = False
+        problems['ticket_id'] = None
+        problems['ticket_error'] = None
+        problems['ticket_status'] = None
+        for index in last_error_tickets.index:
+            problems.loc[problems['affiliation'] == last_error_tickets['afiliacion']
+                        [index], 'ticket_error'] = last_error_tickets['error'][index]
+            problems.loc[problems['affiliation'] == last_error_tickets['afiliacion']
+                        [index], 'ticket_status'] = 'error'
+        active_tickets = await cassia_gs_tickets_repository.get_active_tickets()
+        for index in active_tickets.index:
+            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
+                        [index], 'has_ticket'] = True
+            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
+                        [index], 'ticket_id'] = active_tickets['ticket_id'][index]
+            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
+                        [index], 'ticket_error'] = None
+            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
+                        [index], 'ticket_status'] = active_tickets['status'][index]
 
         return problems
     except Exception as e:
@@ -558,7 +636,7 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
         municipalityId, tech_host_type, subtype, severities)
 
     problems = await normalizar_alertas_zabbix(problems, ping_loss_message)
-    problems = await eliminar_downs_zabbix(problems, ping_loss_message)
+    """ problems = await eliminar_downs_zabbix(problems, ping_loss_message) """
     if tech_host_type == lpr_id or tech_host_type == '':
         problems = await process_alerts_local(
             problems, municipalityId, lpr_id, severities, 'lpr')
@@ -644,13 +722,23 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
         problems = pd.concat([problems_zabbix, problems_cassia])
         problems = problems.sort_values(by='fecha', ascending=False)
 
-    print(len(problems))
     origenes = problems[problems['tipo'] == 1]
-    print(len(origenes))
     affiliations_df = await CassiaResetRepository.get_affiliations_by_hosts_ids(problems['hostid'].tolist())
     if not affiliations_df.empty:
         # Realizar el merge para agregar las columnas de affiliations_df a problems
-        problems = pd.merge(problems, affiliations_df, on='hostid', how='left')
+        problems = pd.merge(problems, affiliations_df,
+                            on='hostid', how='left').replace(np.nan, None)
+    hostids_str_2 = ",".join(
+        [str(hostid) for hostid in problems['hostid'].tolist()]) if not problems.empty else "0"
+    serial_numbers_df = await cassia_gs_tickets_repository.get_serial_numbers_by_host_ids(hostids_str_2)
+    if not serial_numbers_df.empty:
+        # Realizar el merge para agregar las columnas de serial_numbers_df a problems
+        problems = pd.merge(problems, serial_numbers_df,
+                            on='hostid', how='left').replace(np.nan, None)
+    problems['create_ticket'] = 0
+    if all(col in problems.columns for col in ['affiliation', 'no_serie']):
+        problems['create_ticket'] = problems.apply(assign_value, axis=1)
+        print("Ambas columnas existen en el DataFrame.")
     last_error_tickets = await cassia_gs_tickets_repository.get_last_error_tickets()
     problems['has_ticket'] = False
     problems['ticket_id'] = None
@@ -671,7 +759,15 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
                      [index], 'ticket_error'] = None
         problems.loc[problems['affiliation'] == active_tickets['afiliacion']
                      [index], 'ticket_status'] = active_tickets['status'][index]
+
     return problems
+
+
+def assign_value(row):
+    if (row['affiliation'] is not None and row['affiliation'] != '') and (row['no_serie'] is not None and row['no_serie'] != ''):
+        return True
+    else:
+        return False
 
 
 async def get_zabbix_acks(eventids) -> pd.DataFrame:
