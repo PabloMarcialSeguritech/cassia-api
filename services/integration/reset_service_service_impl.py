@@ -435,42 +435,6 @@ class ResetServiceImpl(ResetServiceFacade):
         # Retorna el primer valor de la columna 'object_id'
         return reset_df['object_id'].iloc[0]
 
-    async def send_request_api_reset(self, object_id):
-        token = await self.authenticate()
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {token}'
-        }
-        print("headers:::::::::::::::::", headers)
-        try:
-
-            response = requests.post(
-                f'http://st.gruposeguritech.com:5978/api/secure/device/{object_id}/cmd/relayctl',
-                json={
-                    "operation": "pulse",
-                    "relay": 1,
-                    "interval": 1,
-                    "times": 9,
-                    "period": 1,
-                    "tag": "TODOS LOS DISPOSITIVOS durante 1 min",
-                    "user": {}
-                },
-                headers=headers)
-            if response.status_code == 200:
-                print("Successfully restart device")
-                print("response::::", response)
-                reset_json = response.json()
-                print("response_json::::", reset_json)
-                return success_response(
-                    data=reset_json
-                )
-            else:
-                print(f"Failed to post device, status code: {response.status_code}, response: {response.text}")
-                return pd.DataFrame()
-        except requests.exceptions.RequestException as e:
-            print(f"Request exception occurred: {e}")
-            return pd.DataFrame()
-
     async def is_response_good(self, response: JSONResponse) -> bool:
         """
         Evalúa la respuesta de una petición de API basada en el código de estado HTTP.
@@ -532,12 +496,12 @@ class ResetServiceImpl(ResetServiceFacade):
         pmi_status = True
         response = None
         if object_id:
-            response = await self.send_request_api_reset(object_id)
+            response = await self.send_request_api_reset(object_id, is_hard_reset=False)
         else:
             return failure_response(message="Object ID necesario para la petición")
         if not await self.is_response_good(response):
-            print("PMI Arriba No se realizó con éxito el reset, hubo falla en la petición")
-            return failure_response(message="PMI Arriba No se realizó con éxito el reset, hubo falla en la petición")
+            print("No se realizó con éxito el reset, hubo falla en la petición")
+            return failure_response(message="No se realizó con éxito el reset, hubo falla en la petición")
         # Monitorear durante 4 minutos para verificar que to-do esté abajo
         timeout_offline = 4 * 60  # 4 minutos
         start_time_offline = time.time()
@@ -587,7 +551,7 @@ class ResetServiceImpl(ResetServiceFacade):
     async def reset_pmi_case_all_down(self, object_id, devices_pmi_df):
         pmi_status = False
         if object_id:
-            response = await self.send_request_api_reset(object_id)
+            response = await self.send_request_api_reset(object_id, is_hard_reset=False)
         else:
             return failure_response(message="Object ID necesario para la petición")
         if not await self.is_response_good(response):
@@ -620,7 +584,7 @@ class ResetServiceImpl(ResetServiceFacade):
         # **
         object_id = await self.get_object_id_by_affiliation(pmiAfiliacion)
         if object_id:
-            response = await self.send_request_api_reset(object_id)
+            response = await self.send_request_api_reset(object_id, is_hard_reset=False)
         else:
             return failure_response(message="Esta afiliación parece no existir en el sistema de resets")
         if not await self.is_response_good(response):
@@ -628,30 +592,51 @@ class ResetServiceImpl(ResetServiceFacade):
             return failure_response(message="Reset no realizado, sistema de Resets no pudo procesar la solicitud")
 
         # Caso 1: Todos son down :
-        ## Step 1: Monitorear durante un recoveryTime la recuperación de algun dispositivo
+        # Step 1: Monitorear durante un recoveryTime la recuperación de algun dispositivo
         if all(pmiDevices_initState['statusInicial'] == False):
             print("**** Todos los dispositivos están caídos inicialmente. ****")
             pmiStatusRecuperacion, pmiDetalleRecuperacion = await self.monitorear_recuperacion(pmiDevices_initState,
                                                                                                recovery_time=360)  # Monitorear la recuperación durante un tiempo
-            '''
-            response = {
-                'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron en desconectados/down',
-                'pmiStatusRecuperacion': pmiStatusRecuperacion,
-                'pmiDetalleRecuperacion': pmiDetalleRecuperacion
-            }
-            '''
+            if pmiStatusRecuperacion:
+                response = {
+                    'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron en desconectados/down',
+                    'action': pmiStatusRecuperacion,
+                    'pmiDetalleRecuperacion': pmiDetalleRecuperacion
+                }
+                return success_response(message=pmiDetalleRecuperacion, success=pmiStatusRecuperacion, data=response)
+            # Reintento por que no hubo recuperación total
+            else:
+                print("Forzamos hard reset")
+                if object_id:
+                    response = await self.send_request_api_reset(object_id, is_hard_reset=True)
+                else:
+                    return failure_response(message="Object ID necesario para la petición")
+                if not await self.is_response_good(response):
+                    print("No se realizó con éxito el reset, hubo falla en la petición")
+                    return failure_response(message="No se realizó con éxito el hard reset restart, hubo falla en la petición")
 
-            response = {
-                'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron en desconectados/down',
-                'action': pmiStatusRecuperacion,
-                'pmiDetalleRecuperacion': pmiDetalleRecuperacion
-            }
+                pmiStatusRecuperacion, pmiDetalleRecuperacion = await self.monitorear_recuperacion(pmiDevices_initState,
+                                                                                              recovery_time=360)  # Monitorear la recuperación durante un tiempo
+                if pmiStatusRecuperacion:
+                    response = {
+                        'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron en desconectados/down',
+                        'action': pmiStatusRecuperacion,
+                        'pmiDetalleRecuperacion': pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo',
+                    }
+                    return success_response(message=pmiDetalleRecuperacion +
+                                                    ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo', success=pmiStatusRecuperacion, data=response)
+                else:
+                    response = {
+                        'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron en desconectados/down',
+                        'action': pmiStatusRecuperacion,
+                        'pmiDetalleRecuperacion': pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro',
+                    }
+                    return failure_response(message=pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro', data=response)
 
-            return success_response(message=pmiDetalleRecuperacion, success=pmiStatusRecuperacion, data=response)
 
         # Caso 2: Todos son up :
-        ## Step 1: Monitorear durante un DownTime la caida de algun dispositivo que esta en up originalmente
-        ## Step 2: Monitorear durante un recoveryTime la recuperación de dispositivos
+        # Step 1: Monitorear durante un DownTime la caida de algun dispositivo que esta en up originalmente
+        # Step 2: Monitorear durante un recoveryTime la recuperación de dispositivos
         if all(pmiDevices_initState['statusInicial'] == True):
             print("**** Todos los dispositivos están conectados inicialmente. ****")
             ## monitorear caida
@@ -677,21 +662,46 @@ class ResetServiceImpl(ResetServiceFacade):
             ## monitorear recuperacion
             pmiStatusRecuperacion, pmiDetalleRecuperacion = await self.monitorear_recuperacion(pmiDevices_initState,
                                                                                                recovery_time=360)  # Monitorear la recuperación durante un tiempo
-            '''
-            response = {
-                'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron conectados/up',
-                'pmiStatusRecuperacion': pmiStatusRecuperacion,
-                'pmiDetalleRecuperacion': pmiDetalleRecuperacion
-            }
-            '''
+            if pmiStatusRecuperacion:
+                response = {
+                    'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron conectados/up',
+                    'action': pmiStatusRecuperacion,
+                    'pmiDetalleRecuperacion': pmiDetalleRecuperacion
+                }
 
-            response = {
-                'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron conectados/up',
-                'action': pmiStatusRecuperacion,
-                'pmiDetalleRecuperacion': pmiDetalleRecuperacion
-            }
+                print("response::::", response)
+                return success_response(message=pmiDetalleRecuperacion, success=pmiStatusRecuperacion, data=response)
+            else:
+                print("Forzamos hard reset")
+                if object_id:
+                    response = await self.send_request_api_reset(object_id, is_hard_reset=True)
+                else:
+                    return failure_response(message="Object ID necesario para la petición")
+                if not await self.is_response_good(response):
+                    print("No se realizó con éxito el reset, hubo falla en la petición")
+                    return failure_response(
+                        message="No se realizó con éxito el hard reset restart, hubo falla en la petición")
 
-            return success_response(message=pmiDetalleRecuperacion, success=pmiStatusRecuperacion, data=response)
+                pmiStatusRecuperacion, pmiDetalleRecuperacion = await self.monitorear_recuperacion(pmiDevices_initState,
+                                                                                                   recovery_time=360)  # Monitorear la recuperación durante un tiempo
+                if pmiStatusRecuperacion:
+                    response = {
+                        'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron en desconectados/down',
+                        'action': pmiStatusRecuperacion,
+                        'pmiDetalleRecuperacion': pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo',
+                    }
+                    return success_response(message=pmiDetalleRecuperacion +
+                                                    ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo',
+                                            success=pmiStatusRecuperacion, data=response)
+                else:
+                    response = {
+                        'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron en desconectados/down',
+                        'action': pmiStatusRecuperacion,
+                        'pmiDetalleRecuperacion': pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro',
+                    }
+                    return failure_response(
+                        message=pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro',
+                        data=response)
 
         # Caso 3: No todos comienzan ni up ni down
         # Step1: Monitorear durante un DownTime la caida de un dispositivo que anteriormente estuvo arriba
@@ -816,6 +826,7 @@ class ResetServiceImpl(ResetServiceFacade):
             ip = dispositivosCapa['ip'].iloc[0]
             print("ip para credenciales proxy: ", ip)
             has_proxy, proxy_credentials = await self.proxy_validation(ip)
+            print("proxy credentials::::", proxy_credentials)
             if has_proxy:
                 proxy_ip = proxy_credentials['ip_proxy']
                 proxy_user = proxy_credentials['user_proxy']
@@ -850,10 +861,11 @@ class ResetServiceImpl(ResetServiceFacade):
             await asyncio.sleep(5)  # Espera 5 segundos antes de volver a verificar
 
         if all(pmiDevices_finalState['statusFinal'] == False):
-            # print("Ningun dispositivo se ha recuperado exitosamente.")
+            print("Ningun dispositivo se ha recuperado exitosamente.")
             return False, "Lo sentimos, ningun dispositivo de PMI fue recuperado, se recomienda reintar reset maximo 2 veces"
 
         # print("Algunos dispositivos no se recuperaron dentro del tiempo esperado.")
+
         return False, "No todos los dispositivos de PMI fueron recuperados, solo algunos"
 
     async def monitorear_apagado_fromAllUp(self, dispositivos, shutDown_time):
@@ -901,3 +913,41 @@ class ResetServiceImpl(ResetServiceFacade):
 
         print("Ningún dispositivo que estaba arriba ha caído durante el tiempo de apagado.")
         return False, "Ningún dispositivo de PMI que estaba arriba ha caído durante el tiempo de apagado, el reset no parece haber funcionado."
+
+    async def send_request_api_reset(self, object_id, is_hard_reset):
+        times_value = 9
+        token = await self.authenticate()
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {token}'
+        }
+        print("headers:::::::::::::::::", headers)
+        try:
+            if is_hard_reset:
+                times_value = 11
+            response = requests.post(
+                f'http://st.gruposeguritech.com:5978/api/secure/device/{object_id}/cmd/relayctl',
+                json={
+                    "operation": "pulse",
+                    "relay": 1,
+                    "interval": 1,
+                    "times": times_value,
+                    "period": 1,
+                    "tag": "TODOS LOS DISPOSITIVOS durante 1 min",
+                    "user": {}
+                },
+                headers=headers)
+            if response.status_code == 200:
+                print("Successfully request device")
+                print("response::::", response)
+                reset_json = response.json()
+                print("response_json::::", reset_json)
+                return success_response(
+                    data=reset_json
+                )
+            else:
+                print(f"Failed to post device, status code: {response.status_code}, response: {response.text}")
+                return pd.DataFrame()
+        except requests.exceptions.RequestException as e:
+            print(f"Request exception occurred: {e}")
+            return pd.DataFrame()
