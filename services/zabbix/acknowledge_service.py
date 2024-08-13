@@ -19,7 +19,31 @@ def parse_date(date_str):
         try:
             return datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
         except ValueError:
-            return None
+            try:
+                return datetime.strptime(date_str, "%d/%m/%Y %H:%M:%S")
+            except ValueError:
+                return None
+
+# Función para convertir la fecha al formato deseado
+
+
+# Función para convertir la fecha al formato deseado
+def format_date(date):
+    if isinstance(date, str):
+        try:
+            # Intentar parsear la fecha en diferentes formatos
+            for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+                try:
+                    dt = datetime.strptime(date, fmt)
+                    return dt.strftime("%d/%m/%Y %H:%M:%S")
+                except ValueError:
+                    continue
+            return date  # En caso de no poder parsear, devolver la fecha original
+        except Exception as e:
+            return date  # En caso de cualquier excepción, devolver la fecha original
+    elif isinstance(date, (datetime, pd.Timestamp)):
+        return date.strftime("%d/%m/%Y %H:%M:%S")
+    return date  # En caso de cualquier otro tipo, devolver la fecha original
 
 
 async def get_acks(eventid, is_cassia_event):
@@ -40,6 +64,7 @@ async def get_acks(eventid, is_cassia_event):
     now = datetime.now(pytz.timezone(
         'America/Mexico_City')).replace(tzinfo=None)
     # Obtiene la fecha del problema para sacar el acumulado
+    print(event)
     if not int(is_cassia_event):
         clock_problem = event.iloc[0]['clock']
         clock_problem = datetime.fromtimestamp(
@@ -51,7 +76,7 @@ async def get_acks(eventid, is_cassia_event):
     acumulated_cassia = round(diff.days*24 + diff.seconds/3600, 4)
     messages.append({'type': 'Creación de evento',
                      'message': 'Creación del evento.',
-                     'date': clock_problem,
+                     'date': parse_date(clock_problem),
                      'user': None})
     messages.append({'type': 'Progreso del evento a la fecha.',
                      'message': f'Acumulado del evento: {acumulated_cassia} hrs.',
@@ -63,7 +88,7 @@ async def get_acks(eventid, is_cassia_event):
     for ind in event_acknowledges.index:
         messages.append({'type': 'Acknowledge',
                          'message': event_acknowledges['message'][ind],
-                         'date': event_acknowledges['Time'][ind],
+                         'date': parse_date(event_acknowledges['Time'][ind]),
                          'user': event_acknowledges['user'][ind]})
     event_tickets = await cassia_gs_tickets_repository.get_active_tickets_by_afiliation(event['alias'][0])
     if not event_tickets.empty:
@@ -71,12 +96,12 @@ async def get_acks(eventid, is_cassia_event):
         if ticket['requested_at'] is not None:
             messages.append({'type': 'Solicitud de ticket',
                              'message': "Ticket solicitado",
-                             'date': ticket['requested_at'],
+                             'date': parse_date(ticket['requested_at']),
                              'user': ticket['user_mail']})
         if ticket['created_at'] is not None:
             messages.append({'type': 'Creación de ticket',
                              'message': f"Ticket creado con folio {ticket['ticket_id']} con correo {ticket['created_with_mail']}",
-                             'date': ticket['created_at'],
+                             'date': parse_date(ticket['created_at']),
                              'user': ticket['user_mail']})
         ticket_detail = await cassia_gs_tickets_repository.get_ticket_detail_by_ticket_id(ticket['ticket_id'])
         for ind in ticket_detail.index:
@@ -85,11 +110,14 @@ async def get_acks(eventid, is_cassia_event):
                     ind] == "ticketcommentinternalnote" else "Avance y solución" if ticket_detail['type'][ind] == "ticketcommentprogresssolution" else "Comentario"
                 messages.append({'type': 'Comentario de ticket',
                                  'message': f"Tipo: {tipo} - Comentario: {ticket_detail['comment'][ind]}",
-                                 'date': ticket_detail['created_at'][ind],
+                                 'date': parse_date(ticket_detail['created_at'][ind]),
                                  'user': ticket_detail['user_email'][ind]})
 
     messages = sorted(messages, key=lambda x: parse_date(
         x["date"]) or datetime.min)
+    for message in messages:
+        if message["date"]:
+            message["date"] = format_date(message["date"])
     return success_response(data=messages)
 
     # Obtiene los tickets del evento

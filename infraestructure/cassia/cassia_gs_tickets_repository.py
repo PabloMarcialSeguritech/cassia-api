@@ -37,6 +37,25 @@ async def get_last_error_tickets():
         await db_model.close_connection()
 
 
+async def get_serial_numbers_by_host_ids(hostids):
+    db_model = DB()
+    try:
+        query_statement_get_serial_numbers_by_host_ids = DBQueries(
+        ).builder_query_statement_get_serial_numbers_by_host_ids(hostids)
+        await db_model.start_connection()
+
+        serial_no_data = await db_model.run_query(query_statement_get_serial_numbers_by_host_ids)
+        serial_no_df = pd.DataFrame(serial_no_data).replace(np.nan, None)
+        return serial_no_df
+
+    except Exception as e:
+        print(f"Excepcion en get_serial_numbers_by_host_ids: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_serial_numbers_by_host_ids: {e}")
+    finally:
+        await db_model.close_connection()
+
+
 async def get_active_tickets():
     db_model = DB()
     try:
@@ -134,20 +153,24 @@ async def get_ticket_by_ticket_id(ticket_id) -> pd.DataFrame:
 
 async def create_ticket(host_data, comment, mail):
     queue_name = 'cassia-gser'
-    """ message_data = {
-        "serviceId": 3738,
-        "location": "BAJ01-ARC-MEXI-003",
+    service_id = await get_service_id()
+    if service_id.empty:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Error al crear el ticket en SGS - Service ID no configurado en Base de Datos")
+    message_data = {
+        "serviceId": service_id['value'][0],
+        "location": host_data['alias'],
         "comment": comment,
         "engineer": mail,
-        "serialNumber": "864606041949339"
-    } """
-    message_data = {
+        "serialNumber":  host_data['hardware_no_serie']
+    }
+    """ message_data = {
         "serviceId": 1849,
         "location": host_data['alias'],
         "comment": comment,
         "engineer": "engineer.cassia@seguritech.com",
         "serialNumber": host_data['hardware_no_serie']
-    }
+    } """
     message_content = json.dumps(message_data)
     try:
         with ServiceBusClient.from_connection_string(conn_str=gs_connection_string, logging_enable=True) as servicebus_client:
@@ -169,7 +192,7 @@ async def create_ticket_comment(ticket_data: cassia_gs_ticket_schema.CassiaGSTic
     message_data = {
         "ticketId": ticket_data.ticket_id,
         "comment": ticket_data.comment,
-        "engineer": "engineer.cassia@seguritech.com",
+        "engineer": mail,
     }
     """ message_data = {
         "ticketId": ticket_data.ticket_id,
@@ -211,10 +234,26 @@ async def save_ticket_data(ticket_data, host_data, created_ticket, user) -> pd.D
             created_with_mail=None,
             user_mail=user.mail
         )
-
         session.add(cassia_gs_ticket)
         await session.commit()
         await session.refresh(cassia_gs_ticket)
+        cassia_gs_ticket_detail = cassia_gs_tickets_detail.CassiaGSTicketsDetailModel(
+            cassia_gs_tickets_id=cassia_gs_ticket.cassia_gs_tickets_id,
+            ticket_id=None,
+            type="ticketcommentinternalnote",
+            comment=ticket_data.comment,
+            status="creado",
+            user_email=user.mail,
+            file_url=None,
+            last_update=now,
+            message_id=None,
+            requested_at=now,
+            created_at=now,
+            created_with_mail=user.mail
+        )
+        session.add(cassia_gs_ticket_detail)
+        await session.commit()
+        await session.refresh(cassia_gs_ticket_detail)
         return cassia_gs_ticket
 
     except Exception as e:
@@ -242,7 +281,7 @@ async def save_ticket_comment_data(ticket_data, created_ticket_comment, mail, cr
             message_id=created_ticket_comment.message_id,
             requested_at=now,
             created_at=now,
-            created_with_mail='engineer.cassia@seguritech.com'
+            created_with_mail=mail
         )
         session.add(cassia_gs_ticket_detail)
         await session.commit()
@@ -255,3 +294,22 @@ async def save_ticket_comment_data(ticket_data, created_ticket_comment, mail, cr
                             detail=f"Excepcion en save_ticket_comment_data: {e}")
     finally:
         await session.close()
+
+
+async def get_service_id() -> pd.DataFrame:
+    db_model = DB()
+    try:
+        query_statement_get_service_id = DBQueries(
+        ).query_statement_get_service_id
+        await db_model.start_connection()
+
+        service_id_data = await db_model.run_query(query_statement_get_service_id)
+        service_id_data_df = pd.DataFrame(service_id_data)
+        return service_id_data_df
+
+    except Exception as e:
+        print(f"Excepcion en get_service_id: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_service_id: {e}")
+    finally:
+        await db_model.close_connection()
