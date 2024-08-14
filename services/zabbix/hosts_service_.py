@@ -411,10 +411,11 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
         downs_totales = 0
     dependientes = await layers_repository.get_host_downs_dependientes()
     if not dependientes.empty:
-        origenes = downs[~downs['hostid'].isin(dependientes['hostid'].to_list())]
+        origenes = downs[~downs['hostid'].isin(
+            dependientes['hostid'].to_list())]
         origenes_count = len(origenes)
     else:
-        origenes_count=0
+        origenes_count = 0
 
     data4['Downs_origen'] = origenes_count
     data2 = corelations.replace(np.nan, "")
@@ -428,12 +429,13 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
         subgroup_data = pd.DataFrame(await host_repository.get_switch_through_put(municipalityId, switch_id, metric_switch_val))
     data6 = subgroup_data.replace(np.nan, "")
     global_host_available = pd.DataFrame(await host_repository.get_host_available_ping_loss('0', dispId)).replace(np.nan, "")
-    downs_global = await downs_count(0, dispId, '')
+    """ downs_global = await downs_count(0, dispId, '') """
     if not global_host_available.empty:
+        downs_origen_global = await downs_count_(0, '', '')
         # downs_totales = int(global_host_available['Down'][0])
-        origenes = len(downs_global)
+        origenes = downs_origen_global
         global_host_available['Downs_origen'] = origenes
-
+    print(global_host_available.to_dict(orient="records"))
     response = {"hosts": data.to_dict(
         orient="records"), "relations": data2.to_dict(orient="records"),
         "problems_by_severity": data3.to_dict(orient="records"),
@@ -600,3 +602,42 @@ async def downs_count(municipalityId, dispId, subtype):
         if not data.empty:
             data = data[data['tipo'] == 1]
     return data
+
+
+async def downs_count_(municipality_id, dispId, subtype_id):
+    downs = await layers_repository.get_host_downs(municipality_id, dispId, subtype_id)
+    print(downs)
+    dependientes = await layers_repository.get_host_downs_dependientes()
+    downs_origen_filtro = await CassiaDiagnostaRepository.get_downs_origen(municipality_id, dispId)
+    downs_origen = await CassiaDiagnostaRepository.get_downs_origen(0, '')
+    """ downs_filtro = downs_origen """
+    """ downs_filtro = await AlertsRepository.get_problems_filter(municipality_id, dispId, subtype_id, "6")
+    downs_filtro = downs_filtro[downs_filtro['tipo'] == 1] """
+    if not downs.empty:
+        downs['value'] = [1 for i in range(len(downs))]
+        downs['description'] = [
+            'ICMP ping' for i in range(len(downs))]
+        downs['origen'] = [0 for i in range(len(downs))]
+    if 'hostid' in downs_origen.columns:
+        if not downs.empty:
+            downs_odd_no_analizados = downs[~downs['hostid'].isin(
+                dependientes['hostid'].to_list())]
+
+            downs_odd_analizados = downs[downs['hostid'].isin(
+                downs_origen['hostid'].to_list())]
+            downs_origen = pd.concat(
+                [downs_odd_no_analizados, downs_odd_analizados])
+            downs_origen = downs_origen.drop_duplicates()
+            downs.loc[downs['hostid'].isin(
+                downs_origen['hostid'].to_list()), 'origen'] = 1
+            if not downs_origen_filtro.empty:
+                downs_odd_no_analizados = downs[~downs['hostid'].isin(
+                    dependientes['hostid'].to_list())]
+
+                downs_odd_analizados = downs[downs['hostid'].isin(
+                    downs_origen_filtro['hostid'].to_list())]
+                downs_origen_filtro = pd.concat(
+                    [downs_odd_no_analizados, downs_odd_analizados])
+                downs_origen_filtro = downs_origen_filtro.drop_duplicates()
+    print(downs_origen)
+    return len(downs_origen)
