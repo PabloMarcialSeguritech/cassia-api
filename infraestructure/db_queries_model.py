@@ -233,6 +233,9 @@ and status !='error'"""
 
         self.query_statement_get_service_id = """SELECT * FROM cassia_config where name='gs_service_id'"""
 
+        # PINK
+        self.query_statement_get_local_events = """SELECT * FROM cassia_events_test where closed_at is NULL """
+
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
         return self.query_statement_get_metrics_template
@@ -421,11 +424,19 @@ FROM cassia_config where cassia_config.name='{name}'"""
         self.query_statement_get_global_cassia_events_by_tech = f"""SELECT * FROM cassia_events_test where closed_at is NULL and tech_id='{tech_id}'"""
         return self.query_statement_get_global_cassia_events_by_tech
 
+    # PINK
     def builder_query_statement_get_cassia_events_by_tech_and_municipality(self, municipality, tech_id):
         # ACTUALIZAR NOMBRE
         self.query_statement_get_cassia_events_by_tech_and_municipality = f"""
         SELECT * FROM cassia_arch_traffic_events where closed_at is NULL and tech_id={tech_id} and municipality='{municipality}'"""
         return self.query_statement_get_cassia_events_by_tech_and_municipality
+
+    # PINK
+    def builder_query_statement_get_cassia_events_by_municipality(self, municipality):
+        # ACTUALIZAR NOMBRE
+        self.query_statement_get_cassia_events_by_municipality = f"""
+        SELECT * FROM cassia_arch_traffic_events where closed_at is NULL and municipality='{municipality}'"""
+        return self.query_statement_get_cassia_events_by_municipality
 
     # PINK
     def builder_query_statement_get_cassia_events_by_tech_and_municipality_test(self, municipality, tech_id):
@@ -1244,3 +1255,7 @@ WHERE
     AND cce.host_id IN ({hostids});"""
 
         return self.query_statement_get_serial_numbers_by_host_ids
+
+    def builder_query_statement_get_local_events_by_tech_id(self, tech_id):
+        self.query_statement_get_local_events_by_tech_id = f"""SELECT * FROM cassia_events_test where closed_at is NULL and tech_id='{tech_id}' """
+        return self.query_statement_get_local_events_by_tech_id
