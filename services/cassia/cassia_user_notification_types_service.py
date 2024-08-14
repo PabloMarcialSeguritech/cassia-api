@@ -43,14 +43,15 @@ async def get_users_notification_types():
     response = []
     if not users.empty:
         for ind in users.index:
-            registros_usuario = user_notifications.loc[user_notifications['user_id']
-                                                       == users['user_id'][ind]]
             notification_types = []
-            for ind2 in registros_usuario.index:
-                notification_types.append({
-                    'cassia_notification_type_id': int(registros_usuario['cassia_notification_type_id'][ind2]),
-                    'name': registros_usuario['name'][ind2],
-                })
+            if not user_notifications.empty:
+                registros_usuario = user_notifications.loc[user_notifications['user_id']
+                                                           == users['user_id'][ind]]
+                for ind2 in registros_usuario.index:
+                    notification_types.append({
+                        'cassia_notification_type_id': int(registros_usuario['cassia_notification_type_id'][ind2]),
+                        'name': registros_usuario['name'][ind2],
+                    })
             response_row = {'user_id': int(users['user_id'][ind]),
                             'mail': users['mail'][ind],
                             'name': users['name'][ind],
