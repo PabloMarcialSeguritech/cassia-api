@@ -45,7 +45,6 @@ async def get_global_alerts_by_tech(tech_id, tipo):
             cassia_alerts_df['Ack'] = 0
             cassia_alerts_df['Ack_message'] = ''
             cassia_alerts_df["manual_close"] = 1
-            cassia_alerts_df['alert_type'] = tipo
             cassia_alerts_df['local'] = 1
             cassia_alerts_df['dependents'] = 0
             cassia_alerts_df.rename(columns={'created_at': 'Time',
@@ -57,6 +56,68 @@ async def get_global_alerts_by_tech(tech_id, tipo):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Error en get_global_alerts_by_tech {e}")
+    finally:
+        await db_model.close_connection()
+
+
+async def get_global_alerts_local():
+    db_model = DB()
+    try:
+        sp_name_get_cassia_events_by_tech = DBQueries(
+        ).query_statement_get_local_events
+        print(sp_name_get_cassia_events_by_tech)
+        await db_model.start_connection()
+        cassia_alerts_data = await db_model.run_query(sp_name_get_cassia_events_by_tech)
+        cassia_alerts_df = pd.DataFrame(
+            cassia_alerts_data).replace(np.nan, None)
+        if not cassia_alerts_df.empty:
+            cassia_alerts_df['r_eventid'] = ''
+            cassia_alerts_df['TimeRecovery'] = ''
+            cassia_alerts_df['Ack'] = 0
+            cassia_alerts_df['Ack_message'] = ''
+            cassia_alerts_df["manual_close"] = 1
+            cassia_alerts_df['local'] = 1
+            cassia_alerts_df['dependents'] = 0
+            cassia_alerts_df.rename(columns={'created_at': 'Time',
+                                             'hostname': 'Host',
+                                             'message': 'Problem',
+                                             'status': 'Estatus',
+                                             'cassia_arch_traffic_events_id': 'eventid'}, inplace=True)
+        return cassia_alerts_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_global_alerts_local {e}")
+    finally:
+        await db_model.close_connection()
+
+
+async def get_global_alerts_local_by_tech_id(tech_host_id):
+    db_model = DB()
+    try:
+        sp_name_get_cassia_events_by_tech = DBQueries(
+        ).builder_query_statement_get_local_events_by_tech_id(tech_host_id)
+        print(sp_name_get_cassia_events_by_tech)
+        await db_model.start_connection()
+        cassia_alerts_data = await db_model.run_query(sp_name_get_cassia_events_by_tech)
+        cassia_alerts_df = pd.DataFrame(
+            cassia_alerts_data).replace(np.nan, None)
+        if not cassia_alerts_df.empty:
+            cassia_alerts_df['r_eventid'] = ''
+            cassia_alerts_df['TimeRecovery'] = ''
+            cassia_alerts_df['Ack'] = 0
+            cassia_alerts_df['Ack_message'] = ''
+            cassia_alerts_df["manual_close"] = 1
+            cassia_alerts_df['local'] = 1
+            cassia_alerts_df['dependents'] = 0
+            cassia_alerts_df.rename(columns={'created_at': 'Time',
+                                             'hostname': 'Host',
+                                             'message': 'Problem',
+                                             'status': 'Estatus',
+                                             'cassia_arch_traffic_events_id': 'eventid'}, inplace=True)
+        return cassia_alerts_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_global_alerts_local_by_tech_id {e}")
     finally:
         await db_model.close_connection()
 
@@ -76,7 +137,6 @@ async def get_municipality_alerts_by_tech(municipality, tech_id, tipo):
             cassia_alerts_df['Ack'] = 0
             cassia_alerts_df['Ack_message'] = ''
             cassia_alerts_df["manual_close"] = 1
-            cassia_alerts_df['alert_type'] = tipo
             cassia_alerts_df['local'] = 1
             cassia_alerts_df['dependents'] = 0
             cassia_alerts_df.rename(columns={'created_at': 'Time',
@@ -88,6 +148,36 @@ async def get_municipality_alerts_by_tech(municipality, tech_id, tipo):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Error en get_municipality_alerts_by_tech {e}")
+    finally:
+        await db_model.close_connection()
+
+
+async def get_municipality_alerts_local(municipality):
+    db_model = DB()
+    try:
+        query_get_alerts_by_municipality_and_tech = DBQueries(
+        ).builder_query_statement_get_cassia_events_by_municipality(municipality)
+        await db_model.start_connection()
+        cassia_alerts_data = await db_model.run_query(query_get_alerts_by_municipality_and_tech)
+        cassia_alerts_df = pd.DataFrame(
+            cassia_alerts_data).replace(np.nan, None)
+        if not cassia_alerts_df.empty:
+            cassia_alerts_df['r_eventid'] = ''
+            cassia_alerts_df['TimeRecovery'] = ''
+            cassia_alerts_df['Ack'] = 0
+            cassia_alerts_df['Ack_message'] = ''
+            cassia_alerts_df["manual_close"] = 1
+            cassia_alerts_df['local'] = 1
+            cassia_alerts_df['dependents'] = 0
+            cassia_alerts_df.rename(columns={'created_at': 'Time',
+                                             'hostname': 'Host',
+                                             'message': 'Problem',
+                                             'status': 'Estatus',
+                                             'cassia_arch_traffic_events_id': 'eventid'}, inplace=True)
+        return cassia_alerts_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_municipality_alerts_local {e}")
     finally:
         await db_model.close_connection()
 

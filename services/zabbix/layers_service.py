@@ -357,13 +357,6 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
     response = {"downs": downs.to_dict(
         orient="records"), 'global_count': glob, 'filter_count': filtro
     }
-    print("AAAAA")
-    print(downs_filtro)
-    print(downs_aaa)
-    print("DEPENDIENTES")
-    print(dependientes)
-    print("ODD NO ANALIZADOS")
-    print(downs_odd_no_analizados)
 
     return success_response(data=response)
 
