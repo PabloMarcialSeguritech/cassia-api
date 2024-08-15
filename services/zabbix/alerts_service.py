@@ -571,6 +571,7 @@ where cdp.closed_at is NULL""")
 
 async def get_problems_filter_(municipalityId, tech_host_type=0, subtype="", severities=""):
     problems = await AlertsRepository.get_problems_filter(municipalityId, tech_host_type, subtype, severities)
+    print(problems)
     return success_response(data=problems.to_dict(orient="records"))
 
 
