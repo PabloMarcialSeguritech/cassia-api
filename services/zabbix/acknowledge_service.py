@@ -85,6 +85,7 @@ async def get_acks(eventid, is_cassia_event):
     # Obtiene los acknowledges del evento
 
     event_acknowledges = await AcknowledgesRepository.get_acknowledges(eventid, is_cassia_event)
+    print(event_acknowledges)
     for ind in event_acknowledges.index:
         messages.append({'type': 'Acknowledge',
                          'message': event_acknowledges['message'][ind],

@@ -421,7 +421,7 @@ async def process_alerts_local(data, municipalityId, tech_id, severities, tipo):
     return data
 
 
-async def process_and_filter_alerts(alertas, severities):
+async def process_and_filter_alerts(alertas, severities, ping_loss_message):
     alertas['Time'] = pd.to_datetime(alertas['Time'])
     alertas["Time"] = alertas['Time'].dt.strftime(
         '%d/%m/%Y %H:%M:%S')
@@ -430,8 +430,12 @@ async def process_and_filter_alerts(alertas, severities):
         severities = [int(severity) for severity in severities]
     else:
         severities = [1, 2, 3, 4, 5]
-    alertas = alertas[alertas['severity'].isin(
-        severities)]
+    if 6 in severities:
+        alertas = alertas[alertas['Problem']
+                          == ping_loss_message]
+    else:
+        alertas = alertas[alertas['severity'].isin(
+            severities)]
     return alertas
 
 
@@ -642,11 +646,13 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
     if tech_host_type == rfid_id or tech_host_type == '':
         problems = await process_alerts_local(
             problems, municipalityId, rfid_id, severities, 'rfid')
-    entro = False
+    entro1 = False
+    entro2 = False
     if tech_host_type == '' and subtype == '':
-        problems = await get_cassia_events(problems, municipalityId, severities)
+        entro1 = True
+        problems = await get_cassia_events(problems, municipalityId, severities, ping_loss_message)
     if tech_host_type != '' and subtype == '':
-        entro = True
+        entro2 = True
         problems = await get_cassia_events_by_tech_id(problems, municipalityId, tech_host_type, severities)
 
     downs_origen = await CassiaDiagnostaRepository.get_downs_origen(municipalityId, tech_host_type)
@@ -812,15 +818,17 @@ async def get_cassia_acks(eventids) -> pd.DataFrame:
         await db_model.close_connection()
 
 
-async def get_cassia_events(data, municipalityId,  severities):
+async def get_cassia_events(data, municipalityId,  severities, ping_loss_message):
     if municipalityId == '0':
         print("AAAAAA")
         # PINK
         alertas = await CassiaEventRepository.get_global_alerts_local()
         print("BBBBB")
         if not alertas.empty:
-            alertas = await process_and_filter_alerts(alertas, severities)
+            print(alertas)
+            alertas = await process_and_filter_alerts(alertas, severities, ping_loss_message)
             print("CCCCC")
+            print(alertas)
     else:
         municipios = await CassiaConfigRepository.get_city_catalog()
         municipio_value = ''
@@ -832,7 +840,7 @@ async def get_cassia_events(data, municipalityId,  severities):
         alertas = await CassiaEventRepository.get_municipality_alerts_local(municipio_value)
 
         if not alertas.empty:
-            alertas = await process_and_filter_alerts(alertas, severities)
+            alertas = await process_and_filter_alerts(alertas, severities, ping_loss_message)
     if not alertas.empty:
 
         acks = await CassiaEventRepository.get_cassia_events_acknowledges()

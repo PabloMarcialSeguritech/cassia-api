@@ -14,7 +14,9 @@ diagnosta_api_url = settings.cassia_diagnosta_api_url
 async def analize_host(hostid_or_ip: str):
     try:
         async with httpx.AsyncClient() as client:
+            print(f"{diagnosta_api_url}/analisis/{hostid_or_ip}")
             response = await client.get(f"{diagnosta_api_url}/analisis/{hostid_or_ip}", timeout=120)
+
             response.raise_for_status()
             response = response.json()
             print(response)
@@ -92,5 +94,6 @@ async def analize_host(hostid_or_ip: str):
 
             return success_response(data=desconectados_pd.to_dict(orient="records"))
     except httpx.HTTPError as exc:
+        print(exc)
         raise HTTPException(status_code=exc.response.status_code,
                             detail="Error fetching data from the API")
