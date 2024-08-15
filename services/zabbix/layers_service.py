@@ -286,24 +286,29 @@ where closed_at is null and depends_hostid is not null""")
 
 
 async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
-
+    print("get_downs_origin_layer_async function")
     downs = await layers_repository.get_host_downs(municipality_id, dispId, subtype_id)
+    print("1.1")
     downs_aaa = downs.copy()
     downs_globales = await layers_repository.get_host_downs('0', '', '')
+    print("1.2")
     dependientes = await layers_repository.get_host_downs_dependientes()
+    print("1.3")
     downs_filtro = await AlertsRepository.get_problems_filter(municipality_id, dispId, subtype_id, "6")
-
+    print("2")
     if not downs_filtro.empty:
         downs_filtro = downs_filtro[downs_filtro['Estatus'] == 'PROBLEM']
         if not downs_filtro.empty:
             downs_filtro = downs_filtro[downs_filtro['tipo'] == 1]
 
     if not downs.empty:
+        print("22")
         downs_totales = len(downs)
         origenes = len(downs_filtro)
     if 'hostid' in downs_filtro.columns:
         downs_origen = downs_filtro
         if not downs.empty:
+            print("23")
             downs_odd_no_analizados = pd.DataFrame(columns=downs.columns)
             downs_odd_analizados = pd.DataFrame(columns=downs.columns)
             if not dependientes.empty:
@@ -320,13 +325,16 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
               'downs_dependientes': 0,
               'downs_origen': origenes}
     # AQUI
+    print("3")
     downs_globales_problems = await AlertsRepository.get_problems_filter(0, dispId, '', "6")
     if not downs_globales_problems.empty:
+        print("33")
         downs_globales_problems = downs_globales_problems[
             downs_globales_problems['Estatus'] == 'PROBLEM']
         if not downs_globales_problems.empty:
             downs_globales_problems = downs_globales_problems[downs_globales_problems['tipo'] == 1]
     if 'hostid' in downs_globales.columns:
+        print("34")
         downs_totales = len(downs_globales)
         origenes_globales = len(downs_globales_problems)
         if not downs_globales.empty:
@@ -357,6 +365,7 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
     response = {"downs": downs.to_dict(
         orient="records"), 'global_count': glob, 'filter_count': filtro
     }
+    print("4")
 
     return success_response(data=response)
 
