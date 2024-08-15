@@ -47,14 +47,14 @@ class HostServiceTest2(unittest.TestCase):
 
         self.loop.run_until_complete(async_test())
 
-    @unittest.skip("Omit test_run_action_ping")
+   
     def test_run_action_ping(self):
         print("> Entrando test_run_action_ping <")
         token = user_authentication_token('juan.marcial@seguritech.com', '12345678')
 
         async def async_test():
             current_session = await auth_service2.get_current_user_session(token)
-            response = await hosts_service_.run_action_('172.18.7.3', 20, current_session)
+            response = await hosts_service_.run_action_('10.53.50.77', 20, current_session)
             print("obj_resp:", response.body)
 
         self.loop.run_until_complete(async_test())
@@ -153,7 +153,7 @@ class HostServiceTest2(unittest.TestCase):
 
         self.loop.run_until_complete(async_test())
 
-
+    @unittest.skip("test_run_action_down_ip")
     def test_run_action_down_ip(self):
         print("> Entrando test_run_action_down_ip <")
         token = user_authentication_token('juan.marcial@seguritech.com', '12345678')

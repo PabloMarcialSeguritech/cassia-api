@@ -271,7 +271,7 @@ class ResetServiceImpl(ResetServiceFacade):
     async def async_ping(self, ip, ssh_host, ssh_user, ssh_pass):
         try:
             tasks = {
-                # asyncio.create_task(self.async_ping_by_local(ip)),
+                asyncio.create_task(self.async_ping_by_local(ip)),
                 asyncio.create_task(self.async_ping_by_proxy(
                     ip, ssh_host, ssh_user, ssh_pass))
             }
@@ -772,8 +772,10 @@ class ResetServiceImpl(ResetServiceFacade):
         proxy_user = None
         proxy_password = None
         print("agregar Estatus a dispositivos capa funtion")
+        print("dispositivosCapa::::", dispositivosCapa)
 
         if not dispositivosCapa.empty:
+            print("dispositivosCapa:::", dispositivosCapa)
             # Obtén la IP de la primera coincidencia (en caso de múltiples coincidencias)
             ip = dispositivosCapa['ip'].iloc[0]
             print("ip para credenciales proxy: ", ip)
@@ -782,6 +784,7 @@ class ResetServiceImpl(ResetServiceFacade):
                 proxy_ip = proxy_credentials['ip_proxy']
                 proxy_user = proxy_credentials['user_proxy']
                 proxy_password = proxy_credentials['password_proxy']
+        print("tareas::::")
         # Creando tareas asíncronas para cada IP en el DataFrame
         tasks = [self.async_ping(ip, proxy_ip, proxy_user, proxy_password) for ip in dispositivosCapa['ip']]
         status_list = await asyncio.gather(*tasks)

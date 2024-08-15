@@ -48,12 +48,12 @@ class HostServiceTest(unittest.TestCase):
         json_obj = response.body
         print("obj_resp:", json_obj)
 
-    @unittest.skip("Omit encrypt")
+
     def test_ecncrypt(self):
         print("> Entrando test_ecncrypt <")
-        usr = hosts_service.encrypt("", settings.ssh_key_gen)
+        usr = hosts_service.encrypt("sergio_mena", settings.ssh_key_gen)
         print("usr:", usr)
-        passwd = hosts_service.encrypt("", settings.ssh_key_gen)
+        passwd = hosts_service.encrypt("S3rg10", settings.ssh_key_gen)
         print("pwd:", passwd)
 
     @unittest.skip("Omit reboot")
@@ -92,6 +92,7 @@ class HostServiceTest(unittest.TestCase):
 
         self.loop.run_until_complete(async_test())
 
+    @unittest.skip("Omit decrypt")
     def test_decrypt(self):
         print("> Entrando test_decrypt <")
         usr = hosts_service.decrypt("gAAAAABlng4ilw3Qquxn01ObVFvaeHblTBtjnSvd583sJxwIUqT0JBPwdtoz4zJa3Ba0sXBsoeTkJQc5qcbXIxGfp7YaLcnObA==",settings.ssh_key_gen)
