@@ -26,7 +26,7 @@ async def get_host_downs(municipality_id, dispId, subtype_id) -> pd.DataFrame:
     try:
         sp_get_host_downs = DBQueries().stored_name_get_host_downs
         await db_model.start_connection()
-        host_downs_data = await db_model.run_stored_procedure(sp_get_host_downs, (municipality_id, dispId, subtype_id))
+        host_downs_data = await db_model.run_stored_procedure(sp_get_host_downs, (municipality_id, dispId, ''))
         host_downs_df = pd.DataFrame(host_downs_data).replace(np.nan, None)
         return host_downs_df
     except Exception as e:

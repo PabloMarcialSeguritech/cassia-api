@@ -64,7 +64,6 @@ async def get_acks(eventid, is_cassia_event):
     now = datetime.now(pytz.timezone(
         'America/Mexico_City')).replace(tzinfo=None)
     # Obtiene la fecha del problema para sacar el acumulado
-    print(event)
     if not int(is_cassia_event):
         clock_problem = event.iloc[0]['clock']
         clock_problem = datetime.fromtimestamp(
@@ -73,15 +72,11 @@ async def get_acks(eventid, is_cassia_event):
         clock_problem = event.iloc[0]['created_at']
     # Obtiene el acumulado del evento hasta la fecha
     diff = now-clock_problem
-    acumulated_cassia = round(diff.days*24 + diff.seconds/3600, 4)
     messages.append({'type': 'Creación de evento',
                      'message': 'Creación del evento.',
                      'date': parse_date(clock_problem),
                      'user': None})
-    messages.append({'type': 'Progreso del evento a la fecha.',
-                     'message': f'Acumulado del evento: {acumulated_cassia} hrs.',
-                     'date': now_str,
-                     'user': None})
+
     # Obtiene los acknowledges del evento
 
     event_acknowledges = await AcknowledgesRepository.get_acknowledges(eventid, is_cassia_event)
@@ -119,6 +114,13 @@ async def get_acks(eventid, is_cassia_event):
     for message in messages:
         if message["date"]:
             message["date"] = format_date(message["date"])
+
+    acumulated_cassia = round(diff.days*24 + diff.seconds/3600, 4)
+    messages.append({'type': 'Progreso del evento a la fecha.',
+                     'message': f'Acumulado del evento: {acumulated_cassia} hrs.',
+                     'date': now_str,
+                     'user': None})
+    
     return success_response(data=messages)
 
     # Obtiene los tickets del evento
