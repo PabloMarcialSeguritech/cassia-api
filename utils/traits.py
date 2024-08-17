@@ -8,7 +8,9 @@ from pydantic import BaseModel
 from pydantic.fields import ModelField
 import pytz
 from datetime import datetime
+from .settings import Settings
 
+settings = Settings()
 
 def success_response(message: str = "success", success: bool = True, data: any = "", status_code: int = 200):
     response = {
@@ -71,9 +73,9 @@ def failure_response(status: str = "no ejecutado con exito", message: str = "uns
     return JSONResponse(content=jsonable_encoder(response), status_code=status_code)
 
 
-def get_datetime_now_str_with_tz(tz="America/Mexico_City", strf="%Y-%m-%d %H:%M:%S"):
+def get_datetime_now_str_with_tz(tz=settings.time_zone, strf="%Y-%m-%d %H:%M:%S"):
     return datetime.now(pytz.timezone(tz)).strftime(strf)
 
 
-def get_datetime_now_with_tz(tz="America/Mexico_City"):
+def get_datetime_now_with_tz(tz=settings.time_zone):
     return datetime.now(pytz.timezone(tz))
