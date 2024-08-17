@@ -221,3 +221,10 @@ class Settings(BaseSettings):
 
     except:
         pass
+
+    time_zone: str = ""
+
+    try:
+        time_zone: str = os.getenv('TIME_ZONE')
+    except:
+        pass

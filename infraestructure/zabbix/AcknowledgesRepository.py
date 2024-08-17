@@ -9,6 +9,8 @@ from models.cassia_acknowledge import CassiaAcknowledge
 from models.cassia_event_acknowledges import CassiaEventAcknowledge
 from models.cassia_event_acknowledges_test import CassiaEventAcknowledgeTest  # PINK
 import pytz
+from utils.traits import get_datetime_now_with_tz
+
 
 
 async def get_acknowledges(eventid, is_zabbix_event) -> pd.DataFrame:
@@ -139,12 +141,14 @@ async def create_cassia_acknowledge(
         last_acknowledge_id, current_session):
 
     db_model = DB()
+
     try:
         session = await db_model.get_session()
 
         cassia_acknowledge = CassiaAcknowledge(
             acknowledge_id=last_acknowledge_id,
-            user_id=current_session.user_id
+            user_id=current_session.user_id,
+            clock=get_datetime_now_with_tz()
         )
 
         session.add(cassia_acknowledge)
@@ -158,9 +162,7 @@ async def create_cassia_acknowledge(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Error al guardar el usuario que creo el acknowledge : {e}")
     finally:
-        print("Va a cerrar")
         await session.close()
-        print("CERRROOOOO LA CONEXIIOOOOOOON")
 
 
 async def create_cassia_event_acknowledge(eventid, message, current_session, close):
