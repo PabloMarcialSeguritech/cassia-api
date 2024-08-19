@@ -3,7 +3,7 @@ from utils.settings import Settings
 from fastapi.exceptions import HTTPException
 import schemas.exception_agency_schema as exception_agency_schema
 import schemas.exceptions_schema as exception_schema
-from utils.traits import success_response
+from utils.traits import success_response, get_datetime_now_with_tz
 from infraestructure.cassia import cassia_exception_agencies_repository
 from infraestructure.cassia import cassia_exceptions_repository
 from fastapi import status
@@ -11,6 +11,7 @@ import pandas as pd
 import pytz
 from datetime import datetime
 from models.cassia_user_session import CassiaUserSession
+
 
 settings = Settings()
 
@@ -82,9 +83,11 @@ async def create_exception_async(exception: exception_schema.CassiaExceptionsBas
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"El host con el id proporcionado no existe"
         )
+    current_time = get_datetime_now_with_tz()
     exception_dict = exception.dict()
     exception_dict['session_id'] = current_user_session
     exception_dict['closed_at'] = None
+    exception_dict['created_at'] = current_time.strftime("%Y-%m-%d %H:%M:%S")
     exception = await cassia_exceptions_repository.create_cassia_exception(exception_dict)
 
     return success_response(message="Excepcion creada correctamente",
