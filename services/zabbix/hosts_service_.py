@@ -309,6 +309,7 @@ async def get_host_metrics_(host_id):
 
 
 async def get_host_filter_(municipalityId, dispId, subtype_id):
+    print("get_host_filter_ func")
     if subtype_id == "0":
         subtype_id = ""
     if dispId == "0":
@@ -317,12 +318,14 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
         dispId = ''
 
     switch_config = pd.DataFrame(await host_repository.get_config_data_by_name('switch_id'))
+
     switch_id = "12"
     switch_troughtput = False
     if not switch_config.empty:
         switch_id = switch_config['value'].iloc[0]
     metric_switch_val = "Interface Bridge-Aggregation_: Bits"
     metric_switch = pd.DataFrame(await host_repository.get_config_data_by_name('switch_throughtput'))
+
     if not metric_switch.empty:
         metric_switch_val = metric_switch['value'].iloc[0]
     if subtype_id == metric_switch_val:
@@ -332,6 +335,7 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
             switch_troughtput = True
 
     rfid_config = pd.DataFrame(await host_repository.get_config_data_by_name('rfid_id'))
+
     rfid_id = "9"
     if not rfid_config.empty:
         rfid_id = rfid_config['value'].iloc[0]
@@ -363,6 +367,7 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
 
     data3 = pd.DataFrame(
         await host_repository.get_problems_by_severity(municipalityId, dispId_filter, subtype_id)).replace(np.nan, "")
+
     if dispId == rfid_id:
         if municipalityId == '0':
 
@@ -392,8 +397,10 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
                 ['severity']).sum().reset_index()
 
     data4 = pd.DataFrame(await host_repository.get_host_available_ping_loss(municipalityId, dispId)).replace(np.nan, "")
+
     # GIO
     downs = await layers_repository.get_host_downs(municipalityId, dispId, subtype_id)
+
     if not data4.empty:
         if 'Down' in data4.columns:  # Verifica si la columna 'Down' existe
             # Obtener el valor de la primera fila
@@ -410,10 +417,14 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
     else:
         downs_totales = 0
     dependientes = await layers_repository.get_host_downs_dependientes()
+
     if not dependientes.empty:
-        origenes = downs[~downs['hostid'].isin(
-            dependientes['hostid'].to_list())]
-        origenes_count = len(origenes)
+        if not downs.empty:
+            origenes = downs[~downs['hostid'].isin(
+                dependientes['hostid'].to_list())]
+            origenes_count = len(origenes)
+        else:
+            origenes_count = 0
     else:
         origenes_count = 0
 
@@ -431,7 +442,7 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
     global_host_available = pd.DataFrame(await host_repository.get_host_available_ping_loss('0', dispId)).replace(np.nan, "")
     """ downs_global = await downs_count(0, dispId, '') """
     if not global_host_available.empty:
-        downs_origen_global = await downs_count_(0, '', '')
+        downs_origen_global = await downs_origin_count_(0, dispId, '')
         # downs_totales = int(global_host_available['Down'][0])
         origenes = downs_origen_global
         global_host_available['Downs_origen'] = origenes
@@ -443,6 +454,7 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
         "subgroup_info": data6.to_dict(orient="records"),
         "global_host_availables": global_host_available.to_dict(orient="records")
     }
+
     # print(response)
     return success_response(data=response)
 
@@ -604,7 +616,7 @@ async def downs_count(municipalityId, dispId, subtype):
     return data
 
 
-async def downs_count_(municipality_id, dispId, subtype_id):
+async def downs_count_backup(municipality_id, dispId, subtype_id):
     downs = await layers_repository.get_host_downs(municipality_id, dispId, subtype_id)
     print(downs)
     dependientes = await layers_repository.get_host_downs_dependientes()
@@ -641,3 +653,24 @@ async def downs_count_(municipality_id, dispId, subtype_id):
                 downs_origen_filtro = downs_origen_filtro.drop_duplicates()
     print(downs_origen)
     return len(downs_origen)
+
+
+async def downs_origin_count_(municipality_id, dispId, subtype_id):
+    downs = await layers_repository.get_host_downs(0, dispId, '')
+    print("##############################################")
+    print(downs)
+    dependientes = await layers_repository.get_host_downs_dependientes()
+    print(1)
+    print(dependientes)
+    dependientes_down = dependientes.merge(downs, how='inner', on='hostid')
+    print(dependientes_down)
+    print(2)
+    if not downs.empty and not dependientes.empty:
+
+        downs_origen = len(downs)-len(dependientes_down)
+        print(3)
+    elif dependientes.empty and not downs.empty:
+        downs_origen = len(downs)
+    else:
+        downs_origen = 0
+    return downs_origen

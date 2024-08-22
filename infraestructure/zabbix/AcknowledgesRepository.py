@@ -174,7 +174,8 @@ async def create_cassia_event_acknowledge(eventid, message, current_session, clo
             userid=current_session.user_id,
             eventid=eventid,
             message=message,
-            action=5 if close else 4
+            action=5 if close else 4,
+            clock=get_datetime_now_with_tz()
         )
         session.add(cassia_event_acknowledge)
         await session.commit()
