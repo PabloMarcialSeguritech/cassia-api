@@ -209,6 +209,7 @@ class Settings(BaseSettings):
     resets_passwd: str = ""
     resets_role: str = ""
     resets_command_path: str = ""
+    cassia_resets: bool = False
 
     try:
         resets_base_url: str = os.getenv('RESETS_BASE_URL')
@@ -218,6 +219,8 @@ class Settings(BaseSettings):
         resets_passwd: str = os.getenv('RESETS_PASSWD')
         resets_role: str = os.getenv('RESETS_ROLE')
         resets_command_path: str = os.getenv('RESETS_CMD_PATH')
+        cassia_resets: bool = True if int(
+            os.getenv('RESETS')) == 1 else False
 
     except:
         pass

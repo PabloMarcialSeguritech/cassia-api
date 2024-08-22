@@ -1,23 +1,26 @@
 from rocketry import Grouper
+from rocketry.conds import daily
 from utils.settings import Settings
+from services.integration.reset_service_service_impl import ResetServiceImpl
 
-
-# Creating the Rocketry app
+# Crear la aplicación Rocketry
 resets_schedule = Grouper()
 
-# Creating some tasks
+# Cargar la configuración
 SETTINGS = Settings()
+
 # Definir la bandera "resets" usando la configuración
-flag_resets = Flag("resets", value=SETTINGS.cassia_resets)
+resets = SETTINGS.cassia_resets
+
 
 @resets_schedule.cond('resets')
-def is_syslog():
+def is_resets():
     return resets
 
 
-@resets_schedule.task(("every 30 seconds & resets"), execution="thread")
-async def update_syslog_data():
-
-    '''
-    todo logica
-    '''
+# Definir la tarea para que se ejecute todos los días a las 6:00 AM y a las 18:00 PM si la bandera "resets" está activa
+@resets_schedule.task((daily(hour=6, minute=0) | daily(hour=18, minute=0)) & is_resets, execution="thread")
+async def merge_resets():
+    reset_service = ResetServiceImpl()
+    resets = await reset_service.merge_resets()
+    print(resets)
