@@ -298,6 +298,7 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
     print("2")
     if not downs_filtro.empty:
         downs_filtro = downs_filtro[downs_filtro['Estatus'] == 'PROBLEM']
+        downs_filtro = downs_filtro[downs_filtro['recovered_at'] != None]
         if not downs_filtro.empty:
             downs_filtro = downs_filtro[downs_filtro['tipo'] == 1]
 
@@ -331,6 +332,7 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
         print("33")
         downs_globales_problems = downs_globales_problems[
             downs_globales_problems['Estatus'] == 'PROBLEM']
+        """ downs_globales_problems = downs_globales_problems[downs_globales_problems['recovered_at'] != None] """
         if not downs_globales_problems.empty:
             downs_globales_problems = downs_globales_problems[downs_globales_problems['tipo'] == 1]
     if 'hostid' in downs_globales.columns:
@@ -366,7 +368,7 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
         orient="records"), 'global_count': glob, 'filter_count': filtro
     }
     print("4")
-
+    print(response)
     return success_response(data=response)
 
 

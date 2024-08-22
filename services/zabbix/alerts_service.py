@@ -32,6 +32,7 @@ from infraestructure.zabbix import ZabbixEventRepository
 from infraestructure.cassia import cassia_tickets_repository
 from infraestructure.cassia import cassia_exception_agencies_repository
 from infraestructure.cassia import cassia_exceptions_repository
+from infraestructure.zabbix import layers_repository
 import os
 import ntpath
 import shutil
@@ -571,8 +572,78 @@ where cdp.closed_at is NULL""")
 
 async def get_problems_filter_(municipalityId, tech_host_type=0, subtype="", severities=""):
     problems = await AlertsRepository.get_problems_filter(municipalityId, tech_host_type, subtype, severities)
-    print(problems)
+
+    downs_df = await layers_repository.get_host_downs(municipalityId, '', '')
+
+    problems['Estatus'] = problems['hostid'].apply(
+        lambda x: 'PROBLEM' if x in downs_df['hostid'].values else 'RESOLVED')
+
+    # Contamos la cantidad de registros con 'resolved' y 'problem'
+    status_counts = problems['Estatus'].value_counts()
+
+    # Mostramos el DataFrame final y el conteo
+    print("\nConteo de registros:")
+    print(status_counts)
+
+    print(problems.columns)
+    problems_tipo_1 = problems[problems['tipo'] == 1]
+    problems_tipo_1_down = problems_tipo_1[problems_tipo_1['Estatus'] == 'PROBLEM']
+    problems_tipo_0 = problems[problems['tipo'] == 0]
+    problems_tipo_0_down = problems_tipo_0[problems_tipo_0['Estatus'] == 'PROBLEM']
+    print(f"ODD: {len(problems_tipo_1)}")
+    print(f"ODD DOWN: {len(problems_tipo_1_down)}")
+    print(f"DOWNS: {len(problems_tipo_0)}")
+    print(f"DOWNS DOWN: {len(problems_tipo_0_down)}")
+
+    dif_problems = downs_df[~downs_df['hostid'].isin(
+        problems['hostid'].to_list())]
+    dif_problems2 = downs_df[downs_df['hostid'].isin(
+        problems['hostid'].to_list())]
+    print(len(downs_df))
+    print(dif_problems)
+    print(dif_problems2)
     return success_response(data=problems.to_dict(orient="records"))
+
+
+async def get_problems_filter_errors(municipalityId, tech_host_type=0, subtype="", severities=""):
+    problems = await AlertsRepository.get_problems_filter(municipalityId, tech_host_type, subtype, severities)
+
+    downs_df = await layers_repository.get_host_downs(municipalityId, '', '')
+
+    problems['Estatus'] = problems['hostid'].apply(
+        lambda x: 'PROBLEM' if x in downs_df['hostid'].values else 'RESOLVED')
+
+    if not problems.empty:
+        errores_eventos = await get_errores_eventos(problems)
+    return success_response(data=errores_eventos)
+
+
+async def get_errores_eventos(problems):
+    mensajes_errores_eventos = []
+    """ Evaluacion de errores de municipios """
+    host_error_municipio = []
+    problems_down = problems[problems['Estatus'] == 'PROBLEM']
+    print(problems_down['municipality'].to_string())
+    host_error_municipio = problems_down[problems_down['municipality'].isin(
+        [None, np.nan, ''])]
+    print(host_error_municipio)
+    print(problems_down)
+    if not host_error_municipio.empty:
+        hostids = await AlertsRepository.get_downs_without_municipality()
+        print(hostids)
+        if not hostids.empty:
+            problems_hostids = host_error_municipio[host_error_municipio['hostid'].isin(
+                hostids['hostid'].to_list())]
+            if not problems_hostids.empty:
+                ips_array = [str(ip)
+                             for ip in problems_hostids['ip'].to_list()]
+                ips = ", ".join(ips_array)
+                mensajes_errores_eventos.append({
+                    'mensaje': 'Los siguientes host no tienen configurado un municipio y no seran visualizados al filtrar por municipio.',
+                    'detalle_str': ips,
+                    'detalle': ips_array
+                })
+    return mensajes_errores_eventos
 
 
 async def get_problems_filter_report_(municipalityId, tech_host_type=0, subtype="", severities=""):
