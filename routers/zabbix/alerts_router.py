@@ -19,6 +19,17 @@ alerts_router = APIRouter()
 
 
 @alerts_router.get(
+    '/problems_errors/{municipalityId}',
+    tags=["Zabbix - Problems(Alerts)"],
+    status_code=status.HTTP_200_OK,
+    summary="Get problems by municipality ID, device type and technology, and subtype",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_problems_filter_errors(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
+    return await alerts_service.get_problems_filter_errors(municipalityId, tech_host_type, subtype, severities)
+
+
+@alerts_router.get(
     '/problems/{municipalityId}',
     tags=["Zabbix - Problems(Alerts)"],
     status_code=status.HTTP_200_OK,

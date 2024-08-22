@@ -836,6 +836,24 @@ async def get_cassia_acks(eventids) -> pd.DataFrame:
         await db_model.close_connection()
 
 
+async def get_downs_without_municipality() -> pd.DataFrame:
+    db_model = DB()
+    try:
+        # PINK
+        get_hosts_events_withou_municipality = DBQueries(
+        ).query_statement_get_hosts_events_withou_municipality
+        await db_model.start_connection()
+        hosts_data = await db_model.run_query(get_hosts_events_withou_municipality)
+        hosts_df = pd.DataFrame(
+            hosts_data).replace(np.nan, None)
+        return hosts_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_downs_without_municipality {e}")
+    finally:
+        await db_model.close_connection()
+
+
 async def get_cassia_events(data, municipalityId,  severities, ping_loss_message):
     if municipalityId == '0':
         print("AAAAAA")

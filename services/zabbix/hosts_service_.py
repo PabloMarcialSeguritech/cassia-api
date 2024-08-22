@@ -349,10 +349,8 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
     if dispId == "11":
         hosts = await host_repository.get_host_view(municipalityId, f'{dispId},2', None)
 
-
     else:
         hosts = await host_repository.get_host_view(municipalityId, f'{dispId}', subtype_id)
-
 
     data = pd.DataFrame(hosts)
 
@@ -444,7 +442,7 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
     global_host_available = pd.DataFrame(await host_repository.get_host_available_ping_loss('0', dispId)).replace(np.nan, "")
     """ downs_global = await downs_count(0, dispId, '') """
     if not global_host_available.empty:
-        downs_origen_global = await downs_count_(0, dispId, '')
+        downs_origen_global = await downs_origin_count_(0, dispId, '')
         # downs_totales = int(global_host_available['Down'][0])
         origenes = downs_origen_global
         global_host_available['Downs_origen'] = origenes
@@ -618,7 +616,7 @@ async def downs_count(municipalityId, dispId, subtype):
     return data
 
 
-async def downs_count_(municipality_id, dispId, subtype_id):
+async def downs_count_backup(municipality_id, dispId, subtype_id):
     downs = await layers_repository.get_host_downs(municipality_id, dispId, subtype_id)
     print(downs)
     dependientes = await layers_repository.get_host_downs_dependientes()
@@ -655,3 +653,24 @@ async def downs_count_(municipality_id, dispId, subtype_id):
                 downs_origen_filtro = downs_origen_filtro.drop_duplicates()
     print(downs_origen)
     return len(downs_origen)
+
+
+async def downs_origin_count_(municipality_id, dispId, subtype_id):
+    downs = await layers_repository.get_host_downs(0, dispId, '')
+    print("##############################################")
+    print(downs)
+    dependientes = await layers_repository.get_host_downs_dependientes()
+    print(1)
+    print(dependientes)
+    dependientes_down = dependientes.merge(downs, how='inner', on='hostid')
+    print(dependientes_down)
+    print(2)
+    if not downs.empty and not dependientes.empty:
+
+        downs_origen = len(downs)-len(dependientes_down)
+        print(3)
+    elif dependientes.empty and not downs.empty:
+        downs_origen = len(downs)
+    else:
+        downs_origen = 0
+    return downs_origen
