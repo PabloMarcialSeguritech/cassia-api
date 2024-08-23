@@ -497,6 +497,8 @@ class ResetServiceImpl(ResetServiceFacade):
         response = None
         if object_id:
             response = await self.send_request_api_reset(object_id, is_hard_reset=False)
+            if response['status'] == 'no ejecutado con exito':
+                return response
         else:
             return failure_response(message="Object ID necesario para la petición")
         if not await self.is_response_good(response):
@@ -552,6 +554,8 @@ class ResetServiceImpl(ResetServiceFacade):
         pmi_status = False
         if object_id:
             response = await self.send_request_api_reset(object_id, is_hard_reset=False)
+            if response['status'] == 'no ejecutado con exito':
+                return response
         else:
             return failure_response(message="Object ID necesario para la petición")
         if not await self.is_response_good(response):
@@ -585,6 +589,8 @@ class ResetServiceImpl(ResetServiceFacade):
         object_id = await self.get_object_id_by_affiliation(pmiAfiliacion)
         if object_id:
             response = await self.send_request_api_reset(object_id, is_hard_reset=False)
+            if response['status'] == 'no ejecutado con exito':
+                return response
         else:
             return failure_response(message="Esta afiliación parece no existir en el sistema de resets")
         if not await self.is_response_good(response):
@@ -609,6 +615,8 @@ class ResetServiceImpl(ResetServiceFacade):
                 print("Forzamos hard reset")
                 if object_id:
                     response = await self.send_request_api_reset(object_id, is_hard_reset=True)
+                    if response['status'] == 'no ejecutado con exito':
+                        return response
                 else:
                     return failure_response(message="Object ID necesario para la petición")
                 if not await self.is_response_good(response):
@@ -675,6 +683,8 @@ class ResetServiceImpl(ResetServiceFacade):
                 print("Forzamos hard reset")
                 if object_id:
                     response = await self.send_request_api_reset(object_id, is_hard_reset=True)
+                    if response['status'] == 'no ejecutado con exito':
+                        return response
                 else:
                     return failure_response(message="Object ID necesario para la petición")
                 if not await self.is_response_good(response):
@@ -939,7 +949,8 @@ class ResetServiceImpl(ResetServiceFacade):
                     "tag": "TODOS LOS DISPOSITIVOS durante 1 min",
                     "user": {}
                 },
-                headers=headers)
+                headers=headers,
+                timeout=10)
             if response.status_code == 200:
                 print("Successfully request device")
                 print("response::::", response)
@@ -951,6 +962,11 @@ class ResetServiceImpl(ResetServiceFacade):
             else:
                 print(f"Failed to post device, status code: {response.status_code}, response: {response.text}")
                 return pd.DataFrame()
+        except requests.exceptions.Timeout:
+            mensaje_error = "El sistema de Reset no respondió a la petición después de 10 segundos"
+            print(mensaje_error)
+            return failure_response(message=mensaje_error, data={})
         except requests.exceptions.RequestException as e:
             print(f"Request exception occurred: {e}")
             return pd.DataFrame()
+

@@ -6,6 +6,9 @@ from infraestructure.database_model import DB
 from infraestructure.db_queries_model import DBQueries
 from models.cassia_exception_agency_async import CassiaExceptionAgencyAsync
 from fastapi import status, HTTPException
+import schemas.exception_agency_schema as exception_agency_schema
+from utils.settings import Settings
+SETTINGS = Settings()
 
 
 async def get_cassia_exception_agencies() -> pd.DataFrame:
@@ -28,14 +31,17 @@ async def get_cassia_exception_agencies() -> pd.DataFrame:
         await db_model.close_connection()
 
 
-async def create_cassia_exception_agency(exception_agency_data):
+async def create_cassia_exception_agency(exception_agency_data: exception_agency_schema.CassiaExceptionAgencyBase):
     db_model = DB()
     try:
         session = await db_model.get_session()
         exception_agency = CassiaExceptionAgencyAsync(
             name=exception_agency_data.name,
-            created_at=datetime.now(pytz.timezone('America/Mexico_City')),
-            updated_at=datetime.now(pytz.timezone('America/Mexico_City'))
+            created_at=datetime.now(pytz.timezone(SETTINGS.time_zone)),
+            updated_at=datetime.now(pytz.timezone(SETTINGS.time_zone)),
+            img=exception_agency_data.img,
+            color=exception_agency_data.color,
+            shortName=exception_agency_data.shortName,
         )
         session.add(exception_agency)
         await session.commit()
@@ -74,10 +80,10 @@ async def get_cassia_exception_agency_by_id(exception_agency_id) -> pd.DataFrame
 async def update_cassia_exception_agency(exception_agency_id, exception_agency_data) -> pd.DataFrame:
     db_model = DB()
     try:
-        current_time = datetime.now(pytz.timezone('America/Mexico_City'))
+        current_time = datetime.now(pytz.timezone(SETTINGS.time_zone))
         formatted_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
         query_update_exception_agency = DBQueries(
-        ).builder_query_statement_update_cassia_exception_agency(exception_agency_id, exception_agency_data.name, formatted_time)
+        ).builder_query_statement_update_cassia_exception_agency(exception_agency_id, exception_agency_data, formatted_time)
         print(query_update_exception_agency)
         await db_model.start_connection()
         result = await db_model.run_query(query_update_exception_agency)
@@ -96,7 +102,7 @@ async def update_cassia_exception_agency(exception_agency_id, exception_agency_d
 async def delete_cassia_exception_agency(exception_agency_id) -> pd.DataFrame:
     db_model = DB()
     try:
-        current_time = datetime.now(pytz.timezone('America/Mexico_City'))
+        current_time = datetime.now(pytz.timezone(SETTINGS.time_zone))
         formatted_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
         query_delete_exception_agency = DBQueries(
         ).builder_query_statement_logic_delete_cassia_exception_agency(exception_agency_id, formatted_time)
