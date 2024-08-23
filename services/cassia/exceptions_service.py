@@ -115,9 +115,9 @@ async def close_exception_async(exception_id, exception_data, current_user_sessi
 async def get_exceptions_detail_async():
     exceptions = await cassia_exceptions_repository.get_cassia_exceptions_detail()
     if not exceptions.empty:
-        now = datetime.now(pytz.timezone('America/Mexico_City'))
+        now = datetime.now(pytz.timezone(settings.time_zone))
         exceptions['created_at'] = pd.to_datetime(exceptions['created_at'], format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
-            pytz.timezone('America/Mexico_City'))
+            pytz.timezone(settings.time_zone))
         exceptions['diferencia'] = now - exceptions['created_at']
         exceptions['dias'] = exceptions['diferencia'].dt.days
         exceptions['horas'] = exceptions['diferencia'].dt.components.hours
@@ -139,7 +139,7 @@ async def update_exception_async(exception: exception_schema.CassiaExceptions, c
             detail="No existe el registro de Exception"
         )
 
-    current_time = datetime.now(pytz.timezone('America/Mexico_City'))
+    current_time = datetime.now(pytz.timezone(settings.time_zone))
 
     # Ensure session_id is correctly set as a string without hyphens
     existing_exception.session_id = current_user_session
@@ -158,13 +158,13 @@ async def update_exception_async(exception: exception_schema.CassiaExceptions, c
 
 
 async def delete_exception_async(exception_id: int):
-    existing_exception =  await cassia_exceptions_repository.get_cassia_instance_exception_by_id(exception_id)
+    existing_exception = await cassia_exceptions_repository.get_cassia_instance_exception_by_id(exception_id)
     if not existing_exception:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No existe el registro de Exception"
         )
-    current_time = datetime.now(pytz.timezone('America/Mexico_City'))
+    current_time = datetime.now(pytz.timezone(settings.time_zone))
     formatted_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
     result = await cassia_exceptions_repository.delete_cassia_exception(exception_id, formatted_time)
     message = "Exception Eliminada" if result else "Error al eliminar Exception"

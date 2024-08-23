@@ -10,6 +10,18 @@ class CassiaExceptionAgencyBase(BaseModel):
         example="CFE",
         max_length=120
     )
+    img: str = Field(
+        example="cfe.png",
+        max_length=100
+    )
+    color: str = Field(
+        example="#00da19b7",
+        max_length=100
+    )
+    shortName: str = Field(
+        example="cfe",
+        max_length=7
+    )
 
 
 class CassiaExceptionAgency(CassiaExceptionAgencyBase):

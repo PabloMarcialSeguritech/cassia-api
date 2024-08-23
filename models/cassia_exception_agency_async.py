@@ -11,6 +11,9 @@ class CassiaExceptionAgencyAsync(DB.Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, nullable=True)
     deleted_at = Column(DateTime, default=None, nullable=True)
+    img = Column(String(length=100), nullable=True)
+    color = Column(String(length=100), nullable=True)
+    shortName = Column(String(length=7), nullable=True)
 
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}

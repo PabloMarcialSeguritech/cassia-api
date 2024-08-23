@@ -42,21 +42,49 @@ class DB:
         async with AsyncSession(self.engine) as session:
             return session
 
-    async def start_connection(self):
-        if self.connection is None:
-            try:
-                self.connection = await aiomysql.connect(
-                    host=self.host,
-                    port=self.port,
-                    db=self.db,
-                    user=self.user,
-                    password=self.password,
-                    autocommit=True
-                )
-                print("Database connection successfully established.")
-            except aiomysql.Error as e:
-                print(f"Error while establishing database connection: {e}")
-                raise
+    async def start_connection(self, retries=2, delay=2):
+        print("#########################################################################")
+        print("#########################################################################")
+        print("#########################################################################")
+        print("#########################################################################")
+        print("#########################################################################")
+        print("#########################################################################")
+        print("#########################################################################")
+        print("#########################################################################")
+        print("#########################################################################")
+        print("#########################################################################")
+        print("#########################################################################")
+        print("#########################################################################")
+        attempt = 0
+        while attempt < retries:
+            if self.connection is None:
+                try:
+                    print(
+                        f"###################################################Attempting to establish database connection... (Attempt {attempt + 1})")
+                    self.connection = await aiomysql.connect(
+                        host=self.host,
+                        port=self.port,
+                        db=self.db,
+                        user=self.user,
+                        password=self.password,
+                        autocommit=True
+                    )
+                    print(
+                        "##################################################Database connection successfully established.")
+                    return  # Exit the loop if connection is successful
+                except aiomysql.Error as e:
+                    print(f"Error while establishing database connection: {e}")
+                    attempt += 1
+                    if attempt < retries:
+                        print(f"Retrying in {delay} seconds...")
+                        await asyncio.sleep(delay)
+                    else:
+                        print(
+                            "Max retries reached. Could not establish database connection.")
+                        raise
+                except Exception as general_error:
+                    print(f"An unexpected error occurred: {general_error}")
+                    raise
 
     async def run_stored_procedure(self, sp_name, sp_params):
         if self.connection is None:
