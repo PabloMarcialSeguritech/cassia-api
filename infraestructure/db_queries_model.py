@@ -583,8 +583,14 @@ group by c.latitude, c.longitude """
         self.query_statement_get_cassia_exception_agency_by_id = f"SELECT * FROM cassia_exception_agencies where exception_agency_id={exception_agency_id}"
         return self.query_statement_get_cassia_exception_agency_by_id
 
-    def builder_query_statement_update_cassia_exception_agency(self, exception_agency_id, name, date):
-        self.query_statement_update_cassia_exception_agency = f"""update cassia_exception_agencies set name='{name}', updated_at='{date}' where exception_agency_id={exception_agency_id}"""
+    def builder_query_statement_update_cassia_exception_agency(self, exception_agency_id, data, date):
+        self.query_statement_update_cassia_exception_agency = f"""update cassia_exception_agencies set 
+        name='{data.name}',
+        img='{data.img}',
+        color='{data.color}',
+        shortName='{data.shortName}',
+        updated_at='{date}'
+        where exception_agency_id={exception_agency_id}"""
         return self.query_statement_update_cassia_exception_agency
 
     def builder_query_statement_logic_delete_cassia_exception_agency(self, exception_agency_id, date):
