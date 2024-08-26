@@ -2,8 +2,43 @@ from fastapi import status, HTTPException
 from infraestructure.cassia import cassia_services_tech_repository
 from infraestructure.cassia import cassia_criticalities_repository
 from infraestructure.cassia import cassia_tech_devices_repository
+from fastapi.responses import FileResponse
 from utils.traits import success_response
 from schemas import cassia_service_tech_schema
+import pandas as pd
+import tempfile
+
+
+async def get_plantilla():
+    try:
+        df = pd.DataFrame(
+            columns=["hostid", "hostname", "ip", "servicio", "tecnologia"])
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp_file:
+            xlsx_filename = temp_file.name
+            with pd.ExcelWriter(xlsx_filename, engine="xlsxwriter") as writer:
+                df.to_excel(writer, sheet_name='Plantilla', index=False)
+                return FileResponse(xlsx_filename, headers={"Content-Disposition": "attachment; filename=Plantilla_SNMP_Creacion.xlsx"}, media_type="application/vnd.ms-excel", filename="Plantilla_SNMP_Creacion.xlsx")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+async def get_devices():
+    try:
+        devices = await cassia_services_tech_repository.get_devices_data()
+        if devices.empty:
+            devices['hostid'] = ''
+            devices['hostname'] = ''
+            devices['ip'] = ''
+        else:
+            devices['servicio'] = None
+            devices['tecnologia'] = None
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp_file:
+            xlsx_filename = temp_file.name
+            with pd.ExcelWriter(xlsx_filename, engine="xlsxwriter") as writer:
+                devices.to_excel(writer, sheet_name='', index=False)
+                return FileResponse(xlsx_filename, headers={"Content-Disposition": "attachment; filename=Catalogo dipositivos CASSIA.xlsx"}, media_type="application/vnd.ms-excel", filename="Catalogo dipositivos CASSIA.xlsx")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 async def get_services():

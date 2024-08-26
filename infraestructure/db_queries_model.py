@@ -236,6 +236,16 @@ and status !='error'"""
         # PINK
         self.query_statement_get_local_events = """SELECT * FROM cassia_events_test where closed_at is NULL """
         self.query_statement_get_hosts_events_withou_municipality = """select * from cassia_events_test cet  where municipality is NULL and closed_at is null"""
+        self.query_getHostsCassia = """SELECT 
+                                        DISTINCT h.hostid as hostid,
+                                        h.host AS hostname,
+                                        hi.ip AS ip
+                                    FROM 
+                                        hosts h
+                                    JOIN 
+                                        interface hi ON h.hostid = hi.hostid
+                                    WHERE 
+                                        h.status = 0; """
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
