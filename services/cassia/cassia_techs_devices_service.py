@@ -13,9 +13,28 @@ import pytz
 
 async def get_devices_by_tech(tech_id):
     tech_exist = await cassia_techs_repository.get_tech_by_id(tech_id)
+
     if tech_exist.empty:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Tecnologia no encontrada")
+    service = await cassia_services_tech_repository.get_service_tech_by_id(tech_exist['service_id'][0])
+    if service.empty:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Servicio no encontrado")
+    response = dict()
+    if not tech_exist.empty:
+        response['sla_tech'] = 100
+        response['sla_tech_formatted'] = "100.00%"
+        tech_sla = await cassia_tech_devices_repository.get_sla_by_tech(tech_exist['cassia_tech_id'][0], tech_exist['sla_hours'][0])
+        response['sla_tech'] = tech_sla
+        response['sla_tech_formatted'] = f"{tech_sla}%" if tech_sla != "NA" else "NA"
+    if not service.empty:
+        response['sla_service'] = 100
+        response['sla_service_formatted'] = "100.00%"
+        service_sla = await cassia_tech_devices_repository.get_sla_by_service(tech_exist['service_id'][0])
+        response['sla_service'] = service_sla
+        response['sla_service_formatted'] = f"{service_sla}%" if service_sla != "NA" else "NA"
+
     devices = await cassia_tech_devices_repository.get_devices_by_tech_id(tech_id)
     if not devices.empty:
         devices['sla'] = 100
@@ -48,8 +67,8 @@ async def get_devices_by_tech(tech_id):
                     devices['sla'][ind] = sla_restante
                     devices["formatted_sla"][ind] = f"{sla_restante}%"
                     print(sla_restante)
-
-    return success_response(data=devices.to_dict(orient="records"))
+    response['devices'] = devices.to_dict(orient="records")
+    return success_response(data=response)
 
 
 async def get_tech_device_by_id(device_id):

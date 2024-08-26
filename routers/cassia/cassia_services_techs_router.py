@@ -1,5 +1,6 @@
 from fastapi import APIRouter, UploadFile
 from fastapi import Depends, status, Form, Body, File
+from fastapi.responses import FileResponse
 from services import auth_service2
 from schemas import cassia_ci_history_schema
 from schemas import cassia_ci_element_schema
@@ -12,6 +13,29 @@ from schemas import cassia_technologies_schema
 from schemas import cassia_auto_action_schema
 from schemas import cassia_service_tech_schema
 cassia_services_router = APIRouter(prefix="/services")
+
+
+@cassia_services_router.get(
+    '/plantilla_carga_portafolio',
+    tags=["Cassia - Services"],
+    status_code=status.HTTP_200_OK,
+    response_class=FileResponse,
+    summary="Obtiene la plantilla para carga masiva",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_plantilla():
+    return await cassia_services_tech_service.get_plantilla()
+
+
+@cassia_services_router.get(
+    '/catalogo_dispositivos_cassia',
+    tags=["Cassia - Services"],
+    status_code=status.HTTP_200_OK,
+    summary="Obtiene los dispositivos de cassia con su tecnologia y servicio",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_devices():
+    return await cassia_services_tech_service.get_devices()
 
 
 @cassia_services_router.get(
