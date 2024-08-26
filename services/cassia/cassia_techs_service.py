@@ -13,6 +13,14 @@ async def get_techs_by_service(service_id):
     if service_exist.empty:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Servicio no encontrado")
+    response = dict()
+    if not service_exist.empty:
+        response['sla_service'] = 100
+        response['sla_service_formatted'] = "100.00%"
+        service_sla = await cassia_tech_devices_repository.get_sla_by_service(service_id)
+        response['sla_service'] = service_sla
+        response['sla_service_formatted'] = f"{service_sla}%" if service_sla != "NA" else "NA"
+
     techs = await cassia_techs_repository.get_techs_by_service_id(service_id)
     if not techs.empty:
         techs['sla'] = 100
@@ -21,7 +29,8 @@ async def get_techs_by_service(service_id):
             tech_sla = await cassia_tech_devices_repository.get_sla_by_tech(techs['cassia_tech_id'][ind], techs['sla_hours'][ind])
             techs['sla'][ind] = tech_sla
             techs['formatted_sla'][ind] = f"{tech_sla}%" if tech_sla != "NA" else "NA"
-    return success_response(data=techs.to_dict(orient="records"))
+    response['techs'] = techs.to_dict(orient="records")
+    return success_response(data=response)
 
 
 async def get_tech_by_id(tech_id):
