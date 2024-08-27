@@ -21,6 +21,41 @@ async def get_towers() -> pd.DataFrame:
         await db_model.close_connection()
 
 
+async def get_host_down_excepciones() -> pd.DataFrame:
+    db_model = DB()
+    try:
+        sp_get_host_downs_excepciones = DBQueries().stored_name_get_host_down_excepcion
+        await db_model.start_connection()
+        host_downs_excepciones_data = await db_model.run_query(sp_get_host_downs_excepciones)
+        host_downs_excepciones_df = pd.DataFrame(
+            host_downs_excepciones_data).replace(np.nan, None)
+        if host_downs_excepciones_df.empty:
+            host_downs_excepciones_df = pd.DataFrame(columns=['hostid'])
+        return host_downs_excepciones_df
+    except Exception as e:
+        print(f"Excepcion en get_host_down_excepciones: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_host_down_excepciones: {e}")
+    finally:
+        await db_model.close_connection()
+
+
+async def get_host_up(municipality_id, dispId, subtype_id) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        sp_get_host_up = DBQueries().stored_name_get_host_up
+        await db_model.start_connection()
+        host_up_data = await db_model.run_stored_procedure(sp_get_host_up, (municipality_id, dispId, ''))
+        host_up_df = pd.DataFrame(host_up_data).replace(np.nan, None)
+        return host_up_df
+    except Exception as e:
+        print(f"Excepcion en get_host_up: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_host_up: {e}")
+    finally:
+        await db_model.close_connection()
+
+
 async def get_host_downs(municipality_id, dispId, subtype_id) -> pd.DataFrame:
     db_model = DB()
     try:
