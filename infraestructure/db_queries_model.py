@@ -78,6 +78,9 @@ class DBQueries:
         self.stored_name_catalog_models = "sp_catModel"
         self.stored_name_get_towers = "sp_catTower"
         self.stored_name_get_host_downs = "sp_hostDown"
+        self.stored_name_get_host_up = "sp_hostUp"
+        self.stored_name_get_host_down_excepcion = """select hostid from cassia_exceptions_test cet 
+where deleted_at is NULL  and closed_at is null"""
         # ACTUALIZAR NOMBRE
         self.query_get_host_downs_dependientes = """SELECT DISTINCT (hostid) from cassia_diagnostic_problems cdp
 where closed_at is null and depends_hostid is not null"""

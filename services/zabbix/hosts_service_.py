@@ -400,11 +400,22 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
 
     # GIO
     downs = await layers_repository.get_host_downs(municipalityId, dispId, subtype_id)
-
+    up = await layers_repository.get_host_up(municipalityId, dispId, subtype_id)
+    downs_excepcion = await layers_repository.get_host_down_excepciones()
     if not data4.empty:
         if 'Down' in data4.columns:  # Verifica si la columna 'Down' existe
+            up = up[~up['hostid'].isin(
+                downs_excepcion['hostid'].to_list())]
+            downs = downs[~downs['hostid'].isin(
+                downs_excepcion['hostid'].to_list())]
             # Obtener el valor de la primera fila
+            print("******************SIN PROCESAR**********************")
+            print(data4)
             data4['Down'].iloc[0] = len(downs)
+            data4['UP'].iloc[0] = len(up)
+            print("******************PROCESADO**********************")
+            print(data4)
+
             down_value = data4['Down'].iloc[0]
             if down_value == '0':
                 downs_totales = 0
@@ -442,10 +453,18 @@ async def get_host_filter_(municipalityId, dispId, subtype_id):
     global_host_available = pd.DataFrame(await host_repository.get_host_available_ping_loss('0', dispId)).replace(np.nan, "")
     """ downs_global = await downs_count(0, dispId, '') """
     if not global_host_available.empty:
-        downs_origen_global = await downs_origin_count_(0, dispId, '')
+        up = up[~up['hostid'].isin(
+                downs_excepcion['hostid'].to_list())]
+        global_host_available['UP'].iloc[0] = len(up)
+
+        # {'downs': count_downs, 'downs_origen': downs_origen}
+        conteo_downs = await downs_origin_count_(0, dispId, '', downs_excepcion)
+
+        global_host_available['Down'].iloc[0] = conteo_downs['downs']
         # downs_totales = int(global_host_available['Down'][0])
-        origenes = downs_origen_global
+        origenes = conteo_downs['downs_origen']
         global_host_available['Downs_origen'] = origenes
+        print(global_host_available)
     print(global_host_available.to_dict(orient="records"))
     response = {"hosts": data.to_dict(
         orient="records"), "relations": data2.to_dict(orient="records"),
@@ -655,9 +674,18 @@ async def downs_count_backup(municipality_id, dispId, subtype_id):
     return len(downs_origen)
 
 
-async def downs_origin_count_(municipality_id, dispId, subtype_id):
+async def downs_origin_count_(municipality_id, dispId, subtype_id, downs_excepcion):
     downs = await layers_repository.get_host_downs(0, dispId, '')
+
+    print("***********************EXCEPCIONES**************************")
+    print(downs_excepcion)
+    print("***********************DOWNS**************************")
+    print(downs)
+    if not downs.empty:
+        downs = downs[~downs['hostid'].isin(
+            downs_excepcion['hostid'].to_list())]
     print("##############################################")
+    print("***********************DOWNS SIN EXCEPCIONES**************************")
     print(downs)
     dependientes = await layers_repository.get_host_downs_dependientes()
     print(1)
@@ -665,12 +693,12 @@ async def downs_origin_count_(municipality_id, dispId, subtype_id):
     dependientes_down = dependientes.merge(downs, how='inner', on='hostid')
     print(dependientes_down)
     print(2)
+    count_downs = len(downs)
     if not downs.empty and not dependientes.empty:
-
         downs_origen = len(downs)-len(dependientes_down)
         print(3)
     elif dependientes.empty and not downs.empty:
         downs_origen = len(downs)
     else:
         downs_origen = 0
-    return downs_origen
+    return {'downs': count_downs, 'downs_origen': downs_origen}
