@@ -7,6 +7,7 @@ from sshtunnel import SSHTunnelForwarder
 from sqlalchemy.pool import NullPool
 from utils.settings import Settings
 import aiomysql
+import asyncio
 
 settings = Settings()
 
