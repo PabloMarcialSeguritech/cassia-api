@@ -286,6 +286,46 @@ where closed_at is null and depends_hostid is not null""")
 
 
 async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
+    downs = await layers_repository.get_host_downs(municipality_id, dispId, subtype_id)
+    downs_excepcion = await layers_repository.get_host_down_excepciones()
+    downs = downs[~downs['hostid'].isin(downs_excepcion['hostid'].to_list())]
+    count_downs = len(downs)
+
+    downs_globales = await layers_repository.get_host_downs('0', '', '')
+    downs_globales = downs_globales[~downs_globales['hostid'].isin(
+        downs_excepcion['hostid'].to_list())]
+    count_downs_globales = len(downs_globales)
+
+    dependientes = await layers_repository.get_host_downs_dependientes()
+    origenes = downs[~downs['hostid'].isin(dependientes['hostid'].to_list())]
+    count_origenes = len(origenes)
+    origenes_globales = downs_globales[~downs_globales['hostid'].isin(
+        dependientes['hostid'].to_list())]
+    count_origenes_globales = len(origenes_globales)
+
+    filtro = {'downs_totales': count_downs,
+              'downs_dependientes': 0,
+              'downs_origen': count_origenes}
+    glob = {
+        'downs_totales': count_downs_globales,
+        'downs_dependientes': 0,
+        'downs_origen': count_origenes_globales
+    }
+    if not origenes.empty:
+        origenes['value'] = [1 for i in range(len(origenes))]
+        origenes['description'] = [
+            'ICMP ping' for i in range(len(origenes))]
+        origenes['origen'] = [1 for i in range(len(origenes))]
+
+    response = {"downs": origenes.to_dict(
+        orient="records"), 'global_count': glob, 'filter_count': filtro
+    }
+    print("4")
+    print(response)
+    return success_response(data=response)
+
+
+async def get_downs_origin_layer_async_backupppppp(municipality_id, dispId, subtype_id):
     print("get_downs_origin_layer_async function")
     downs = await layers_repository.get_host_downs(municipality_id, dispId, subtype_id)
     print("1.1")
