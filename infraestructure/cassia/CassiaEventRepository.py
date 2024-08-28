@@ -126,7 +126,7 @@ async def get_municipality_alerts_by_tech(municipality, tech_id, tipo):
     db_model = DB()
     try:
         query_get_alerts_by_municipality_and_tech = DBQueries(
-        ).builder_query_statement_get_cassia_events_by_tech_and_municipality(municipality, tech_id)
+        ).builder_query_statement_get_cassia_events_by_tech_and_municipality_test(municipality, tech_id)
         await db_model.start_connection()
         cassia_alerts_data = await db_model.run_query(query_get_alerts_by_municipality_and_tech)
         cassia_alerts_df = pd.DataFrame(
@@ -156,7 +156,7 @@ async def get_municipality_alerts_local(municipality):
     db_model = DB()
     try:
         query_get_alerts_by_municipality_and_tech = DBQueries(
-        ).builder_query_statement_get_cassia_events_by_municipality(municipality)
+        ).builder_query_statement_get_cassia_events_by_municipality_test(municipality)
         await db_model.start_connection()
         cassia_alerts_data = await db_model.run_query(query_get_alerts_by_municipality_and_tech)
         cassia_alerts_df = pd.DataFrame(
