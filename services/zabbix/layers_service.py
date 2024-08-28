@@ -287,8 +287,14 @@ where closed_at is null and depends_hostid is not null""")
 
 async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
     downs = await layers_repository.get_host_downs(municipality_id, dispId, subtype_id)
+    print("********DOWNS********")
+    print(downs)
     downs_excepcion = await layers_repository.get_host_down_excepciones()
+    print("********DOWNS EXCEPCION********")
+    print(downs_excepcion)
     downs = downs[~downs['hostid'].isin(downs_excepcion['hostid'].to_list())]
+    print("***********DOWNS SIN EXCEPCION***********")
+    print(downs)
     count_downs = len(downs)
 
     downs_globales = await layers_repository.get_host_downs('0', '', '')
@@ -297,7 +303,11 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
     count_downs_globales = len(downs_globales)
 
     dependientes = await layers_repository.get_host_downs_dependientes()
+    print("***********DEPENDIENTES***********")
+    print(dependientes)
     origenes = downs[~downs['hostid'].isin(dependientes['hostid'].to_list())]
+    print("***********ORIGENES***********")
+    print(origenes)
     count_origenes = len(origenes)
     origenes_globales = downs_globales[~downs_globales['hostid'].isin(
         dependientes['hostid'].to_list())]
