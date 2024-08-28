@@ -599,10 +599,19 @@ async def get_problems_filter_(municipalityId, tech_host_type=0, subtype="", sev
         problems['hostid'].to_list())]
     dif_problems2 = downs_df[downs_df['hostid'].isin(
         problems['hostid'].to_list())]
-    print(len(downs_df))
+    """ print(len(downs_df))
     print(dif_problems)
     print(dif_problems2)
-    print(problems)
+    print(problems) """
+    print("***************DOWNS***************")
+    print(downs_df)
+
+    print("***************DOWNS sin problema***************")
+    print(dif_problems)
+
+    print("***************DOWNS con problema***************")
+    print(dif_problems2)
+
     return success_response(data=problems.to_dict(orient="records"))
 
 
