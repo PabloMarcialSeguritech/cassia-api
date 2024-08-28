@@ -602,6 +602,7 @@ async def get_problems_filter_(municipalityId, tech_host_type=0, subtype="", sev
     print(len(downs_df))
     print(dif_problems)
     print(dif_problems2)
+    print(problems)
     return success_response(data=problems.to_dict(orient="records"))
 
 
@@ -612,7 +613,7 @@ async def get_problems_filter_errors(municipalityId, tech_host_type=0, subtype="
 
     problems['Estatus'] = problems['hostid'].apply(
         lambda x: 'PROBLEM' if x in downs_df['hostid'].values else 'RESOLVED')
-    errores_eventos=[]
+    errores_eventos = []
     if not problems.empty:
         errores_eventos = await get_errores_eventos(problems)
     return success_response(data=errores_eventos)

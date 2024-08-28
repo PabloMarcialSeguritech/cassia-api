@@ -674,12 +674,11 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
     if not downs_origen.empty:
         hostids = downs_origen['hostid'].tolist()
         hostids_str = ",".join([str(host) for host in hostids])
-
         data_problems = await CassiaEventRepository.get_cassia_events_with_hosts_filter(hostids_str)
         if not data_problems.empty:
             problems = await normalizar_eventos_cassia(problems, data_problems, severities, ping_loss_message)
 
-    dependientes = await CassiaDiagnostaRepository.get_host_dependientes()
+    dependientes = await CassiaDiagnostaRepository.get_host_dependdientes()
 
     if not dependientes.empty:
         if not problems.empty:
@@ -791,6 +790,9 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
                          [index], 'ticket_status'] = active_tickets['status'][index]
     if not problems.empty:
         problems = problems.drop_duplicates(subset=['eventid', 'local'])
+    print("BANDERAS************************************")
+    print(entro1)
+    print(entro2)
     return problems
 
 

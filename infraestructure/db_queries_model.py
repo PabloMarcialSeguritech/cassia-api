@@ -445,11 +445,23 @@ FROM cassia_config where cassia_config.name='{name}'"""
         SELECT * FROM cassia_arch_traffic_events where closed_at is NULL and tech_id={tech_id} and municipality='{municipality}'"""
         return self.query_statement_get_cassia_events_by_tech_and_municipality
 
+    def builder_query_statement_get_cassia_events_by_tech_and_municipality_test(self, municipality, tech_id):
+        # ACTUALIZAR NOMBRE
+        self.query_statement_get_cassia_events_by_tech_and_municipality = f"""
+        SELECT * FROM cassia_events_test where closed_at is NULL and tech_id={tech_id} and municipality='{municipality}'"""
+        return self.query_statement_get_cassia_events_by_tech_and_municipality
+
     # PINK
     def builder_query_statement_get_cassia_events_by_municipality(self, municipality):
         # ACTUALIZAR NOMBRE
         self.query_statement_get_cassia_events_by_municipality = f"""
         SELECT * FROM cassia_arch_traffic_events where closed_at is NULL and municipality='{municipality}'"""
+        return self.query_statement_get_cassia_events_by_municipality
+
+    def builder_query_statement_get_cassia_events_by_municipality_test(self, municipality):
+        # ACTUALIZAR NOMBRE
+        self.query_statement_get_cassia_events_by_municipality = f"""
+        SELECT * FROM cassia_events_test where closed_at is NULL and municipality='{municipality}'"""
         return self.query_statement_get_cassia_events_by_municipality
 
     # PINK
