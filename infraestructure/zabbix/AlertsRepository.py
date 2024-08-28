@@ -678,7 +678,7 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
         if not data_problems.empty:
             problems = await normalizar_eventos_cassia(problems, data_problems, severities, ping_loss_message)
 
-    dependientes = await CassiaDiagnostaRepository.get_host_dependdientes()
+    dependientes = await CassiaDiagnostaRepository.get_host_dependientes()
 
     if not dependientes.empty:
         if not problems.empty:
