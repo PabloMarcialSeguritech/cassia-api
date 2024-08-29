@@ -21,6 +21,21 @@ async def get_agencies_async():
 
 
 @maintenance_router.post(
+    '/create_new',
+    tags=["Cassia - Maintenance"],
+    status_code=status.HTTP_200_OK,
+    summary="Create a Maintenance",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def create_maintenance_async_new(maintenance: cassia_maintenance_schema.CassiaMaintenanceNew = Body(...),
+                                       current_user_session: CassiaUserSession = Depends(
+                                       auth_service2.get_current_user_session)):
+    result = await maintenance_service.create_maintenance_async_new(maintenance=maintenance,
+                                                                    current_user_session=current_user_session.session_id.hex)
+    return result
+
+
+@maintenance_router.post(
     '/create',
     tags=["Cassia - Maintenance"],
     status_code=status.HTTP_200_OK,
@@ -31,8 +46,7 @@ async def create_maintenance_async(maintenance: cassia_maintenance_schema.Cassia
                                    current_user_session: CassiaUserSession = Depends(
                                        auth_service2.get_current_user_session)):
     result = await maintenance_service.create_maintenance_async(maintenance=maintenance,
-                                                                current_user_session=
-                                                                current_user_session.session_id.hex)
+                                                                current_user_session=current_user_session.session_id.hex)
     return result
 
 
@@ -47,8 +61,7 @@ async def update_maintenance_async(maintenance: cassia_maintenance_schema.Cassia
                                    current_user_session: CassiaUserSession = Depends(
                                        auth_service2.get_current_user_session)):
     response = await maintenance_service.update_maintenance_async(maintenance=maintenance,
-                                                                  current_user_session=
-                                                                  current_user_session.session_id.hex)
+                                                                  current_user_session=current_user_session.session_id.hex)
     return response
 
 
@@ -63,6 +76,5 @@ async def delete_maintenance_async(maintenance_id,
                                    current_user_session: CassiaUserSession =
                                    Depends(auth_service2.get_current_user_session)):
     response = await maintenance_service.delete_maintenance_async(maintenance_id=maintenance_id,
-                                                                  current_user_session=
-                                                                  current_user_session.session_id.hex)
+                                                                  current_user_session=current_user_session.session_id.hex)
     return response

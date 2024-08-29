@@ -603,14 +603,10 @@ async def get_problems_filter_(municipalityId, tech_host_type=0, subtype="", sev
     print(dif_problems)
     print(dif_problems2)
     print(problems) """
-    print("***************DOWNS***************")
-    print(downs_df)
-
-    print("***************DOWNS sin problema***************")
-    print(dif_problems)
-
-    print("***************DOWNS con problema***************")
-    print(dif_problems2)
+    """ print("*******************RESOLVED****************")
+    resolved = problems[problems['Estatus'] == 'RESOLVED']
+    print(resolved)
+    print(resolved[['eventid', 'Estatus', 'recovered_at']]) """
 
     return success_response(data=problems.to_dict(orient="records"))
 

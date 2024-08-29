@@ -793,6 +793,7 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
     print("BANDERAS************************************")
     print(entro1)
     print(entro2)
+    print(ping_loss_message)
     return problems
 
 
