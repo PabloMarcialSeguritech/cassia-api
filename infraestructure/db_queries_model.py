@@ -1120,6 +1120,15 @@ and ctd.deleted_at is NULL"""
         where hostid in ({hostids}) and deleted_at is null"""
         return self.query_get_created_devices_by_ids
 
+    def builder_query_statement_get_maintenance_between_dates_and_id_new(self, host_ids, date_start, date_end):
+        self.query_statement_get_maintenance_between_dates_and_id = f"""
+        SELECT * FROM cassia_maintenance 
+        WHERE hostid in ({host_ids}) 
+        AND (date_start BETWEEN '{date_start}' AND '{date_end}' 
+        OR date_end BETWEEN '{date_start}' AND '{date_end}');
+        """
+        return self.query_statement_get_maintenance_between_dates_and_id
+
     def builder_query_statement_get_maintenance_between_dates_and_id(self, host_id, date_start, date_end):
         self.query_statement_get_maintenance_between_dates_and_id = f"""
         SELECT * FROM cassia_maintenance 
