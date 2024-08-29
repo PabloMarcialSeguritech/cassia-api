@@ -26,6 +26,36 @@ async def create_cassia_maintenance(maintenance_data: dict):
         await session.close()
 
 
+async def exist_maintenance_new(host_ids, date_start: str, date_end: str) -> bool:
+    db_model = DB()
+    try:
+        # Construir la consulta
+        db_queries = DBQueries()
+        query = db_queries.builder_query_statement_get_maintenance_between_dates_and_id_new(host_ids,
+                                                                                            date_start, date_end)
+        print(query)
+        # Iniciar conexión a la base de datos
+        await db_model.start_connection()
+
+        # Ejecutar la consulta
+        maintenance_data = await db_model.run_query(query)
+
+        # Crear DataFrame
+        maintenance_df = pd.DataFrame(maintenance_data).replace(np.nan, None)
+
+        # Verificar si el DataFrame tiene filas
+        return maintenance_df
+
+    except Exception as e:
+        print(f"Excepción generada en exist_maintenance: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepción generada en exist_maintenance: {e}"
+        )
+    finally:
+        await db_model.close_connection()
+
+
 async def exist_maintenance(host_id, date_start: str, date_end: str) -> bool:
     db_model = DB()
     try:

@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from pydantic import Field
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 
@@ -12,5 +12,17 @@ class CassiaMaintenanceBase(BaseModel):
 
 
 class CassiaMaintenance(CassiaMaintenanceBase):
+    maintenance_id: Optional[int] = None
+    updated_at: Optional[datetime] = None
+
+
+class CassiaMaintenanceBaseNew(BaseModel):
+    description: Optional[str]
+    hostid: List[int] = Field(..., example=[11214, 11215])
+    date_start: datetime = Field(..., example="2024-01-31 18:08:47")
+    date_end: datetime = Field(..., example="2024-01-31 18:08:47")
+
+
+class CassiaMaintenanceNew(CassiaMaintenanceBaseNew):
     maintenance_id: Optional[int] = None
     updated_at: Optional[datetime] = None
