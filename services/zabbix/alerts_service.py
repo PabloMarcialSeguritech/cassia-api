@@ -574,18 +574,18 @@ async def get_problems_filter_(municipalityId, tech_host_type=0, subtype="", sev
     problems = await AlertsRepository.get_problems_filter(municipalityId, tech_host_type, subtype, severities)
 
     downs_df = await layers_repository.get_host_downs(municipalityId, '', '')
+    if not problems.empty:
+        problems['Estatus'] = problems['hostid'].apply(
+            lambda x: 'PROBLEM' if x in downs_df['hostid'].values else 'RESOLVED')
 
-    problems['Estatus'] = problems['hostid'].apply(
-        lambda x: 'PROBLEM' if x in downs_df['hostid'].values else 'RESOLVED')
+        # Contamos la cantidad de registros con 'resolved' y 'problem'
+        status_counts = problems['Estatus'].value_counts()
 
-    # Contamos la cantidad de registros con 'resolved' y 'problem'
-    status_counts = problems['Estatus'].value_counts()
+        # Mostramos el DataFrame final y el conteo
+        print("\nConteo de registros:")
+        print(status_counts)
 
-    # Mostramos el DataFrame final y el conteo
-    print("\nConteo de registros:")
-    print(status_counts)
-
-    print(problems.columns)
+    """ print(problems.columns)
     problems_tipo_1 = problems[problems['tipo'] == 1]
     problems_tipo_1_down = problems_tipo_1[problems_tipo_1['Estatus'] == 'PROBLEM']
     problems_tipo_0 = problems[problems['tipo'] == 0]
@@ -598,7 +598,7 @@ async def get_problems_filter_(municipalityId, tech_host_type=0, subtype="", sev
     dif_problems = downs_df[~downs_df['hostid'].isin(
         problems['hostid'].to_list())]
     dif_problems2 = downs_df[downs_df['hostid'].isin(
-        problems['hostid'].to_list())]
+        problems['hostid'].to_list())] """
     """ print(len(downs_df))
     print(dif_problems)
     print(dif_problems2)
@@ -615,9 +615,9 @@ async def get_problems_filter_errors(municipalityId, tech_host_type=0, subtype="
     problems = await AlertsRepository.get_problems_filter(municipalityId, tech_host_type, subtype, severities)
 
     downs_df = await layers_repository.get_host_downs(municipalityId, '', '')
-
-    problems['Estatus'] = problems['hostid'].apply(
-        lambda x: 'PROBLEM' if x in downs_df['hostid'].values else 'RESOLVED')
+    if not problems.empty:
+        problems['Estatus'] = problems['hostid'].apply(
+            lambda x: 'PROBLEM' if x in downs_df['hostid'].values else 'RESOLVED')
     errores_eventos = []
     if not problems.empty:
         errores_eventos = await get_errores_eventos(problems)
