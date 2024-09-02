@@ -14,6 +14,8 @@ from models.cassia_user_session import CassiaUserSession
 from fastapi import File, UploadFile, Form, Query
 from fastapi.responses import FileResponse
 from typing import Optional
+from infraestructure.database import DB
+from dependencies import get_db
 
 alerts_router = APIRouter()
 
@@ -38,6 +40,17 @@ async def get_problems_filter_errors(municipalityId: str, tech_host_type: str = 
 )
 async def get_problems_filter(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = ""):
     return await alerts_service.get_problems_filter_(municipalityId, tech_host_type, subtype, severities)
+
+
+@alerts_router.get(
+    '/problems_pool/{municipalityId}',
+    tags=["Zabbix - Problems(Alerts)"],
+    status_code=status.HTTP_200_OK,
+    summary="Get problems by municipality ID, device type and technology, and subtype",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_problems_filter_pool(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = "", db:DB=Depends(get_db)):
+    return await alerts_service.get_problems_filter_pool(municipalityId, tech_host_type, subtype, severities,db)
 
 
 @alerts_router.get(

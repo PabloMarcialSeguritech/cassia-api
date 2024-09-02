@@ -24,6 +24,21 @@ async def get_local_events_diagnosta_by_host(hostid) -> pd.DataFrame:
         await db_model.close_connection()
 
 
+async def get_host_dependientes_pool(db) -> pd.DataFrame:
+    try:
+        # PINK
+        sp_name_get_dependents_diagnostic_problems = DBQueries(
+        ).stored_name_get_dependents_diagnostic_problems_test
+
+        diagnosta_dependents_data = await db.run_stored_procedure(sp_name_get_dependents_diagnostic_problems, (0, ''))
+        diagnosta_dependents_df = pd.DataFrame(
+            diagnosta_dependents_data).replace(np.nan, None)
+        return diagnosta_dependents_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_host_dependientes {e}")
+
+
 async def get_host_dependientes() -> pd.DataFrame:
     db_model = DB()
     try:
@@ -43,6 +58,21 @@ async def get_host_dependientes() -> pd.DataFrame:
         await db_model.close_connection()
 
 
+async def get_open_problems_diagnosta_pool(db) -> pd.DataFrame:
+    try:
+        # PINK
+        query_get_open_problems = DBQueries(
+        ).query_get_open_diagnosta_problems_test
+
+        diagnosta_open_problems_data = await db.run_query(query_get_open_problems)
+        diagnosta_open_problems_df = pd.DataFrame(
+            diagnosta_open_problems_data).replace(np.nan, None)
+        return diagnosta_open_problems_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_open_problems_diagnosta {e}")
+
+
 async def get_open_problems_diagnosta() -> pd.DataFrame:
     db_model = DB()
     try:
@@ -60,6 +90,22 @@ async def get_open_problems_diagnosta() -> pd.DataFrame:
                             detail=f"Error en get_open_problems_diagnosta {e}")
     finally:
         await db_model.close_connection()
+
+
+async def get_downs_origen_pool(municipalityId, tech_host_type, db) -> pd.DataFrame:
+
+    try:
+        # PINK
+        sp_get_downs_origen = DBQueries(
+        ).stored_name_diagnostic_problems_origen_1_test
+
+        diagnosta_downs_origen_data = await db.run_stored_procedure(sp_get_downs_origen, (municipalityId, tech_host_type))
+        diagnosta_downs_origen_df = pd.DataFrame(
+            diagnosta_downs_origen_data).replace(np.nan, None)
+        return diagnosta_downs_origen_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_downs_origen {e}")
 
 
 async def get_downs_origen(municipalityId, tech_host_type) -> pd.DataFrame:
