@@ -200,6 +200,26 @@ async def update_cassia_resets_bulk(resets_data: list):
             await session.close()
 
 
+async def get_affiliations_by_hosts_ids_pool(hosts_ids: list, db):
+    try:
+        hosts_ids_str = "0"
+        if len(hosts_ids) > 0:
+            hosts_ids_str = ",".join([str(hostid) for hostid in hosts_ids])
+        # RESETS
+        query = f"""
+            SELECT DISTINCT hi.hostid, hi.alias as affiliation, 
+            CASE WHEN cr.object_id IS NOT NULL THEN TRUE ELSE FALSE END as object_id 
+            FROM host_inventory hi LEFT JOIN cassia_reset cr on hi.alias = cr.affiliation 
+            WHERE hi.hostid in ({hosts_ids_str}) """
+        affiliations = pd.DataFrame(await db.run_query(query)).replace(np.nan, "")
+        return affiliations
+    except Exception as e:
+        print(f"Excepcion generada en get_affiliations_by_hosts_ids: {e}")
+        affiliations = pd.DataFrame(
+            columns=['hostid', 'affiliation', 'object_id'])
+        return affiliations
+
+
 async def get_affiliations_by_hosts_ids(hosts_ids: list):
     db_model = DB()
     try:
@@ -215,7 +235,8 @@ async def get_affiliations_by_hosts_ids(hosts_ids: list):
         return affiliations
     except Exception as e:
         print(f"Excepcion generada en get_affiliations_by_hosts_ids: {e}")
-        affiliations = pd.DataFrame(columns=['hostid', 'affiliation', 'object_id'])
+        affiliations = pd.DataFrame(
+            columns=['hostid', 'affiliation', 'object_id'])
         return affiliations
     finally:
         await session.close()
@@ -234,7 +255,8 @@ async def get_devices_related_layer1(affiliation):
         return devices_related_data_df
     except Exception as e:
         print(f"Excepcion generada en get_devices_related_layer1: {e}")
-        affiliations = pd.DataFrame(columns=['hostid', 'affiliation', 'object_id'])
+        affiliations = pd.DataFrame(
+            columns=['hostid', 'affiliation', 'object_id'])
         return affiliations
     finally:
         await session.close()

@@ -12,6 +12,47 @@ from infraestructure.cassia import CassiaEventRepository
 from infraestructure.cassia import CassiaResetRepository
 from infraestructure.cassia import cassia_gs_tickets_repository
 from fastapi import status, HTTPException
+import time
+
+
+async def get_exceptions_async_pool(hostids: list, db):
+
+    try:
+        # PINK
+        hostids_str = "0"
+        if len(hostids) > 0:
+            hostids_str = ",".join([str(hostid) for hostid in hostids])
+        query = f"select ce.*,cea.name as agency_name from cassia_exceptions_test ce inner join cassia_exception_agencies cea on cea.exception_agency_id=ce.exception_agency_id where hostid in ({hostids_str}) and closed_at is null"
+        exceptions = pd.DataFrame(await db.run_query(query)).replace(np.nan, "")
+        if exceptions.empty:
+            exceptions = pd.DataFrame(columns=['exception_agency_id', 'description',
+                                               'created_at', 'closed_at', 'session_id', 'exception_id', 'hostid',
+                                               'agency_name', 'exception_message'])
+        else:
+            now = datetime.now(pytz.timezone('America/Mexico_City'))
+            exceptions['created_at'] = pd.to_datetime(exceptions['created_at'],
+                                                      format='%d/%m/%Y %H:%M:%S').dt.tz_localize(
+                pytz.timezone('America/Mexico_City'))
+            exceptions['diferencia'] = now - exceptions['created_at']
+            exceptions['dias'] = exceptions['diferencia'].dt.days
+            exceptions['horas'] = exceptions['diferencia'].dt.components.hours
+            exceptions['minutos'] = exceptions['diferencia'].dt.components.minutes
+            exceptions = exceptions.drop(columns=['diferencia', ])
+            exceptions['diferencia'] = exceptions.apply(
+                lambda row: f"{row['dias']} dias {row['horas']} hrs {row['minutos']} min", axis=1)
+            exceptions['exception_message'] = exceptions.apply(
+                lambda
+                x: f"Agencia: {x['agency_name']} --- Afectado desde: {x['diferencia']} --- Nota: {x['description']}",
+                axis=1)
+            exceptions = exceptions.drop(
+                columns=['diferencia', 'dias', 'horas', 'minutos'])
+        return exceptions
+    except Exception as e:
+        print(f"Excepcion generada en get_exceptions_async: {e}")
+        exceptions = pd.DataFrame(columns=['exception_agency_id', 'description',
+                                           'created_at', 'closed_at', 'session_id', 'exception_id', 'hostid',
+                                           'agency_name', 'exception_message'])
+        return exceptions
 
 
 async def get_exceptions_async(hostids: list):
@@ -368,6 +409,22 @@ async def procesar_fechas_problemas(problems):
     return problems
 
 
+async def get_alerts_pool(municipalityId, tech_host_type, subtype, severities, db):
+
+    try:
+        sp_name_get_alerts = DBQueries(
+        ).stored_name_get_alerts
+
+        cassia_alerts_data = await db.run_stored_procedure(sp_name_get_alerts,
+                                                           (municipalityId, tech_host_type, subtype, severities))
+        cassia_alerts_df = pd.DataFrame(
+            cassia_alerts_data).replace(np.nan, None)
+        return cassia_alerts_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_alerts {e}")
+
+
 async def get_alerts(municipalityId, tech_host_type, subtype, severities):
     db_model = DB()
     try:
@@ -387,10 +444,48 @@ async def get_alerts(municipalityId, tech_host_type, subtype, severities):
         await db_model.close_connection()
 
 
+async def process_alerts_local_pool(data, municipalityId, tech_id, severities, tipo, ping_loss_message, db):
+    if municipalityId == '0':
+        print("AAAAAA")
+        # PINK
+
+        alertas = await CassiaEventRepository.get_global_alerts_by_tech_pool(tech_id, tipo, db)
+        print("BBBBB")
+        if not alertas.empty:
+            print("Entre a not alertas.empty")
+            alertas = await process_and_filter_alerts(alertas, severities, ping_loss_message)
+            print("CCCCC")
+    else:
+        municipios = await CassiaConfigRepository.get_city_catalog_pool(db)
+        municipio_value = ''
+        if not municipios.empty:
+            municipio = municipios.loc[municipios['groupid'].astype(str) ==
+                                       municipalityId]
+            if not municipio.empty:
+                municipio_value = municipio['name'].item()
+        alertas = await CassiaEventRepository.get_municipality_alerts_by_tech_pool(municipio_value, tech_id, tipo, db)
+
+        if not alertas.empty:
+            alertas = await process_and_filter_alerts(alertas, severities, ping_loss_message)
+    if not alertas.empty:
+
+        acks = await CassiaEventRepository.get_cassia_events_acknowledges_pool(db)
+        if not acks.empty:
+            alertas = pd.merge(alertas, acks, left_on='eventid',
+                               right_on='eventid', how='left')
+            alertas.drop(columns=['Ack_message'], inplace=True)
+            alertas.rename(columns={'message': 'Ack_message'}, inplace=True)
+
+    data = pd.concat([alertas, data],
+                     ignore_index=True).replace(np.nan, "")
+    return data
+
+
 async def process_alerts_local(data, municipalityId, tech_id, severities, tipo, ping_loss_message):
     if municipalityId == '0':
         print("AAAAAA")
         # PINK
+
         alertas = await CassiaEventRepository.get_global_alerts_by_tech(tech_id, tipo)
         print("BBBBB")
         if not alertas.empty:
@@ -489,13 +584,12 @@ async def normalizar_eventos_cassia(data, data_problems, severities, ping_loss_m
                      ignore_index=True).replace(np.nan, "")
     return data
 
-
+""" 
 async def process_open_diagnosta_events(problems, sincronizados: pd.DataFrame, ping_loss_message):
     for ind in problems.index:
         if problems['Problem'][ind] == ping_loss_message:
             dependientes = sincronizados[sincronizados['hostid_origen']
                                          == problems['hostid'][ind]]
-            print(dependientes)
             dependientes['depends_hostid'] = dependientes['depends_hostid'].replace(
                 np.nan, 0).fillna(0)
             dependientes['depends_hostid'] = dependientes['depends_hostid'].astype(
@@ -505,6 +599,33 @@ async def process_open_diagnosta_events(problems, sincronizados: pd.DataFrame, p
                 subset=['depends_hostid'])
             problems.loc[problems.index == ind,
                          'dependents'] = len(dependientes)
+    return problems """
+
+
+async def process_open_diagnosta_events(problems, sincronizados: pd.DataFrame, ping_loss_message):
+    # Filtrar los problemas que coinciden con el mensaje de pérdida de ping
+    problems_filtered = problems[problems['Problem'] == ping_loss_message]
+
+    # Reemplazar NaN con 0 y convertir a entero
+    sincronizados['depends_hostid'] = sincronizados['depends_hostid'].fillna(
+        0).astype('int')
+
+    # Eliminar duplicados para evitar cálculos repetidos
+    sincronizados = sincronizados.drop_duplicates(subset=['depends_hostid'])
+
+    # Crear un diccionario para almacenar los contadores de dependientes por hostid
+    dependents_count = {}
+    print(len(problems_filtered['hostid'].unique()))
+    for hostid in problems_filtered['hostid'].unique():
+        # Filtrar los dependientes relevantes
+        dependientes = sincronizados[sincronizados['hostid_origen'] == hostid]
+        dependientes = dependientes[dependientes['depends_hostid'] != 0]
+        dependents_count[hostid] = len(dependientes)
+
+    # Actualizar el DataFrame original 'problems' con los valores de dependientes
+    problems['dependents'] = problems['hostid'].map(
+        dependents_count).fillna(0).astype(int)
+
     return problems
 
 
@@ -804,6 +925,21 @@ def assign_value(row):
         return False
 
 
+async def get_zabbix_acks_pool(eventids, db) -> pd.DataFrame:
+
+    try:
+        query_get_zabbix_acks = DBQueries(
+        ).builder_query_statement_get_zabbix_acks(eventids)
+
+        zabbix_alerts_acks_data = await db.run_query(query_get_zabbix_acks)
+        zabbix_alerts_acks_df = pd.DataFrame(
+            zabbix_alerts_acks_data).replace(np.nan, None)
+        return zabbix_alerts_acks_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_zabbix_acks {e}")
+
+
 async def get_zabbix_acks(eventids) -> pd.DataFrame:
     db_model = DB()
     try:
@@ -819,6 +955,22 @@ async def get_zabbix_acks(eventids) -> pd.DataFrame:
                             detail=f"Error en get_zabbix_acks {e}")
     finally:
         await db_model.close_connection()
+
+
+async def get_cassia_acks_pool(eventids, db) -> pd.DataFrame:
+
+    try:
+        # PINK
+        query_get_cassia_acks = DBQueries(
+        ).builder_query_statement_get_cassia_acks_test(eventids)
+
+        cassia_alerts_acks_data = await db.run_query(query_get_cassia_acks)
+        cassia_alerts_acks_df = pd.DataFrame(
+            cassia_alerts_acks_data).replace(np.nan, None)
+        return cassia_alerts_acks_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_cassia_acks {e}")
 
 
 async def get_cassia_acks(eventids) -> pd.DataFrame:
@@ -857,11 +1009,50 @@ async def get_downs_without_municipality() -> pd.DataFrame:
         await db_model.close_connection()
 
 
+async def get_cassia_events_pool(data, municipalityId,  severities, ping_loss_message, db):
+    if municipalityId == '0':
+        print("AAAAAA")
+        # PINK
+
+        alertas = await CassiaEventRepository.get_global_alerts_local_pool(db)
+        print("BBBBB")
+        if not alertas.empty:
+            print(alertas)
+            alertas = await process_and_filter_alerts(alertas, severities, ping_loss_message)
+            print("CCCCC")
+            print(alertas)
+    else:
+        municipios = await CassiaConfigRepository.get_city_catalog_pool(db)
+        municipio_value = ''
+        if not municipios.empty:
+            municipio = municipios.loc[municipios['groupid'].astype(str) ==
+                                       municipalityId]
+            if not municipio.empty:
+                municipio_value = municipio['name'].item()
+        alertas = await CassiaEventRepository.get_municipality_alerts_local_pool(municipio_value, db)
+
+        if not alertas.empty:
+            alertas = await process_and_filter_alerts(alertas, severities, ping_loss_message)
+    if not alertas.empty:
+
+        acks = await CassiaEventRepository.get_cassia_events_acknowledges_pool(db)
+        if not acks.empty:
+            alertas = pd.merge(alertas, acks, left_on='eventid',
+                               right_on='eventid', how='left')
+            alertas.drop(columns=['Ack_message'], inplace=True)
+            alertas.rename(columns={'message': 'Ack_message'}, inplace=True)
+
+    data = pd.concat([alertas, data],
+                     ignore_index=True).replace(np.nan, "")
+    return data
+
+
 async def get_cassia_events(data, municipalityId,  severities, ping_loss_message):
     if municipalityId == '0':
         print("AAAAAA")
         # PINK
         alertas = await CassiaEventRepository.get_global_alerts_local()
+
         print("BBBBB")
         if not alertas.empty:
             print(alertas)
@@ -883,6 +1074,42 @@ async def get_cassia_events(data, municipalityId,  severities, ping_loss_message
     if not alertas.empty:
 
         acks = await CassiaEventRepository.get_cassia_events_acknowledges()
+        if not acks.empty:
+            alertas = pd.merge(alertas, acks, left_on='eventid',
+                               right_on='eventid', how='left')
+            alertas.drop(columns=['Ack_message'], inplace=True)
+            alertas.rename(columns={'message': 'Ack_message'}, inplace=True)
+
+    data = pd.concat([alertas, data],
+                     ignore_index=True).replace(np.nan, "")
+    return data
+
+
+async def get_cassia_events_by_tech_id_pool(data, municipalityId, tech_host_id, severities, ping_loss_message, db):
+    if municipalityId == '0':
+        print("AAAAAA")
+        # PINK
+        alertas = await CassiaEventRepository.get_global_alerts_local_by_tech_id_pool(tech_host_id, db)
+        print("BBBBB")
+        if not alertas.empty:
+            alertas = await process_and_filter_alerts(alertas, severities, ping_loss_message)
+            print("CCCCC")
+    else:
+        municipios = await CassiaConfigRepository.get_city_catalog_pool(db)
+        municipio_value = ''
+        if not municipios.empty:
+            municipio = municipios.loc[municipios['groupid'].astype(str) ==
+                                       municipalityId]
+            if not municipio.empty:
+                municipio_value = municipio['name'].item()
+        alertas = await CassiaEventRepository.get_municipality_alerts_by_tech_pool(municipio_value, tech_host_id,
+                                                                                   ping_loss_message, db)
+
+        if not alertas.empty:
+            alertas = await process_and_filter_alerts(alertas, severities, ping_loss_message)
+    if not alertas.empty:
+
+        acks = await CassiaEventRepository.get_cassia_events_acknowledges_pool(db)
         if not acks.empty:
             alertas = pd.merge(alertas, acks, left_on='eventid',
                                right_on='eventid', how='left')
@@ -928,3 +1155,236 @@ async def get_cassia_events_by_tech_id(data, municipalityId, tech_host_id, sever
     data = pd.concat([alertas, data],
                      ignore_index=True).replace(np.nan, "")
     return data
+
+
+async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="", severities="", db=None, marcas=[]):
+
+    if subtype == "0":
+        subtype = ""
+    if tech_host_type == "-1":
+        tech_host_type = ''
+    init = time.time()
+    rfid_df = await CassiaConfigRepository.get_config_value_by_name_pool('rfid_id', db)
+    marcas.append({"problems.rfid_df": time.time()-init})
+    init = time.time()
+    rfid_id = rfid_df['value'][0] if not rfid_df.empty else '9'
+    lpr_df = await CassiaConfigRepository.get_config_value_by_name_pool('lpr_id', db)
+    marcas.append({"problems.lpr_df": time.time()-init})
+    init = time.time()
+    lpr_id = lpr_df['value'][0] if not lpr_df.empty else '9'
+    ping_loss_message = await CassiaConfigRepository.get_config_ping_loss_message_pool(db)
+    marcas.append({"problems.ping_loss_df": time.time()-init})
+    init = time.time()
+    if subtype == "376276" or subtype == "375090":
+        subtype = '376276,375090'
+    if subtype != "" and tech_host_type == "":
+        tech_host_type = "0"
+
+    switch_df = await CassiaConfigRepository.get_config_value_by_name_pool('switch_id', db)
+    marcas.append({"problems.switch_df": time.time()-init})
+    init = time.time()
+
+    switch_id = switch_df['value'][0] if not switch_df.empty else '12'
+    metric_switch_df = await CassiaConfigRepository.get_config_value_by_name_pool('switch_throughtput', db)
+    marcas.append({"problems.metric_swtich_df": time.time()-init})
+    init = time.time()
+
+    metric_switch_val = metric_switch_df['value'][
+        0] if not metric_switch_df.empty else 'Interface Bridge-Aggregation_: Bits'
+    if subtype == metric_switch_val:
+        subtype = ""
+
+    problems = await get_alerts_pool(
+        municipalityId, tech_host_type, subtype, severities, db)
+    marcas.append({"problems.get_zabbix_alerts": time.time()-init})
+    init = time.time()
+
+    problems = await normalizar_alertas_zabbix(problems, ping_loss_message)
+
+    problems = await eliminar_downs_zabbix(problems, ping_loss_message)
+    if tech_host_type == lpr_id or tech_host_type == '':
+        problems = await process_alerts_local_pool(
+            problems, municipalityId, lpr_id, severities, 'lpr', ping_loss_message, db)
+        marcas.append({"problems.alerts_local_lpr": time.time()-init})
+    init = time.time()
+
+    if tech_host_type == rfid_id or tech_host_type == '':
+        problems = await process_alerts_local_pool(
+            problems, municipalityId, rfid_id, severities, 'rfid', ping_loss_message, db)
+        marcas.append({"problems.alerts_local_rfid": time.time()-init})
+    init = time.time()
+
+    entro1 = False
+    entro2 = False
+
+    if tech_host_type == '' and subtype == '':
+
+        entro1 = True
+        problems = await get_cassia_events_pool(problems, municipalityId, severities, ping_loss_message, db)
+        marcas.append({"problems.get_cassia_events": time.time()-init})
+    init = time.time()
+
+    if tech_host_type != '' and subtype == '':
+
+        entro2 = True
+        problems = await get_cassia_events_by_tech_id_pool(problems, municipalityId, tech_host_type, severities,
+                                                           ping_loss_message, db)
+        marcas.append({"problems.get_cassia_events_by_tech": time.time()-init})
+    init = time.time()
+
+    downs_origen = await CassiaDiagnostaRepository.get_downs_origen_pool(municipalityId, tech_host_type, db)
+    marcas.append({"problems.downs_origen": time.time()-init})
+    init = time.time()
+
+    if not downs_origen.empty:
+        hostids = downs_origen['hostid'].tolist()
+        hostids_str = ",".join([str(host) for host in hostids])
+        data_problems = await CassiaEventRepository.get_cassia_events_with_hosts_filter_pool(hostids_str, db)
+        marcas.append(
+            {"problems.cassia_events_with_host_filter": time.time()-init})
+        init = time.time()
+
+        if not data_problems.empty:
+            problems = await normalizar_eventos_cassia(problems, data_problems, severities, ping_loss_message)
+
+    dependientes = await CassiaDiagnostaRepository.get_host_dependientes_pool(db)
+    marcas.append({"problems.get_dependientes": time.time()-init})
+    init = time.time()
+
+    if not dependientes.empty:
+        if not problems.empty:
+            indexes = problems[problems['Problem'] == ping_loss_message]
+            indexes = indexes[indexes['hostid'].isin(
+                dependientes['hostid'].to_list())]
+            if not problems.empty:
+                problems.loc[problems.index.isin(
+                    indexes.index.to_list()), 'tipo'] = 0
+                problems.loc[~problems.index.isin(
+                    indexes.index.to_list()), 'tipo'] = 1
+
+    sincronizados = await CassiaDiagnostaRepository.get_open_problems_diagnosta_pool(db)
+    marcas.append({"problems.get_sincronizados": time.time()-init})
+    init = time.time()
+
+    if not sincronizados.empty:
+        if not problems.empty:
+            problems = await process_open_diagnosta_events(problems, sincronizados, ping_loss_message)
+            marcas.append(
+                {"problems.process_open_diagnosta_events": time.time()-init})
+            init = time.time()
+    if not problems.empty:
+        problems = await procesar_fechas_problemas(problems)
+        marcas.append({"problems.procesar_fechas_problemas": time.time()-init})
+        init = time.time()
+        problems.drop_duplicates(
+            subset=['hostid', 'Problem'], inplace=True)
+    if not problems.empty:
+
+        exceptions = await get_exceptions_async_pool(
+            problems['hostid'].to_list(), db)
+        marcas.append({"problems.get_exceptions_async": time.time()-init})
+        init = time.time()
+        if not exceptions.empty:
+            exceptions['created_at'] = pd.to_datetime(
+                exceptions['created_at'], format='%Y-%m-%d %H:%M:%S').dt.tz_localize(None)
+        problems = pd.merge(problems, exceptions, on='hostid',
+                            how='left').replace(np.nan, None)
+    if not problems.empty:
+        problems_zabbix = problems[problems['local'] == 0]
+        problems_zabbix_ids = problems_zabbix['eventid']
+        zabbix_eventids = '0'
+        if not problems_zabbix.empty:
+            zabbix_eventids = ','.join(
+                problems_zabbix_ids.astype('str').to_list())
+        # AQUI
+        acks_zabbix = await get_zabbix_acks_pool(zabbix_eventids, db)
+        marcas.append({"problems.get_zabbix_acks": time.time()-init})
+        init = time.time()
+        if not acks_zabbix.empty:
+            acks_zabbix_mensajes = acks_zabbix.groupby('eventid')[
+                'message'].agg(lambda x: ' | '.join(x)).reset_index()
+            acks_zabbix_mensajes.columns = [
+                'eventid', 'acknowledges_concatenados']
+        else:
+            acks_zabbix_mensajes = pd.DataFrame(
+                columns=['eventid', 'acknowledges_concatenados'])
+        problems_zabbix = pd.merge(
+            problems_zabbix, acks_zabbix_mensajes, how='left', on='eventid').replace(np.nan, None)
+        problems_cassia = problems[problems['local'] == 1]
+        problems_cassia_ids = problems_cassia['eventid']
+        cassia_eventids = '0'
+        if not problems_cassia.empty:
+            cassia_eventids = ','.join(
+                problems_cassia_ids.astype('str').to_list())
+
+        acks_cassia = await get_cassia_acks_pool(cassia_eventids, db)
+        marcas.append({"problems.get_cassia_acks": time.time()-init})
+        init = time.time()
+
+        if not acks_cassia.empty:
+            acks_cassia_mensajes = acks_cassia.groupby('eventid')[
+                'message'].agg(lambda x: ' | '.join(x)).reset_index()
+            acks_cassia_mensajes.columns = [
+                'eventid', 'acknowledges_concatenados']
+        else:
+            acks_cassia_mensajes = pd.DataFrame(
+                columns=['eventid', 'acknowledges_concatenados'])
+        problems_cassia = pd.merge(
+            problems_cassia, acks_cassia_mensajes, how='left', on='eventid').replace(np.nan, None)
+        problems = pd.concat([problems_zabbix, problems_cassia])
+        problems = problems.sort_values(by='fecha', ascending=False)
+
+    if not problems.empty:
+        affiliations_df = await CassiaResetRepository.get_affiliations_by_hosts_ids_pool(problems['hostid'].tolist(), db)
+        marcas.append({"problems.get_affiliations": time.time()-init})
+        init = time.time()
+        if not affiliations_df.empty:
+            # Realizar el merge para agregar las columnas de affiliations_df a problems
+            problems = pd.merge(problems, affiliations_df,
+                                on='hostid', how='left').replace(np.nan, None)
+    hostids_str_2 = ",".join(
+        [str(hostid) for hostid in problems['hostid'].tolist()]) if not problems.empty else "0"
+    serial_numbers_df = await cassia_gs_tickets_repository.get_serial_numbers_by_host_ids_pool(hostids_str_2, db)
+    marcas.append({"problems.get_serial_numbers": time.time()-init})
+    init = time.time()
+    if not serial_numbers_df.empty:
+        # Realizar el merge para agregar las columnas de serial_numbers_df a problems
+        problems = pd.merge(problems, serial_numbers_df,
+                            on='hostid', how='left').replace(np.nan, None)
+    problems['create_ticket'] = 0
+    if all(col in problems.columns for col in ['affiliation', 'no_serie']):
+        problems['create_ticket'] = problems.apply(assign_value, axis=1)
+        print("Ambas columnas existen en el DataFrame.")
+    last_error_tickets = await cassia_gs_tickets_repository.get_last_error_tickets_pool(db)
+    marcas.append({"problems.get_last_error_tickets": time.time()-init})
+    init = time.time()
+    problems['has_ticket'] = False
+    problems['ticket_id'] = None
+    problems['ticket_error'] = None
+    problems['ticket_status'] = None
+    if not problems.empty:
+        for index in last_error_tickets.index:
+            problems.loc[problems['affiliation'] == last_error_tickets['afiliacion']
+                         [index], 'ticket_error'] = last_error_tickets['error'][index]
+            problems.loc[problems['affiliation'] == last_error_tickets['afiliacion']
+                         [index], 'ticket_status'] = 'error'
+        active_tickets = await cassia_gs_tickets_repository.get_active_tickets_pool(db)
+        marcas.append({"problems.get_active_tickets": time.time()-init})
+        init = time.time()
+
+        for index in active_tickets.index:
+            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
+                         [index], 'has_ticket'] = True
+            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
+                         [index], 'ticket_id'] = active_tickets['ticket_id'][index]
+            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
+                         [index], 'ticket_error'] = None
+            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
+                         [index], 'ticket_status'] = active_tickets['status'][index]
+    if not problems.empty:
+        problems = problems.drop_duplicates(subset=['eventid', 'local'])
+    print("BANDERAS************************************")
+    print(entro1)
+    print(entro2)
+    print(ping_loss_message)
+    return problems

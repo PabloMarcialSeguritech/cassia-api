@@ -1,14 +1,29 @@
-import asyncio
-from fastapi import FastAPI, WebSocket
-from routers.user_router import auth_router
-from routers.zabbix import zabbix_router
 from routers.cassia import cassia_router
+from routers.zabbix import zabbix_router
+from routers.user_router import auth_router
+import asyncio
+from fastapi import FastAPI, WebSocket, Depends
+from dependencies import get_db
 from middleware.error_handler import ErrorHandler
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from infraestructure.database import DB
+from contextlib import asynccontextmanager
+
 app = FastAPI(
 )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db = DB()  # Instanciar el objeto DB
+    await db.start_pool()  # Iniciar el pool de conexiones
+    app.state.db = db  # Guardar la instancia en el estado de la app
+    yield
+    await db.close_pool()  # Cerrar el pool de conexiones
+
+app.router.lifespan_context = lifespan
 app.version = '1.4'
 origins = ["*"]
 
@@ -21,9 +36,10 @@ app.add_middleware(
 )
 # ACTUALIZAR NOMBRE
 app.add_middleware(ErrorHandler)
+
 app.include_router(auth_router)
-app.include_router(zabbix_router)
-app.include_router(cassia_router)
+app.include_router(zabbix_router, dependencies=[Depends(get_db)])
+app.include_router(cassia_router, dependencies=[Depends(get_db)])
 """ app.mount("/uploads/criticality_icons",
           StaticFiles(directory="uploads/criticality_icons"), name="criticality_icons")
  """

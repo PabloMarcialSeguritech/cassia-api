@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from .maintenance_router import maintenance_router
 from .users_routers import users_router
 from .roles_router import roles_router
@@ -21,7 +21,22 @@ from .cassia_tech_devices_router import cassia_techs_devices_router
 from .cassia_user_notification_types_router import cassia_user_notification_type_router
 from .cassia_gs_tickets_router import cassia_gs_tickets_router
 from .resets_router import resets_router
+from infraestructure.database import DB
+from dependencies import get_db
 cassia_router = APIRouter(prefix="/api/v1/cassia")
+
+
+@cassia_router.get("/db")
+def greet_child(db: DB = Depends(get_db)):
+    print(db)
+    print(id(db))
+    print(db.pool)
+    return
+
+
+""" def get_db(db: DB = Depends()):
+    return db """
+
 
 cassia_router.include_router(users_router)
 cassia_router.include_router(roles_router)
