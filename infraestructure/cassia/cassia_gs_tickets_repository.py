@@ -14,6 +14,25 @@ SETTINGS = Settings()
 gs_connection_string = SETTINGS.gs_connection_string
 
 
+async def get_last_error_tickets_pool(db):
+
+    try:
+        now = traits.get_datetime_now_with_tz()
+        date = now - timedelta(hours=2)
+        formatted_time = date.strftime("%Y-%m-%d %H:%M:%S")
+        query_get_active_gs_tickets = DBQueries(
+        ).builder_query_statement_get_last_ticket_with_error(formatted_time)
+        tickets_error_data = await db.run_query(query_get_active_gs_tickets)
+        tickets_error_df = pd.DataFrame(
+            tickets_error_data).replace(np.nan, None)
+        return tickets_error_df
+
+    except Exception as e:
+        print(f"Excepcion en get_last_error_tickets: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_last_error_tickets: {e}")
+
+
 async def get_last_error_tickets():
     db_model = DB()
     try:
@@ -37,6 +56,22 @@ async def get_last_error_tickets():
         await db_model.close_connection()
 
 
+async def get_serial_numbers_by_host_ids_pool(hostids, db):
+
+    try:
+        query_statement_get_serial_numbers_by_host_ids = DBQueries(
+        ).builder_query_statement_get_serial_numbers_by_host_ids(hostids)
+
+        serial_no_data = await db.run_query(query_statement_get_serial_numbers_by_host_ids)
+        serial_no_df = pd.DataFrame(serial_no_data).replace(np.nan, None)
+        return serial_no_df
+
+    except Exception as e:
+        print(f"Excepcion en get_serial_numbers_by_host_ids: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_serial_numbers_by_host_ids: {e}")
+
+
 async def get_serial_numbers_by_host_ids(hostids):
     db_model = DB()
     try:
@@ -54,6 +89,21 @@ async def get_serial_numbers_by_host_ids(hostids):
                             detail=f"Excepcion en get_serial_numbers_by_host_ids: {e}")
     finally:
         await db_model.close_connection()
+
+
+async def get_active_tickets_pool(db):
+    try:
+        query_get_active_gs_tickets = DBQueries(
+        ).query_get_active_gs_tickets
+
+        tickets_data = await db.run_query(query_get_active_gs_tickets)
+        tickets_df = pd.DataFrame(tickets_data).replace(np.nan, None)
+        return tickets_df
+
+    except Exception as e:
+        print(f"Excepcion en get_active_tickets: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_active_tickets: {e}")
 
 
 async def get_active_tickets():

@@ -56,6 +56,21 @@ async def get_host_up(municipality_id, dispId, subtype_id) -> pd.DataFrame:
         await db_model.close_connection()
 
 
+async def get_host_downs_pool(municipality_id, dispId, subtype_id, db) -> pd.DataFrame:
+    try:
+        sp_get_host_downs = DBQueries().stored_name_get_host_downs
+
+        host_downs_data = await db.run_stored_procedure(sp_get_host_downs, (municipality_id, dispId, ''))
+        host_downs_df = pd.DataFrame(host_downs_data).replace(np.nan, None)
+        if host_downs_df.empty:
+            host_downs_df = pd.DataFrame(columns=['hostid'])
+        return host_downs_df
+    except Exception as e:
+        print(f"Excepcion en get_host_downs: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_host_downs: {e}")
+
+
 async def get_host_downs(municipality_id, dispId, subtype_id) -> pd.DataFrame:
     db_model = DB()
     try:
