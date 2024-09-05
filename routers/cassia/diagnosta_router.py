@@ -16,5 +16,4 @@ diagnosta_router = APIRouter(prefix="/diagnosta")
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def analize_host(hostid_or_ip: str, db: DB = Depends(get_db)):
-
     return await diagnosta_service.analize_host(hostid_or_ip)
