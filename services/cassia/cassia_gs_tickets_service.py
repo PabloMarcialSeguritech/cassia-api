@@ -58,6 +58,8 @@ async def create_ticket(ticket_data: cassia_gs_ticket_schema.CassiaGSTicketSchem
     if not mac_address_df.empty:
         mac_address = mac_address_df['item_value'][0]
         mac_address = mac_address.replace(" ", "").upper()
+        mac_address = mac_address.replace("-", "")
+        mac_address = mac_address.replace(":", "")
     host_data_dict['mac_address'] = mac_address
     host_data_dict['service_id'] = 1866 if 'VVL' in host_data_dict['alias'] else 1836
     created_ticket = await cassia_gs_tickets_repository.create_ticket(host_data_dict, ticket_data.comment, current_session.mail)
