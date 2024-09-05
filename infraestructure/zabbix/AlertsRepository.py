@@ -885,7 +885,7 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
         problems = pd.merge(problems, serial_numbers_df,
                             on='hostid', how='left').replace(np.nan, None)
     problems['create_ticket'] = 0
-    suscriptores_id = await CassiaConfigRepository.get_config_value_by_name_pool('suscriptores_id', db)
+    suscriptores_id = await CassiaConfigRepository.get_config_value_by_name('suscriptores_id')
     suscriptores_id = suscriptores_id['value'][0] if not suscriptores_id.empty else 11
     if all(col in problems.columns for col in ['affiliation', 'no_serie']):
         problems['create_ticket'] = problems.apply(
