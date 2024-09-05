@@ -1198,7 +1198,7 @@ VALUES
 
     def builder_query_statement_get_host_data_gs_ticket_by_host_id(self, host_id):
         self.query_statement_get_host_data_gs_ticket_by_host_id = f"""
-select h.hostid ,h.host ,hi.alias , cch.software_version,cch.hardware_no_serie from hosts h 
+select h.hostid ,h.host ,hi.alias , cch.software_version,cch.hardware_no_serie,hi.device_id from hosts h 
 inner join host_inventory hi on hi.hostid =h.hostid 
 left join cassia_ci_element cce on cce.host_id =h.hostid 
 left join (select cch.element_id, software_version,hardware_no_serie  from cassia_ci_history cch 
@@ -1300,3 +1300,21 @@ WHERE
     def builder_query_statement_get_local_events_by_tech_id(self, tech_id):
         self.query_statement_get_local_events_by_tech_id = f"""SELECT * FROM cassia_events_test where closed_at is NULL and tech_id='{tech_id}' """
         return self.query_statement_get_local_events_by_tech_id
+
+    def builder_query_statement_get_mac_address_by_hostid(self, hostid):
+        self.query_statement_get_mac_address_by_hostid = f"""
+        SELECT DISTINCT 
+	h.hostid, 
+    i.key_ ,
+    hi.value AS item_value
+FROM
+    hosts h
+JOIN 
+    items i ON h.hostid = i.hostid
+JOIN 
+    history_text  hi ON i.itemid = hi.itemid
+WHERE 
+i.key_ like '%mac%'
+and h.hostid ={hostid}
+"""
+        return self.query_statement_get_mac_address_by_hostid

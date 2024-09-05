@@ -143,7 +143,7 @@ async def get_host_alerts(hostid):
         ping_loss_message = await CassiaConfigRepository.get_config_ping_loss_message()
 
         zabbix_alerts = await normalizar_alertas_zabbix(zabbix_alerts, ping_loss_message)
-        """ zabbix_alerts = await eliminar_downs_zabbix(zabbix_alerts, ping_loss_message) """
+        zabbix_alerts = await eliminar_downs_zabbix(zabbix_alerts, ping_loss_message)
         cassia_alerts = await get_host_cassia_alerts(hostid)
 
         problems = zabbix_alerts
@@ -885,8 +885,12 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
         problems = pd.merge(problems, serial_numbers_df,
                             on='hostid', how='left').replace(np.nan, None)
     problems['create_ticket'] = 0
+    suscriptores_id = await CassiaConfigRepository.get_config_value_by_name_pool('suscriptores_id', db)
+    suscriptores_id = suscriptores_id['value'][0] if not suscriptores_id.empty else 11
     if all(col in problems.columns for col in ['affiliation', 'no_serie']):
-        problems['create_ticket'] = problems.apply(assign_value, axis=1)
+        problems['create_ticket'] = problems.apply(
+            lambda row: assign_value_bck(row), axis=1)
+
         print("Ambas columnas existen en el DataFrame.")
     last_error_tickets = await cassia_gs_tickets_repository.get_last_error_tickets()
     problems['has_ticket'] = False
@@ -895,30 +899,39 @@ async def get_problems_filter(municipalityId, tech_host_type=0, subtype="", seve
     problems['ticket_status'] = None
     if not problems.empty:
         for index in last_error_tickets.index:
-            problems.loc[problems['affiliation'] == last_error_tickets['afiliacion']
-                         [index], 'ticket_error'] = last_error_tickets['error'][index]
-            problems.loc[problems['affiliation'] == last_error_tickets['afiliacion']
-                         [index], 'ticket_status'] = 'error'
+            problems.loc[(problems['affiliation'] == last_error_tickets['afiliacion'][index]) & (
+                problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_error'] = last_error_tickets['error'][index]
+            problems.loc[(problems['affiliation'] == last_error_tickets['afiliacion']
+                         [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_status'] = 'error'
         active_tickets = await cassia_gs_tickets_repository.get_active_tickets()
         for index in active_tickets.index:
-            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
-                         [index], 'has_ticket'] = True
-            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
-                         [index], 'ticket_id'] = active_tickets['ticket_id'][index]
-            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
-                         [index], 'ticket_error'] = None
-            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
-                         [index], 'ticket_status'] = active_tickets['status'][index]
+            problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
+                         [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'has_ticket'] = True
+            problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
+                         [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_id'] = active_tickets['ticket_id'][index]
+            problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
+                         [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_error'] = None
+            problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
+                         [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_status'] = active_tickets['status'][index]
     if not problems.empty:
         problems = problems.drop_duplicates(subset=['eventid', 'local'])
     print("BANDERAS************************************")
-    print(entro1)
+    """ print(entro1)
     print(entro2)
-    print(ping_loss_message)
+    print(ping_loss_message) """
+    hast = problems[problems['has_ticket'] == True]
+    print(hast)
     return problems
 
 
-def assign_value(row):
+def assign_value(row, suscriptores_id):
+    if (row['affiliation'] is not None and row['affiliation'] != '') and (row['no_serie'] is not None and row['no_serie'] != '') and (str(row['tech_id']) == str(suscriptores_id)):
+        return True
+    else:
+        return False
+
+
+def assign_value_bck(row):
     if (row['affiliation'] is not None and row['affiliation'] != '') and (row['no_serie'] is not None and row['no_serie'] != ''):
         return True
     else:
@@ -1352,8 +1365,12 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
         problems = pd.merge(problems, serial_numbers_df,
                             on='hostid', how='left').replace(np.nan, None)
     problems['create_ticket'] = 0
+    suscriptores_id = await CassiaConfigRepository.get_config_value_by_name_pool('suscriptores_id', db)
+    suscriptores_id = suscriptores_id['value'][0] if not suscriptores_id.empty else 11
     if all(col in problems.columns for col in ['affiliation', 'no_serie']):
-        problems['create_ticket'] = problems.apply(assign_value, axis=1)
+        problems['create_ticket'] = problems.apply(
+            lambda row: assign_value(row, suscriptores_id), axis=1)
+
         print("Ambas columnas existen en el DataFrame.")
     last_error_tickets = await cassia_gs_tickets_repository.get_last_error_tickets_pool(db)
     marcas.append({"problems.get_last_error_tickets": time.time()-init})
@@ -1364,27 +1381,26 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
     problems['ticket_status'] = None
     if not problems.empty:
         for index in last_error_tickets.index:
-            problems.loc[problems['affiliation'] == last_error_tickets['afiliacion']
-                         [index], 'ticket_error'] = last_error_tickets['error'][index]
-            problems.loc[problems['affiliation'] == last_error_tickets['afiliacion']
-                         [index], 'ticket_status'] = 'error'
-        active_tickets = await cassia_gs_tickets_repository.get_active_tickets_pool(db)
-        marcas.append({"problems.get_active_tickets": time.time()-init})
-        init = time.time()
-
+            problems.loc[(problems['affiliation'] == last_error_tickets['afiliacion'][index]) & (
+                problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_error'] = last_error_tickets['error'][index]
+            problems.loc[(problems['affiliation'] == last_error_tickets['afiliacion']
+                         [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_status'] = 'error'
+        active_tickets = await cassia_gs_tickets_repository.get_active_tickets()
         for index in active_tickets.index:
-            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
-                         [index], 'has_ticket'] = True
-            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
-                         [index], 'ticket_id'] = active_tickets['ticket_id'][index]
-            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
-                         [index], 'ticket_error'] = None
-            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
-                         [index], 'ticket_status'] = active_tickets['status'][index]
+            problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
+                         [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'has_ticket'] = True
+            problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
+                         [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_id'] = active_tickets['ticket_id'][index]
+            problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
+                         [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_error'] = None
+            problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
+                         [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_status'] = active_tickets['status'][index]
     if not problems.empty:
         problems = problems.drop_duplicates(subset=['eventid', 'local'])
-    print("BANDERAS************************************")
+    """ print("BANDERAS************************************")
     print(entro1)
     print(entro2)
     print(ping_loss_message)
+    hast = problems[problems['create_ticket'] == True]
+    print(hast) """
     return problems

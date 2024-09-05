@@ -47,6 +47,8 @@ async def get_host_up(municipality_id, dispId, subtype_id) -> pd.DataFrame:
         await db_model.start_connection()
         host_up_data = await db_model.run_stored_procedure(sp_get_host_up, (municipality_id, dispId, ''))
         host_up_df = pd.DataFrame(host_up_data).replace(np.nan, None)
+        if host_up_df.empty:
+            host_up_df = pd.DataFrame(columns=['hostid'])
         return host_up_df
     except Exception as e:
         print(f"Excepcion en get_host_up: {e}")

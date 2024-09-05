@@ -203,16 +203,17 @@ async def get_ticket_by_ticket_id(ticket_id) -> pd.DataFrame:
 
 async def create_ticket(host_data, comment, mail):
     queue_name = 'cassia-gser'
-    service_id = await get_service_id()
+    """ service_id = await get_service_id()
     if service_id.empty:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail="Error al crear el ticket en SGS - Service ID no configurado en Base de Datos")
+                            detail="Error al crear el ticket en SGS - Service ID no configurado en Base de Datos") """
     message_data = {
-        "serviceId": service_id['value'][0],
+        "serviceId": host_data['service_id'],
         "location": host_data['alias'],
         "comment": comment,
         "engineer": mail,
-        "serialNumber":  host_data['hardware_no_serie']
+        "serialNumber":  host_data['hardware_no_serie'],
+        "macAddress": host_data['mac_address']
     }
     """ message_data = {
         "serviceId": 1849,
@@ -282,7 +283,9 @@ async def save_ticket_data(ticket_data, host_data, created_ticket, user) -> pd.D
             message_id=created_ticket.message_id,
             requested_at=now,
             created_with_mail=None,
-            user_mail=user.mail
+            user_mail=user.mail,
+            service_id=host_data['service_id'],
+            mac_address=host_data['mac_address']
         )
         session.add(cassia_gs_ticket)
         await session.commit()
@@ -361,5 +364,24 @@ async def get_service_id() -> pd.DataFrame:
         print(f"Excepcion en get_service_id: {e}")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Excepcion en get_service_id: {e}")
+    finally:
+        await db_model.close_connection()
+
+
+async def get_mac_address_by_hostid(hostid) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        query_statement_get_mac_address_by_hostid = DBQueries(
+        ).builder_query_statement_get_mac_address_by_hostid(hostid)
+        await db_model.start_connection()
+
+        mac_address_data = await db_model.run_query(query_statement_get_mac_address_by_hostid)
+        mac_address_data_df = pd.DataFrame(mac_address_data)
+        return mac_address_data_df
+
+    except Exception as e:
+        print(f"Excepcion en get_mac_address_by_hostid: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_mac_address_by_hostid: {e}")
     finally:
         await db_model.close_connection()

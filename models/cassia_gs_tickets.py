@@ -21,3 +21,5 @@ class CassiaGSTicketsModel(DB.Base):
     requested_at = Column(DateTime, nullable=True)
     created_with_mail = Column(DateTime, nullable=True)
     user_mail = Column(DateTime, nullable=True)
+    service_id = Column(BigInteger,  nullable=True)
+    mac_address = Column(String(length=12),  nullable=True)
