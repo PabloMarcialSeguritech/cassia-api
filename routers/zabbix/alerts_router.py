@@ -32,7 +32,7 @@ async def get_problems_filter_errors(municipalityId: str, tech_host_type: str = 
 
 
 @alerts_router.get(
-    '/problems/{municipalityId}',
+    '/problems_bck/{municipalityId}',
     tags=["Zabbix - Problems(Alerts)"],
     status_code=status.HTTP_200_OK,
     summary="Get problems by municipality ID, device type and technology, and subtype",
@@ -43,14 +43,14 @@ async def get_problems_filter(municipalityId: str, tech_host_type: str = "", sub
 
 
 @alerts_router.get(
-    '/problems_pool/{municipalityId}',
+    '/problems/{municipalityId}',
     tags=["Zabbix - Problems(Alerts)"],
     status_code=status.HTTP_200_OK,
     summary="Get problems by municipality ID, device type and technology, and subtype",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_problems_filter_pool(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = "", db:DB=Depends(get_db)):
-    return await alerts_service.get_problems_filter_pool(municipalityId, tech_host_type, subtype, severities,db)
+async def get_problems_filter_pool(municipalityId: str, tech_host_type: str = "", subtype: str = "", severities: str = "", db: DB = Depends(get_db)):
+    return await alerts_service.get_problems_filter_pool(municipalityId, tech_host_type, subtype, severities, db)
 
 
 @alerts_router.get(

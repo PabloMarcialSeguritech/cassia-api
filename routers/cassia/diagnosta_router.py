@@ -16,13 +16,5 @@ diagnosta_router = APIRouter(prefix="/diagnosta")
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def analize_host(hostid_or_ip: str, db: DB = Depends(get_db)):
-    print(db)
-    print(id(db))
-    db_connection = db
-    database_response = pd.DataFrame(await db_connection.run_query("SELECT * FROM cassia_users"))
-    print(database_response)
-    print(db.pool)
-    if db.pool is not None:
-        print(f"POOL SIZE: {db.pool.size}")
-    return
+
     return await diagnosta_service.analize_host(hostid_or_ip)

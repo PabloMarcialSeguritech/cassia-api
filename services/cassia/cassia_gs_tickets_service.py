@@ -2,6 +2,7 @@ from fastapi import HTTPException, status
 from infraestructure.cassia import cassia_gs_tickets_repository
 from utils.traits import success_response
 from schemas import cassia_gs_ticket_schema
+from infraestructure.cassia import CassiaConfigRepository
 
 
 async def get_ticket_detail(ticket_id):
@@ -25,9 +26,18 @@ async def get_created_tickets():
 
 async def create_ticket(ticket_data: cassia_gs_ticket_schema.CassiaGSTicketSchema, current_session):
     host_data = await cassia_gs_tickets_repository.get_host_data(ticket_data.hostid)
+
     if host_data.empty:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Host no encontrado")
+    suscriptores_id_df = await CassiaConfigRepository.get_config_value_by_name('suscriptores_id')
+    suscriptores_id = 11
+    if not suscriptores_id_df.empty:
+        suscriptores_id = int(suscriptores_id_df['value'][0])
+    print(host_data)
+    if host_data['device_id'][0] != suscriptores_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Este host no es un suscriptor por lo que no se pueden crear tickets en el.")
     if host_data['alias'][0] == "" or host_data['alias'][0] is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="La afiliación de este host no esta configurada")
@@ -37,11 +47,21 @@ async def create_ticket(ticket_data: cassia_gs_ticket_schema.CassiaGSTicketSchem
     created_tickets_to_afiliation = await cassia_gs_tickets_repository.get_active_tickets_by_afiliation(
         host_data['alias'][0])
     if not created_tickets_to_afiliation.empty:
+        print(created_tickets_to_afiliation)
+        message = 'Hay una solicitud de ticket activa en esta afiliación' if created_tickets_to_afiliation[
+            'status'][0] == 'solicitado' else 'Ya existe un ticket activo en esta afiliación'
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail="Ya existe un ticket activo en esta afiliación")
-
-    created_ticket = await cassia_gs_tickets_repository.create_ticket(host_data.loc[0].to_dict(), ticket_data.comment, current_session.mail)
-    save_ticket_data = await cassia_gs_tickets_repository.save_ticket_data(ticket_data, host_data.loc[0].to_dict(), created_ticket, current_session)
+                            detail=message)
+    host_data_dict = host_data.loc[0].to_dict()
+    mac_address_df = await cassia_gs_tickets_repository.get_mac_address_by_hostid(ticket_data.hostid)
+    mac_address = ''
+    if not mac_address_df.empty:
+        mac_address = mac_address_df['item_value'][0]
+        mac_address = mac_address.replace(" ", "").upper()
+    host_data_dict['mac_address'] = mac_address
+    host_data_dict['service_id'] = 1866 if 'VVL' in host_data_dict['alias'] else 1836
+    created_ticket = await cassia_gs_tickets_repository.create_ticket(host_data_dict, ticket_data.comment, current_session.mail)
+    save_ticket_data = await cassia_gs_tickets_repository.save_ticket_data(ticket_data, host_data_dict, created_ticket, current_session)
     return success_response(message="Ticket solicitado correctamente")
 
 
