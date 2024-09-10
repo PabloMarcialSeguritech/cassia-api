@@ -7,6 +7,7 @@ import numpy as np
 
 
 async def get_catalog_city() -> pd.DataFrame:
+
     db_connection = db.DB()
     db_queries = db_queries_model.DBQueries()
     try:

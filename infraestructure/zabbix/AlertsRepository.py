@@ -1186,6 +1186,7 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
     init = time.time()
     lpr_id = lpr_df['value'][0] if not lpr_df.empty else '9'
     ping_loss_message = await CassiaConfigRepository.get_config_ping_loss_message_pool(db)
+    print("******************PING LOSS MESSAGE**************")
     marcas.append({"problems.ping_loss_df": time.time()-init})
     init = time.time()
     if subtype == "376276" or subtype == "375090":
@@ -1259,21 +1260,34 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
 
         if not data_problems.empty:
             problems = await normalizar_eventos_cassia(problems, data_problems, severities, ping_loss_message)
-
+    print("******************BANDERAS**************")
+    print(entro1)
+    print(entro2)
     dependientes = await CassiaDiagnostaRepository.get_host_dependientes_pool(db)
     marcas.append({"problems.get_dependientes": time.time()-init})
     init = time.time()
 
     if not dependientes.empty:
+        print("******************ENTRA A DEPENDIENTES**************")
         if not problems.empty:
+            print("******************ENTRA A PROBLEMS**************")
             indexes = problems[problems['Problem'] == ping_loss_message]
+            print("******************INDEXES**************")
+            print(indexes)
             indexes = indexes[indexes['hostid'].isin(
                 dependientes['hostid'].to_list())]
+            print("******************INDEXES 2**************")
+            print(indexes)
+
             if not problems.empty:
+                print("******************AQUI**************")
                 problems.loc[problems.index.isin(
                     indexes.index.to_list()), 'tipo'] = 0
+
                 problems.loc[~problems.index.isin(
                     indexes.index.to_list()), 'tipo'] = 1
+                print(problems[problems['tipo'] == 0])
+                print(problems[problems['tipo'] == 1])
 
     sincronizados = await CassiaDiagnostaRepository.get_open_problems_diagnosta_pool(db)
     marcas.append({"problems.get_sincronizados": time.time()-init})

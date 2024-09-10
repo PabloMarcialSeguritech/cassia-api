@@ -21,6 +21,23 @@ async def get_towers() -> pd.DataFrame:
         await db_model.close_connection()
 
 
+async def get_host_down_excepciones_pool(db) -> pd.DataFrame:
+
+    try:
+        sp_get_host_downs_excepciones = DBQueries().stored_name_get_host_down_excepcion
+
+        host_downs_excepciones_data = await db.run_query(sp_get_host_downs_excepciones)
+        host_downs_excepciones_df = pd.DataFrame(
+            host_downs_excepciones_data).replace(np.nan, None)
+        if host_downs_excepciones_df.empty:
+            host_downs_excepciones_df = pd.DataFrame(columns=['hostid'])
+        return host_downs_excepciones_df
+    except Exception as e:
+        print(f"Excepcion en get_host_down_excepciones_pool: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_host_down_excepciones_pool: {e}")
+
+
 async def get_host_down_excepciones() -> pd.DataFrame:
     db_model = DB()
     try:
@@ -89,6 +106,40 @@ async def get_host_downs(municipality_id, dispId, subtype_id) -> pd.DataFrame:
                             detail=f"Excepcion en get_host_downs: {e}")
     finally:
         await db_model.close_connection()
+
+
+async def get_host_downs(municipality_id, dispId, subtype_id) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        sp_get_host_downs = DBQueries().stored_name_get_host_downs
+        await db_model.start_connection()
+        host_downs_data = await db_model.run_stored_procedure(sp_get_host_downs, (municipality_id, dispId, ''))
+        host_downs_df = pd.DataFrame(host_downs_data).replace(np.nan, None)
+        if host_downs_df.empty:
+            host_downs_df = pd.DataFrame(columns=['hostid'])
+        return host_downs_df
+    except Exception as e:
+        print(f"Excepcion en get_host_downs: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_host_downs: {e}")
+    finally:
+        await db_model.close_connection()
+
+
+async def get_host_downs_dependientes_pool(db) -> pd.DataFrame:
+    try:
+        # PINK
+        query_get_host_downs_dependientes = DBQueries(
+        ).query_get_host_downs_dependientes_test
+
+        host_downs_dependientes_data = await db.run_query(query_get_host_downs_dependientes)
+        host_downs_dependientes_df = pd.DataFrame(
+            host_downs_dependientes_data).replace(np.nan, None)
+        return host_downs_dependientes_df
+    except Exception as e:
+        print(f"Excepcion en get_host_downs_dependientes_pool: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_host_downs_dependientes_pool: {e}")
 
 
 async def get_host_downs_dependientes() -> pd.DataFrame:
