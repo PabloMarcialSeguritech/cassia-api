@@ -1318,3 +1318,13 @@ i.key_ like '%mac%'
 and h.hostid ={hostid}
 """
         return self.query_statement_get_mac_address_by_hostid
+
+    def builder_query_statement_get_host_origenes_dates(self, hostids,limit):
+        self.query_statement_get_local_events_by_tech_id = f"""
+select hostid,created_at from cassia_events_test cet 
+where closed_at is null 
+and recovered_at is NULL 
+and hostid in ({hostids})
+order by created_at asc limit {limit}
+"""
+        return self.query_statement_get_local_events_by_tech_id

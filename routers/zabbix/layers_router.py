@@ -7,6 +7,8 @@ from fastapi import File, UploadFile, Form
 from typing import Optional
 from services import auth_service2
 import services.zabbix.layers_service as layers_service
+from dependencies import get_db
+from infraestructure.database import DB
 
 layers_router = APIRouter(prefix="/layers")
 
@@ -161,5 +163,5 @@ async def get_hosts_filter(municipalityId: str = "0", dispId: str = "", subtype_
     summary="Get host with status down by municipality ID, technology or device type, and subtype",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_hosts_filter_async(municipalityId: str = "0", dispId: str = "", subtype_id: str = ""):
-    return await layers_service.get_downs_origin_layer_async(municipalityId, dispId, subtype_id)
+async def get_hosts_filter_async(municipalityId: str = "0", dispId: str = "", subtype_id: str = "", lenght: int = 500, db=Depends(get_db)):
+    return await layers_service.get_downs_origin_layer_async(municipalityId, dispId, subtype_id, lenght, db)
