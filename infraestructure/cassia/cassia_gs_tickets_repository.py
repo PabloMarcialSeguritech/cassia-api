@@ -252,11 +252,12 @@ async def create_ticket_comment(ticket_data: cassia_gs_ticket_schema.CassiaGSTic
     } """
     message_content = json.dumps(message_data)
     subject = "ticketcommentinternalnote" if ticket_data.comment_type == "internal_note" else "ticketcommentprogresssolution"
+    print(subject)
     try:
         with ServiceBusClient.from_connection_string(conn_str=gs_connection_string, logging_enable=True) as servicebus_client:
             sender = servicebus_client.get_queue_sender(queue_name=queue_name)
             message = ServiceBusMessage(
-                message_content, subject="subject")
+                message_content, subject=subject)
             sender.send_messages(message)
             print(f"Sent: {message_content} with subject: {subject}")
             print(f"Message_id: {message.message_id}")
@@ -327,7 +328,7 @@ async def save_ticket_comment_data(ticket_data, created_ticket_comment, mail, cr
             ticket_id=ticket_data.ticket_id,
             type=created_ticket_comment.subject,
             comment=ticket_data.comment,
-            status="creado",
+            status="solicitado",
             user_email=mail,
             file_url=None,
             last_update=now,

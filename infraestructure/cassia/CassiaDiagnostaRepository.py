@@ -5,6 +5,39 @@ import pandas as pd
 import numpy as np
 
 
+async def get_downs_dates_pool(hostids, limit, db) -> pd.DataFrame:
+    try:
+        # PINK
+        query_statement_get_host_origenes_dates = DBQueries(
+        ).builder_query_statement_get_host_origenes_dates(hostids, limit)
+        diagnosta_events_data = await db.run_query(query_statement_get_host_origenes_dates)
+        diagnosta_events_df = pd.DataFrame(
+            diagnosta_events_data).replace(np.nan, None)
+        return diagnosta_events_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_downs_dates_pool {e}")
+
+
+async def get_downs_dates(hostids, limit) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        # PINK
+        query_statement_get_host_origenes_dates = DBQueries(
+        ).builder_query_statement_get_host_origenes_dates(hostids, limit)
+        await db_model.start_connection()
+        print(query_statement_get_host_origenes_dates)
+        diagnosta_events_data = await db_model.run_query(query_statement_get_host_origenes_dates)
+        diagnosta_events_df = pd.DataFrame(
+            diagnosta_events_data).replace(np.nan, None)
+        return diagnosta_events_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en query_statement_get_host_origenes_dates {e}")
+    finally:
+        await db_model.close_connection()
+
+
 async def get_local_events_diagnosta_by_host(hostid) -> pd.DataFrame:
     db_model = DB()
     try:
