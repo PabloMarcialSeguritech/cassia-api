@@ -2,6 +2,8 @@ import infraestructure.database_model as db
 from fastapi.exceptions import HTTPException
 from fastapi import status
 import infraestructure.db_queries_model as db_queries_model
+import pandas as pd
+import numpy as np
 
 
 async def get_host_health_detail(host_id):
@@ -112,11 +114,13 @@ async def get_arch_traffic_events_date_close_null():
 async def get_catalog_city():
     db_connection = db.DB()
     db_queries = db_queries_model.DBQueries()
-    stored_procedure_params = None
+    stored_procedure_params = ''
     try:
         await db_connection.start_connection()
+
         database_response = await db_connection.run_stored_procedure(db_queries.stored_name_catalog_city,
                                                                      stored_procedure_params)
+        print(database_response)
         return database_response
 
     except Exception as e:
@@ -137,7 +141,8 @@ async def get_arch_traffic_events_date_close_null_municipality(municipality):
         await db_connection.start_connection()
         database_response = await db_connection.run_query(
             db_queries.builder_query_statement_get_arch_traffic_events_date_close_null_municipality_test(municipality))
-        return database_response
+        alerts_df = pd.DataFrame(database_response).replace(np.nan, None)
+        return alerts_df
 
     except Exception as e:
 
@@ -319,6 +324,7 @@ async def get_switch_through_put(municipality_id, switch_id, metric_switch_val):
     db_queries = db_queries_model.DBQueries()
     stored_procedure_params = (
         f'{municipality_id}', f'{switch_id}', f'{metric_switch_val}',)
+    print(stored_procedure_params)
     try:
         await db_connection.start_connection()
         database_response = await db_connection.run_stored_procedure(db_queries.stored_name_get_switch_through_put_data,

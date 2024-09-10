@@ -56,7 +56,7 @@ async def get_config_value_by_name_pool(name, db) -> pd.DataFrame:
     try:
         query_get_config_value_by_name = DBQueries(
         ).builder_query_statement_get_config_value_by_name(name)
-
+        print(query_get_config_value_by_name)
         config_value_data = await db.run_query(query_get_config_value_by_name)
         config_value_df = pd.DataFrame(config_value_data)
         return config_value_df

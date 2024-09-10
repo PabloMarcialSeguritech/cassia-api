@@ -17,6 +17,8 @@ from infraestructure.zabbix import AlertsRepository
 import numpy as np
 from datetime import datetime
 import pytz
+import time
+import asyncio
 settings = Settings()
 
 
@@ -285,11 +287,29 @@ where closed_at is null and depends_hostid is not null""")
         return success_response(data=response)
 
 
-async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
-    downs = await layers_repository.get_host_downs(municipality_id, dispId, subtype_id)
+async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id, lenght, db):
+    init = time.time()
+    tasks = {'downs': layers_repository.get_host_downs_pool(
+        municipality_id, dispId, subtype_id, db),
+        'downs_excepcion': layers_repository.get_host_down_excepciones_pool(db),
+        'downs_globales': layers_repository.get_host_downs_pool('0', '', '', db),
+        'dependientes': layers_repository.get_host_downs_dependientes_pool(db),
+        'max_count': CassiaConfigRepository.get_config_value_by_name_pool('max_odd_count', db)}
+    results = await asyncio.gather(*tasks.values())
+    dfs = {
+        'downs_df': results[0],
+        'downs_excepcion_df': results[1],
+        'downs_globales_df': results[2],
+        'dependientes_df': results[3],
+        'max_count_df': results[4],
+    }
+    end = time.time()
+    print(end-init)
+    init = time.time()
+    downs = dfs['downs_df']
     print("********DOWNS********")
     print(downs)
-    downs_excepcion = await layers_repository.get_host_down_excepciones()
+    downs_excepcion = dfs['downs_excepcion_df']
     print("********DOWNS EXCEPCION********")
     print(downs_excepcion)
     downs = downs[~downs['hostid'].isin(downs_excepcion['hostid'].to_list())]
@@ -297,12 +317,12 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
     print(downs)
     count_downs = len(downs)
 
-    downs_globales = await layers_repository.get_host_downs('0', '', '')
+    downs_globales = dfs['downs_globales_df']
     downs_globales = downs_globales[~downs_globales['hostid'].isin(
         downs_excepcion['hostid'].to_list())]
     count_downs_globales = len(downs_globales)
 
-    dependientes = await layers_repository.get_host_downs_dependientes()
+    dependientes = dfs['dependientes_df']
     print("***********DEPENDIENTES***********")
     print(dependientes)
     origenes = downs[~downs['hostid'].isin(dependientes['hostid'].to_list())]
@@ -327,11 +347,33 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id):
             'ICMP ping' for i in range(len(origenes))]
         origenes['origen'] = [1 for i in range(len(origenes))]
 
+    max_count = dfs['max_count_df']
+    print(f"RESULT MAX COUNT QUERY: {max_count}")
+    if not max_count.empty:
+        max_count = max_count['value'].astype(int)[0]
+
+    else:
+        max_count = None
+    print(f"RESULT MAX COUNT LOGIC: {max_count}")
+    odd_len = max_count if max_count is not None else 500
+    if max_count != lenght:
+        if max_count is not None:
+            odd_len = lenght
+    print(f"ODD LEN: {odd_len}")
+    print(f"ODD COUNT: {len(origenes)}")
+
+    if not origenes.empty:
+        if len(origenes) > max_count:
+            hostids = ",".join(
+                [str(hostid) for hostid in origenes['hostid'].to_list()])
+            origenes_dates = await CassiaDiagnostaRepository.get_downs_dates_pool(hostids, odd_len, db)
+            origenes = pd.merge(origenes_dates, origenes,
+                                how='left', on='hostid')
+
     response = {"downs": origenes.to_dict(
         orient="records"), 'global_count': glob, 'filter_count': filtro
     }
-    print("4")
-    print(response)
+
     return success_response(data=response)
 
 
