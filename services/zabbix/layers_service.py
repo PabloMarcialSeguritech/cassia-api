@@ -363,7 +363,7 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id, leng
     print(f"ODD COUNT: {len(origenes)}")
 
     if not origenes.empty:
-        if len(origenes) > max_count:
+        if len(origenes) > odd_len:
             hostids = ",".join(
                 [str(hostid) for hostid in origenes['hostid'].to_list()])
             origenes_dates = await CassiaDiagnostaRepository.get_downs_dates_pool(hostids, odd_len, db)
