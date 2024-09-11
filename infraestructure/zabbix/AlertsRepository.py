@@ -201,8 +201,11 @@ async def get_host_alerts(hostid):
             else:
                 acks_zabbix_mensajes = pd.DataFrame(
                     columns=['eventid', 'acknowledges_concatenados'])
-            problems_zabbix = pd.merge(
-                problems_zabbix, acks_zabbix_mensajes, how='left', on='eventid').replace(np.nan, None)
+            if not problems_zabbix.empty:
+
+                problems_zabbix = pd.merge(
+                    problems_zabbix, acks_zabbix_mensajes, how='left', on='eventid').replace(np.nan, None)
+
             problems_cassia = problems[problems['local'] == 1]
             problems_cassia_ids = problems_cassia['eventid']
             cassia_eventids = '0'
@@ -236,15 +239,34 @@ async def get_host_alerts(hostid):
             problems = pd.merge(problems, serial_numbers_df,
                                 on='hostid', how='left').replace(np.nan, None)
         problems['create_ticket'] = 0
+        suscriptores_id = await CassiaConfigRepository.get_config_value_by_name('suscriptores_id')
+        suscriptores_id = suscriptores_id['value'][0] if not suscriptores_id.empty else 11
         if all(col in problems.columns for col in ['affiliation', 'no_serie']):
-            problems['create_ticket'] = problems.apply(assign_value, axis=1)
+            problems['create_ticket'] = problems.apply(
+                lambda row: assign_value(row, suscriptores_id), axis=1)
             print("Ambas columnas existen en el DataFrame.")
         last_error_tickets = await cassia_gs_tickets_repository.get_last_error_tickets()
         problems['has_ticket'] = False
         problems['ticket_id'] = None
         problems['ticket_error'] = None
         problems['ticket_status'] = None
-        for index in last_error_tickets.index:
+        if not problems.empty:
+            for index in last_error_tickets.index:
+                problems.loc[(problems['affiliation'] == last_error_tickets['afiliacion'][index]) & (
+                    problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_error'] = last_error_tickets['error'][index]
+                problems.loc[(problems['affiliation'] == last_error_tickets['afiliacion']
+                              [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_status'] = 'error'
+            active_tickets = await cassia_gs_tickets_repository.get_active_tickets()
+            for index in active_tickets.index:
+                problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
+                              [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'has_ticket'] = True
+                problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
+                              [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_id'] = active_tickets['ticket_id'][index]
+                problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
+                              [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_error'] = None
+                problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
+                              [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_status'] = active_tickets['status'][index]
+        """ for index in last_error_tickets.index:
             problems.loc[problems['affiliation'] == last_error_tickets['afiliacion']
                          [index], 'ticket_error'] = last_error_tickets['error'][index]
             problems.loc[problems['affiliation'] == last_error_tickets['afiliacion']
@@ -258,7 +280,7 @@ async def get_host_alerts(hostid):
             problems.loc[problems['affiliation'] == active_tickets['afiliacion']
                          [index], 'ticket_error'] = None
             problems.loc[problems['affiliation'] == active_tickets['afiliacion']
-                         [index], 'ticket_status'] = active_tickets['status'][index]
+                         [index], 'ticket_status'] = active_tickets['status'][index] """
 
         return problems
     except Exception as e:
