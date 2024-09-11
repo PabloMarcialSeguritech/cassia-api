@@ -10,7 +10,7 @@ class CassiaGSTicketsDetailModel(DB.Base):
     cassia_gs_tickets_id = Column(BigInteger,  nullable=False)
     ticket_id = Column(BigInteger,  nullable=False)
     type = Column(String(length=100),  nullable=True)
-    comment = Column(String(length=100),  nullable=True)
+    comment = Column(Text,  nullable=True)
     status = Column(String(length=100),  nullable=True)
     created_at = Column(DateTime, nullable=True)
     user_email = Column(String,  nullable=False)
