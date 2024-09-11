@@ -593,10 +593,10 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
         print("\nConteo de registros:")
         print(status_counts)
     print(marcas)
-    print("*************************ACAAAAA")
+    """ print("*************************ACAAAAA")
     tipo1 = problems[problems['tipo'] == 1]
     print(tipo1)
-    print(tipo1['tipo'])
+    print(tipo1['tipo']) """
     return success_response(data=problems.to_dict(orient="records"))
 
 
