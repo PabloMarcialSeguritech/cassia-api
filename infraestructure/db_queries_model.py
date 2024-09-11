@@ -222,7 +222,7 @@ where ct.deleted_at  is NULL"""
         self.query_get_resets = """SELECT reset_id, affiliation, object_id, updated_at, imei FROM cassia_reset"""
         self.query_get_active_gs_tickets = f"""
 select * from cassia_gs_tickets cgt
-where status !='cerrado'
+where status !='Cerrado'
 and status !='error'"""
 
         # RESETS
@@ -1212,7 +1212,7 @@ where host_id ={host_id}"""
         self.query_statement_get_active_tickets_by_afiliation = f"""
 select * from cassia_gs_tickets cgt 
 where cgt.afiliacion ='{afiliacion}'
-and status !='cerrado'
+and status !='Cerrado'
 and status !='error'
 """
 
@@ -1222,7 +1222,7 @@ and status !='error'
         self.query_statement_get_ticket_by_ticket_id = f"""
 select * from cassia_gs_tickets cgt 
 where cgt.ticket_id ={ticket_id}
-and status !='cerrado'
+and status !='Cerrado'
 and status !='solicitado'
 and status !='error'
 """
@@ -1319,7 +1319,7 @@ and h.hostid ={hostid}
 """
         return self.query_statement_get_mac_address_by_hostid
 
-    def builder_query_statement_get_host_origenes_dates(self, hostids,limit):
+    def builder_query_statement_get_host_origenes_dates(self, hostids, limit):
         self.query_statement_get_local_events_by_tech_id = f"""
 select hostid,created_at from cassia_events_test cet 
 where closed_at is null 
