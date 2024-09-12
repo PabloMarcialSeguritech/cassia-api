@@ -571,6 +571,35 @@ where cdp.closed_at is NULL""")
     return FileResponse(xlsx_filename, headers={"Content-Disposition": "attachment; filename=alertas.xlsx"}, media_type="application/vnd.ms-excel", filename="alertas.xlsx")
 
 
+async def get_problems_filter_pool_backup(municipalityId, tech_host_type=0, subtype="", severities="", db=None):
+    init = time.time()
+    marcas = []
+    problems = await AlertsRepository.get_problems_filter_pool(municipalityId, tech_host_type, subtype, severities, db, marcas)
+    end = time.time()
+
+    marcas.append({"obtener_problems": end-init})
+    init = time.time()
+    downs_df = await layers_repository.get_host_downs_pool(municipalityId, '', '', db)
+    marcas.append({"downs_df": time.time()-init})
+
+    if not problems.empty:
+        problems['Estatus'] = problems['hostid'].apply(
+            lambda x: 'PROBLEM' if x in downs_df['hostid'].values else 'RESOLVED')
+
+        # Contamos la cantidad de registros con 'resolved' y 'problem'
+        status_counts = problems['Estatus'].value_counts()
+
+        # Mostramos el DataFrame final y el conteo
+        print("\nConteo de registros:")
+        print(status_counts)
+    print(marcas)
+    """ print("*************************ACAAAAA")
+    tipo1 = problems[problems['tipo'] == 1]
+    print(tipo1)
+    print(tipo1['tipo']) """
+    return success_response(data=problems.to_dict(orient="records"))
+
+
 async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="", severities="", db=None):
     init = time.time()
     marcas = []
