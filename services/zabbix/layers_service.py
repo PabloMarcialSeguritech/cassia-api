@@ -361,7 +361,7 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id, leng
             odd_len = lenght
     print(f"ODD LEN: {odd_len}")
     print(f"ODD COUNT: {len(origenes)}")
-
+    
     if not origenes.empty:
         if len(origenes) > odd_len:
             hostids = ",".join(
@@ -373,7 +373,7 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id, leng
     response = {"downs": origenes.to_dict(
         orient="records"), 'global_count': glob, 'filter_count': filtro
     }
-
+   
     return success_response(data=response)
 
 

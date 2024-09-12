@@ -39,7 +39,8 @@ class DB:
                 ssh_username=self.ssh_username,
                 ssh_password=self.ssh_password,
                 remote_bind_address=('127.0.0.1', self.remote_port),
-                local_bind_address=('0.0.0.0', self.port)  # Puedes especificar un puerto local si es necesario
+                # Puedes especificar un puerto local si es necesario
+                local_bind_address=('0.0.0.0', self.port)
             )
             self.ssh_tunnel.start()
             self.port = self.ssh_tunnel.local_bind_port
@@ -56,12 +57,13 @@ class DB:
                     password=self.password,
                     db=self.db,
                     minsize=1,  # Número mínimo de conexiones en el pool
-                    maxsize=10,  # Número máximo de conexiones en el pool
+                    maxsize=20,  # Número máximo de conexiones en el pool
                     autocommit=True,
                 )
                 print("Database connection pool successfully established.")
             except aiomysql.Error as e:
-                print(f"Error while establishing database connection pool: {e}")
+                print(
+                    f"Error while establishing database connection pool: {e}")
                 raise
 
     async def run_stored_procedure(self, sp_name, sp_params):
@@ -77,8 +79,10 @@ class DB:
                     while more_results:
                         results = await cursor.fetchall()
                         if cursor.description:
-                            column_names = [column[0] for column in cursor.description]
-                            result_dicts = [dict(zip(column_names, row)) for row in results]
+                            column_names = [column[0]
+                                            for column in cursor.description]
+                            result_dicts = [dict(zip(column_names, row))
+                                            for row in results]
                             result_sets.extend(result_dicts)
                         more_results = await cursor.nextset()
                     return result_sets
@@ -102,7 +106,8 @@ class DB:
                                 print(row)
                             result_sets.extend(results)
                         else:
-                            print(f"Query executed successfully. Rows affected: {cursor.rowcount}")
+                            print(
+                                f"Query executed successfully. Rows affected: {cursor.rowcount}")
                     else:
                         if cursor.description:
                             results = await cursor.fetchall()
