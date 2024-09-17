@@ -8,6 +8,21 @@ from datetime import datetime
 import pytz
 
 
+async def get_user_slack_notification_pool(user_id, db) -> pd.DataFrame:
+
+    try:
+        get_user_notification = DBQueries(
+        ).builder_query_statement_get_user_slack_notification(user_id)
+        user_notification_data = await db.run_query(get_user_notification)
+        user_notification_df = pd.DataFrame(
+            user_notification_data).replace(np.nan, None)
+        return user_notification_df
+    except Exception as e:
+        print(f"Excepcion en get_user_slack_notification: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_user_slack_notification: {e}")
+
+
 async def get_user_slack_notification(user_id) -> pd.DataFrame:
     db_model = DB()
     try:
@@ -24,6 +39,24 @@ async def get_user_slack_notification(user_id) -> pd.DataFrame:
                             detail=f"Excepcion en get_user_slack_notification: {e}")
     finally:
         await db_model.close_connection()
+
+
+async def get_user_slack_notifications_count_pool(last_date, db) -> int:
+    try:
+        get_user_notification = DBQueries(
+        ).builder_query_statement_get_user_slack_notification_count(last_date)
+
+        user_notification_count = await db.run_query(get_user_notification)
+        user_notification_count_df = pd.DataFrame(
+            user_notification_count).replace(np.nan, None)
+        if not user_notification_count_df.empty:
+            return int(user_notification_count_df['notificaciones'][0])
+        else:
+            return 0
+    except Exception as e:
+        print(f"Excepcion en get_user_slack_notifications_count: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_user_slack_notifications_count: {e}")
 
 
 async def get_user_slack_notifications_count(last_date) -> int:
@@ -45,6 +78,24 @@ async def get_user_slack_notifications_count(last_date) -> int:
                             detail=f"Excepcion en get_user_slack_notifications_count: {e}")
     finally:
         await db_model.close_connection()
+
+
+async def get_total_slack_notifications_count_pool(db) -> int:
+    try:
+        query_get_total_notification = DBQueries(
+        ).query_get_total_slack_notifications_count
+
+        total_notification_count = await db.run_query(query_get_total_notification)
+        total_notification_count_df = pd.DataFrame(
+            total_notification_count).replace(np.nan, None)
+        if not total_notification_count_df.empty:
+            return int(total_notification_count_df['notificaciones'][0])
+        else:
+            return 0
+    except Exception as e:
+        print(f"Excepcion en get_total_slack_notifications_count: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_total_slack_notifications_count: {e}")
 
 
 async def get_total_slack_notifications_count() -> int:

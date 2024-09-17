@@ -4,7 +4,8 @@ from fastapi import Depends, status
 
 from services import auth_service
 from services import auth_service2
-
+from infraestructure.database import DB
+from dependencies import get_db
 groups_router = APIRouter()
 
 
@@ -26,8 +27,8 @@ def get_municipios():
     summary="Get all municipality",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_municipios_async():
-    return await group_service.get_municipios_async()
+async def get_municipios_async(db: DB = Depends(get_db)):
+    return await group_service.get_municipios_async(db)
 
 
 @groups_router.get(
@@ -48,8 +49,8 @@ def get_devices():
     summary="Get all device types and technologies",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_devices_async():
-    return await group_service.get_devices_async()
+async def get_devices_async(db: DB = Depends(get_db)):
+    return await group_service.get_devices_async(db)
 
 
 @groups_router.get(
@@ -70,8 +71,8 @@ async def get_devices(municipalityId=0):
     summary="Get all device types and technologies by municipality",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_devices_async(municipalityId=0):
-    return await group_service.get_devices_by_municipality_async(municipalityId)
+async def get_devices_async(municipalityId=0, db: DB = Depends(get_db)):
+    return await group_service.get_devices_by_municipality_async(municipalityId, db)
 
 
 @groups_router.get(
@@ -114,8 +115,8 @@ def get_subtypes():
     summary="Get all device subtypes",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_subtypes_async():
-    return await group_service.get_subtypes_async(0)
+async def get_subtypes_async(db: DB = Depends(get_db)):
+    return await group_service.get_subtypes_async(0, db)
 
 
 @groups_router.get(
@@ -136,8 +137,8 @@ def get_subtypes(techId):
     summary="Get all device subtypes",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_subtypes_async(techId):
-    return await group_service.get_subtypes_async(techId)
+async def get_subtypes_async(techId, db: DB = Depends(get_db)):
+    return await group_service.get_subtypes_async(techId, db)
 
 
 @groups_router.get(

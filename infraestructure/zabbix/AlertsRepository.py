@@ -1446,34 +1446,21 @@ async def get_problems_filter_pool_backup(municipalityId, tech_host_type=0, subt
 async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="", severities="", db=None, marcas=[]):
     init = time.time()
     tasks = {
-        'rfid_id': CassiaConfigRepository.get_config_value_by_name_pool('rfid_id', db),
-        'lpr_df': CassiaConfigRepository.get_config_value_by_name_pool('lpr_id', db),
-        'ping_loss_message': CassiaConfigRepository.get_config_ping_loss_message_pool(db),
-        'switch_df': CassiaConfigRepository.get_config_value_by_name_pool('switch_id', db),
-        'metric_switch_df': CassiaConfigRepository.get_config_value_by_name_pool('switch_throughtput', db),
-        'problems_df': get_alerts_pool(municipalityId, tech_host_type, subtype, severities, db),
-        'downs_origen_df': CassiaDiagnostaRepository.get_downs_origen_pool(municipalityId, tech_host_type, db),
-        'dependientes_df': CassiaDiagnostaRepository.get_host_dependientes_pool(db),
-        'sincronizados_df': CassiaDiagnostaRepository.get_open_problems_diagnosta_pool(db),
-        'suscriptores_id_df': CassiaConfigRepository.get_config_value_by_name_pool('suscriptores_id', db),
-        'last_errors_tickets_df': cassia_gs_tickets_repository.get_last_error_tickets_pool(db),
-        'active_tickets_df': cassia_gs_tickets_repository.get_active_tickets()
+        'rfid_id_df': asyncio.create_task(CassiaConfigRepository.get_config_value_by_name_pool('rfid_id', db)),
+        'lpr_df': asyncio.create_task(CassiaConfigRepository.get_config_value_by_name_pool('lpr_id', db)),
+        'ping_loss_message_df': asyncio.create_task(CassiaConfigRepository.get_config_ping_loss_message_pool(db)),
+        'switch_df': asyncio.create_task(CassiaConfigRepository.get_config_value_by_name_pool('switch_id', db)),
+        'metric_switch_df': asyncio.create_task(CassiaConfigRepository.get_config_value_by_name_pool('switch_throughtput', db)),
+        'problems_df': asyncio.create_task(get_alerts_pool(municipalityId, tech_host_type, subtype, severities, db)),
+        'downs_origen_df': asyncio.create_task(CassiaDiagnostaRepository.get_downs_origen_pool(municipalityId, tech_host_type, db)),
+        'dependientes_df': asyncio.create_task(CassiaDiagnostaRepository.get_host_dependientes_pool(db)),
+        'sincronizados_df': asyncio.create_task(CassiaDiagnostaRepository.get_open_problems_diagnosta_pool(db)),
+        'suscriptores_id_df': asyncio.create_task(CassiaConfigRepository.get_config_value_by_name_pool('suscriptores_id', db)),
+        'last_errors_tickets_df': asyncio.create_task(cassia_gs_tickets_repository.get_last_error_tickets_pool(db)),
+        'active_tickets_df': asyncio.create_task(cassia_gs_tickets_repository.get_active_tickets())
     }
     results = await asyncio.gather(*tasks.values())
-    dfs = {
-        'rfid_id_df': results[0],
-        'lpr_df': results[1],
-        'ping_loss_message_df': results[2],
-        'switch_df': results[3],
-        'metric_switch_df': results[4],
-        'problems_df': results[5],
-        'downs_origen_df': results[6],
-        'dependientes_df': results[7],
-        'sincronizados_df': results[8],
-        'suscriptores_id_df': results[9],
-        'last_errors_tickets_df': results[10],
-        'active_tickets_df': results[11]
-    }
+    dfs = dict(zip(tasks.keys(), results))
     marcas.append({"problems.gather": time.time()-init})
     if subtype == "0":
         subtype = ""
@@ -1523,13 +1510,13 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
     problems = await normalizar_alertas_zabbix(problems, ping_loss_message)
 
     problems = await eliminar_downs_zabbix(problems, ping_loss_message)
-    if tech_host_type == lpr_id or tech_host_type == '':
+    if tech_host_type in [lpr_id, '']:
         problems = await process_alerts_local_pool(
             problems, municipalityId, lpr_id, severities, 'lpr', ping_loss_message, db)
         marcas.append({"problems.alerts_local_lpr": time.time()-init})
     init = time.time()
 
-    if tech_host_type == rfid_id or tech_host_type == '':
+    if tech_host_type in [rfid_id, '']:
         problems = await process_alerts_local_pool(
             problems, municipalityId, rfid_id, severities, 'rfid', ping_loss_message, db)
         marcas.append({"problems.alerts_local_rfid": time.time()-init})
@@ -1559,19 +1546,8 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
 
     if not downs_origen.empty:
 
-        hostids = downs_origen['hostid'].tolist()
-        marcas.append(
-            {"problems.cassia_events_with_host_filter.list": time.time()-init})
-        init = time.time()
-        hostids_str = ",".join([str(host) for host in hostids])
-        marcas.append(
-            {"problems.cassia_events_with_host_filter.list_comprehension": time.time()-init})
-        init = time.time()
+        hostids_str = ",".join(map(str, downs_origen['hostid'].tolist()))
         data_problems = await CassiaEventRepository.get_cassia_events_with_hosts_filter_pool(hostids_str, db)
-        marcas.append(
-            {"problems.cassia_events_with_host_filter.query": time.time()-init})
-        init = time.time()
-
         if not data_problems.empty:
             problems = await normalizar_eventos_cassia(problems, data_problems, severities, ping_loss_message)
     print("******************BANDERAS**************")
@@ -1584,129 +1560,87 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
     if not dependientes.empty:
         print("******************ENTRA A DEPENDIENTES**************")
         if not problems.empty:
-            print("******************ENTRA A PROBLEMS**************")
-            indexes = problems[problems['Problem'] == ping_loss_message]
-            print("******************INDEXES**************")
-            print(indexes)
-            indexes = indexes[indexes['hostid'].isin(
-                dependientes['hostid'].to_list())]
-            print("******************INDEXES 2**************")
-            print(indexes)
-
-            if not problems.empty:
-                print("******************AQUI**************")
-                problems.loc[problems.index.isin(
-                    indexes.index.to_list()), 'tipo'] = 0
-
-                problems.loc[~problems.index.isin(
-                    indexes.index.to_list()), 'tipo'] = 1
-                print(problems[problems['tipo'] == 0])
-                print(problems[problems['tipo'] == 1])
+            dependientes_hostids = dependientes['hostid'].tolist()
+            index_dependientes = problems[(
+                problems['Problem'] == ping_loss_message) & problems['hostid'].isin(dependientes_hostids)].index
+            problems.loc[index_dependientes, 'tipo'] = 0
+            problems.loc[~problems.index.isin(index_dependientes), 'tipo'] = 1
 
     sincronizados = dfs['sincronizados_df']
     marcas.append({"problems.get_sincronizados": time.time()-init})
     init = time.time()
 
-    if not sincronizados.empty:
-        if not problems.empty:
-            problems = await process_open_diagnosta_events(problems, sincronizados, ping_loss_message)
-            marcas.append(
-                {"problems.process_open_diagnosta_events": time.time()-init})
-            init = time.time()
+    if not sincronizados.empty and not problems.empty:
+        problems = await process_open_diagnosta_events(problems, sincronizados, ping_loss_message)
+
     if not problems.empty:
         problems = await procesar_fechas_problemas(problems)
         marcas.append({"problems.procesar_fechas_problemas": time.time()-init})
         init = time.time()
         problems.drop_duplicates(
             subset=['hostid', 'Problem'], inplace=True)
-    if not problems.empty:
-
-        exceptions = await get_exceptions_async_pool(
-            problems['hostid'].to_list(), db)
-        marcas.append({"problems.get_exceptions_async": time.time()-init})
-        init = time.time()
-        if not exceptions.empty:
-            exceptions['created_at'] = pd.to_datetime(
-                exceptions['created_at'], format='%Y-%m-%d %H:%M:%S').dt.tz_localize(None)
+    # Procesar excepciones
+    exceptions = await get_exceptions_async_pool(problems['hostid'].tolist(), db) if not problems.empty else pd.DataFrame()
+    if not exceptions.empty:
+        exceptions['created_at'] = pd.to_datetime(
+            exceptions['created_at'], format='%Y-%m-%d %H:%M:%S').dt.tz_localize(None)
         problems = pd.merge(problems, exceptions, on='hostid',
                             how='left').replace(np.nan, None)
+
     if not problems.empty:
         problems_zabbix = problems[problems['local'] == 0]
-        problems_zabbix_ids = problems_zabbix['eventid']
-        zabbix_eventids = '0'
-        if not problems_zabbix.empty:
-            zabbix_eventids = ','.join(
-                problems_zabbix_ids.astype('str').to_list())
-        cassia_eventids = '0'
         problems_cassia = problems[problems['local'] == 1]
-        problems_cassia_ids = problems_cassia['eventid']
-        if not problems_cassia.empty:
-            cassia_eventids = ','.join(
-                problems_cassia_ids.astype('str').to_list())
+
+        # Obtener acknowledgements
+        zabbix_eventids = ','.join(problems_zabbix['eventid'].astype(
+            str).tolist()) if not problems_zabbix.empty else '0'
+        cassia_eventids = ','.join(problems_cassia['eventid'].astype(
+            str).tolist()) if not problems_cassia.empty else '0'
         task_2 = {
             'acks_zabbix_df': get_zabbix_acks_pool(zabbix_eventids, db),
             'acks_cassia_df': get_cassia_acks_pool(cassia_eventids, db)
         }
         results2 = await asyncio.gather(*task_2.values())
-        dfs2 = {'acks_zabbix_df': results2[0],
-                'acks_cassia_df': results2[1]}
-        # AQUI
-        acks_zabbix = dfs2['acks_zabbix_df']
-        marcas.append({"problems.get_zabbix_acks": time.time()-init})
-        init = time.time()
-        if not acks_zabbix.empty:
-            acks_zabbix_mensajes = acks_zabbix.groupby('eventid')[
-                'message'].agg(lambda x: ' | '.join(x)).reset_index()
-            acks_zabbix_mensajes.columns = [
-                'eventid', 'acknowledges_concatenados']
-        else:
-            acks_zabbix_mensajes = pd.DataFrame(
-                columns=['eventid', 'acknowledges_concatenados'])
-        problems_zabbix = pd.merge(
-            problems_zabbix, acks_zabbix_mensajes, how='left', on='eventid').replace(np.nan, None)
+        acks_zabbix = results2[0]
+        acks_cassia = results2[1]
 
-        acks_cassia = dfs2['acks_cassia_df']
-        marcas.append({"problems.get_cassia_acks": time.time()-init})
-        init = time.time()
+        # Concatenar acknowledges
+        if not acks_zabbix.empty:
+            acks_zabbix_mensajes = acks_zabbix.groupby(
+                'eventid')['message'].agg(' | '.join).reset_index()
+            problems_zabbix = pd.merge(
+                problems_zabbix, acks_zabbix_mensajes, on='eventid', how='left')
 
         if not acks_cassia.empty:
-            acks_cassia_mensajes = acks_cassia.groupby('eventid')[
-                'message'].agg(lambda x: ' | '.join(x)).reset_index()
-            acks_cassia_mensajes.columns = [
-                'eventid', 'acknowledges_concatenados']
-        else:
-            acks_cassia_mensajes = pd.DataFrame(
-                columns=['eventid', 'acknowledges_concatenados'])
-        problems_cassia = pd.merge(
-            problems_cassia, acks_cassia_mensajes, how='left', on='eventid').replace(np.nan, None)
-        problems = pd.concat([problems_zabbix, problems_cassia])
-        problems = problems.sort_values(by='fecha', ascending=False)
+            acks_cassia_mensajes = acks_cassia.groupby(
+                'eventid')['message'].agg(' | '.join).reset_index()
+            problems_cassia = pd.merge(
+                problems_cassia, acks_cassia_mensajes, on='eventid', how='left')
 
+        # Concatenar problemas zabbix y cassia
+        problems = pd.concat([problems_zabbix, problems_cassia]).sort_values(
+            by='fecha', ascending=False)
+
+    # Procesar afiliaciones y números de serie
     if not problems.empty:
-        hostids_str_2 = ",".join(
-            [str(hostid) for hostid in problems['hostid'].tolist()]) if not problems.empty else "0"
+        hostids_str_2 = ','.join(
+            map(str, problems['hostid'].tolist())) if not problems.empty else '0'
         task_3 = {
             'affiliations_df': CassiaResetRepository.get_affiliations_by_hosts_ids_pool(problems['hostid'].tolist(), db),
             'serial_numbers_df': cassia_gs_tickets_repository.get_serial_numbers_by_host_ids_pool(hostids_str_2, db)
         }
         results3 = await asyncio.gather(*task_3.values())
-        dfs3 = {'affiliations_df': results3[0],
-                'serial_numbers_df': results3[1]}
-        affiliations_df = dfs3['affiliations_df']
-        marcas.append({"problems.get_affiliations": time.time()-init})
-        init = time.time()
+        affiliations_df = results3[0]
+        serial_numbers_df = results3[1]
+
         if not affiliations_df.empty:
-            # Realizar el merge para agregar las columnas de affiliations_df a problems
             problems = pd.merge(problems, affiliations_df,
                                 on='hostid', how='left').replace(np.nan, None)
 
-        serial_numbers_df = dfs3['serial_numbers_df']
-        marcas.append({"problems.get_serial_numbers": time.time()-init})
-        init = time.time()
         if not serial_numbers_df.empty:
-            # Realizar el merge para agregar las columnas de serial_numbers_df a problems
             problems = pd.merge(problems, serial_numbers_df,
                                 on='hostid', how='left').replace(np.nan, None)
+
     problems['create_ticket'] = 0
     suscriptores_id = dfs['suscriptores_id_df']
     suscriptores_id = suscriptores_id['value'][0] if not suscriptores_id.empty else 11
@@ -1723,23 +1657,46 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
     problems['ticket_error'] = None
     problems['ticket_status'] = None
     if not problems.empty:
-        for index in last_error_tickets.index:
-            problems.loc[(problems['affiliation'] == last_error_tickets['afiliacion'][index]) & (
-                problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_error'] = last_error_tickets['error'][index]
-            problems.loc[(problems['affiliation'] == last_error_tickets['afiliacion']
-                         [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_status'] = 'error'
         active_tickets = dfs['active_tickets_df']
-        for index in active_tickets.index:
-            problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
-                         [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'has_ticket'] = True
-            problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
-                         [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_id'] = active_tickets['ticket_id'][index]
-            problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
-                         [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_error'] = None
-            problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
-                         [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_status'] = active_tickets['status'][index]
-    if not problems.empty:
+        # Optimización de la asignación de 'ticket_error' y 'ticket_status' para last_error_tickets
+        condition_last_error = (
+            problems['tech_id'].astype(str) == str(suscriptores_id))
+        problems = problems.merge(
+            last_error_tickets[['afiliacion', 'error']],
+            left_on='affiliation', right_on='afiliacion', how='left'
+        )
+        problems.loc[condition_last_error &
+                     problems['error'].notnull(), 'ticket_error'] = problems['error']
+        problems.loc[condition_last_error &
+                     problems['error'].notnull(), 'ticket_status'] = 'error'
+
+        # Eliminar la columna de 'error' que proviene del merge
+        problems.drop(columns=['error'], inplace=True)
+
+        # Optimización de la asignación para active_tickets
+        problems = problems.merge(
+            active_tickets[['afiliacion', 'ticket_id', 'status']],
+            left_on='affiliation', right_on='afiliacion', how='left',
+            suffixes=('', '_active')
+        )
+        condition_active_tickets = (
+            problems['tech_id'].astype(str) == str(suscriptores_id))
+
+        problems.loc[condition_active_tickets &
+                     problems['ticket_id'].notnull(), 'has_ticket'] = True
+        problems.loc[condition_active_tickets & problems['ticket_id'].notnull(
+        ), 'ticket_id'] = problems['ticket_id']
+        problems.loc[condition_active_tickets &
+                     problems['ticket_id'].notnull(), 'ticket_error'] = None
+        problems.loc[condition_active_tickets & problems['ticket_id'].notnull(
+        ), 'ticket_status'] = problems['status']
+
+        # Eliminar la columna de 'status' y 'ticket_id' que proviene del merge
+        problems.drop(columns=['status',
+                      'ticket_id_active', 'afiliacion_active','afiliacion'], inplace=True)
+        # Eliminar duplicados
         problems = problems.drop_duplicates(subset=['eventid', 'local'])
+        print(problems.columns)
     """ print("BANDERAS************************************")
     print(entro1)
     print(entro2)

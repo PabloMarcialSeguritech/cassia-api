@@ -9,7 +9,7 @@ from services import auth_service2
 import services.zabbix.layers_service as layers_service
 from dependencies import get_db
 from infraestructure.database import DB
-
+import time
 layers_router = APIRouter(prefix="/layers")
 
 
@@ -53,8 +53,8 @@ async def get_towers():
     summary="Get towers layer by municipality ID",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_towers_async():
-    return await layers_service.get_aps_layer_async()
+async def get_towers_async(db: DB = Depends(get_db)):
+    return await layers_service.get_aps_layer_async(db)
 
 
 @layers_router.get(
@@ -75,8 +75,11 @@ async def get_hosts_filter(municipalityId: str = "0", dispId: str = "", subtype_
     summary="Get host with status down by municipality ID, technology or device type, and subtype",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_hosts_filter_async(municipalityId: str = "0", dispId: str = "", subtype_id: str = ""):
-    return await layers_service.get_downs_layer_async(municipalityId, dispId, subtype_id)
+async def get_hosts_filter_async(municipalityId: str = "0", dispId: str = "", subtype_id: str = "", db: DB = Depends(get_db)):
+    init = time.time()
+    response = await layers_service.get_downs_layer_async(municipalityId, dispId, subtype_id, db)
+    print(time.time()-init)
+    return response
 
 
 @layers_router.get(

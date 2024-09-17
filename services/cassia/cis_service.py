@@ -636,7 +636,8 @@ async def update_ci_history_record(ci_element_history_id, ci_element_history_dat
             ci_element_history.hardware_model = ci_element_history_data.hardware_model
             ci_element_history.software_version = ci_element_history_data.software_version
             ci_element_history.responsible_name = ci_element_history_data.responsible_name
-            ci_element_history.auth_name = ci_element_history_data.auth_name
+            ci_element_history.auth_name = None
+            """ ci_element_history.auth_name = ci_element_history_data.auth_name """
             ci_element_history.ticket = ci_element_history_data.ticket
             """ ci_element_history.created_at = ci_element_history_data.created_at """
             """ ci_element_history.closed_at = ci_element_history_data.closed_at """

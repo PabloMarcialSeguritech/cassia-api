@@ -16,8 +16,15 @@ from models.cassia_user_session import CassiaUserSession
 settings = Settings()
 
 
-async def get_exception_agencies_async():
+async def get_exception_agencies_async_backup():
     exception_agencies = await cassia_exception_agencies_repository.get_cassia_exception_agencies()
+    if not exception_agencies.empty:
+        exception_agencies["id"] = exception_agencies["exception_agency_id"]
+    return success_response(data=exception_agencies.to_dict(orient="records"))
+
+
+async def get_exception_agencies_async(db):
+    exception_agencies = await cassia_exception_agencies_repository.get_cassia_exception_agencies_pool(db)
     if not exception_agencies.empty:
         exception_agencies["id"] = exception_agencies["exception_agency_id"]
     return success_response(data=exception_agencies.to_dict(orient="records"))
@@ -58,7 +65,16 @@ async def delete_exception_agency_async(exception_agency_id: int):
     return success_response(message=message)
 
 
-async def get_exceptions_count(municipalityId, dispId):
+async def get_exceptions_count(municipalityId, dispId, db):
+    if int(dispId) == 0:
+        dispId = ''
+    if dispId == '-1':
+        dispId = ''
+    exceptions_count = await cassia_exceptions_repository.get_cassia_exceptions_count_pool(municipalityId, dispId, db)
+    return success_response(data=exceptions_count.to_dict(orient='records'))
+
+
+async def get_exceptions_count_backup(municipalityId, dispId):
     if int(dispId) == 0:
         dispId = ''
     if dispId == '-1':
@@ -67,7 +83,16 @@ async def get_exceptions_count(municipalityId, dispId):
     return success_response(data=exceptions_count.to_dict(orient='records'))
 
 
-async def get_exceptions_async(municipalityId, dispId):
+async def get_exceptions_async(municipalityId, dispId, db):
+    if int(dispId) == 0:
+        dispId = ''
+    if dispId == '-1':
+        dispId = ''
+    exceptions = await cassia_exceptions_repository.get_cassia_exceptions_pool(municipalityId, dispId, db)
+    return success_response(data=exceptions.to_dict(orient='records'))
+
+
+async def get_exceptions_async_backup(municipalityId, dispId):
     if int(dispId) == 0:
         dispId = ''
     if dispId == '-1':

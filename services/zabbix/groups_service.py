@@ -23,7 +23,15 @@ def get_municipios():
     return success_response(data=data.to_dict(orient="records"))
 
 
-async def get_municipios_async():
+async def get_municipios_async(db):
+
+    municipios = await host_groups_repository.get_catalog_city_pool(db)
+    if len(municipios) > 0:
+        municipios["id"] = municipios["groupid"]
+    return success_response(data=municipios.to_dict(orient="records"))
+
+
+async def get_municipios_async_backup():
 
     municipios = await host_groups_repository.get_catalog_city()
     if len(municipios) > 0:
@@ -43,7 +51,14 @@ def get_devices():
     return success_response(data=data.to_dict(orient="records"))
 
 
-async def get_devices_async():
+async def get_devices_async(db):
+    devices = await host_groups_repository.get_device_type_catalog_pool(0, db)
+    if len(devices) > 0:
+        devices["id"] = devices["dispId"]
+    return success_response(data=devices.to_dict(orient="records"))
+
+
+async def get_devices_async_backup():
     devices = await host_groups_repository.get_device_type_catalog(0)
     if len(devices) > 0:
         devices["id"] = devices["dispId"]
@@ -62,7 +77,14 @@ async def get_devices_by_municipality(municipalityId):
     return success_response(data=data.to_dict(orient="records"))
 
 
-async def get_devices_by_municipality_async(municipalityId):
+async def get_devices_by_municipality_async(municipalityId, db):
+    devices = await host_groups_repository.get_device_type_catalog_pool(int(municipalityId), db)
+    if len(devices) > 0:
+        devices["id"] = devices["dispId"]
+    return success_response(data=devices.to_dict(orient="records"))
+
+
+async def get_devices_by_municipality_async_backup(municipalityId):
     devices = await host_groups_repository.get_device_type_catalog(int(municipalityId))
     if len(devices) > 0:
         devices["id"] = devices["dispId"]
@@ -132,7 +154,22 @@ def get_subtypes(techId):
     return success_response(data=data.to_dict(orient="records"))
 
 
-async def get_subtypes_async(techId):
+async def get_subtypes_async(techId, db):
+    subtypes = await host_groups_repository.get_tech_metrics_catalog_pool(int(techId), db)
+    df = {'template_id': "0", "nickname": "NA",
+          "id": 0, "value": "0", 'group_id': 0}
+    if len(subtypes) > 0:
+        if len(subtypes.loc[subtypes["template_id"] == "0"]) == 0:
+            subtypes = pd.concat(
+                [pd.DataFrame(df, index=[0]), subtypes], ignore_index=True)
+        subtypes["id"] = subtypes["group_id"]
+        subtypes["value"] = subtypes["template_id"]
+    else:
+        subtypes = pd.DataFrame(df, index=[0])
+    return success_response(data=subtypes.to_dict(orient="records"))
+
+
+async def get_subtypes_async_backup(techId):
     subtypes = await host_groups_repository.get_tech_metrics_catalog(int(techId))
     df = {'template_id': "0", "nickname": "NA",
           "id": 0, "value": "0", 'group_id': 0}
