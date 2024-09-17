@@ -6,7 +6,8 @@ from fastapi import Depends, status
 from services import auth_service2
 from fastapi import Body
 from models.cassia_user_session import CassiaUserSession
-
+from infraestructure.database import DB
+from dependencies import get_db
 exceptions_router = APIRouter()
 
 """ Exception Agencies """
@@ -19,8 +20,8 @@ exceptions_router = APIRouter()
     summary="Get all exception agencies",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_agencies_async():
-    return await exceptions_service.get_exception_agencies_async()
+async def get_agencies_async(db: DB = Depends(get_db)):
+    return await exceptions_service.get_exception_agencies_async(db)
 
 
 @exceptions_router.post(
@@ -69,8 +70,8 @@ async def delete_exception_agency(exception_agency_id):
     summary="Get all Exceptions",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_exceptions_async(municipalityId: str = "0", dispId: str = "0"):
-    return await exceptions_service.get_exceptions_count(municipalityId, dispId)
+async def get_exceptions_async(municipalityId: str = "0", dispId: str = "0", db: DB = Depends(get_db)):
+    return await exceptions_service.get_exceptions_count(municipalityId, dispId, db)
 
 
 @exceptions_router.get(
@@ -80,8 +81,8 @@ async def get_exceptions_async(municipalityId: str = "0", dispId: str = "0"):
     summary="Get all Exceptions",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_exceptions_async(municipalityId: str = "0", dispId: str = "0"):
-    return await exceptions_service.get_exceptions_async(municipalityId, dispId)
+async def get_exceptions_async(municipalityId: str = "0", dispId: str = "0", db: DB = Depends(get_db)):
+    return await exceptions_service.get_exceptions_async(municipalityId, dispId, db)
 
 
 @exceptions_router.post(

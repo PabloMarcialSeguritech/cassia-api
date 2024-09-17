@@ -69,7 +69,18 @@ async def get_items(skip, limit, current_session):
     return success_response(data=df_result.to_dict(orient='records')) """
 
 
-async def get_count(current_session):
+async def get_count(current_session, db):
+    cassia_user_notification = await CassiaUserNotificationRepository.get_user_slack_notification_pool(current_session.user_id, db)
+    if not cassia_user_notification.empty:
+        last_date = cassia_user_notification['last_date'][0]
+        notifications_count = await CassiaUserNotificationRepository.get_user_slack_notifications_count_pool(
+            last_date, db)
+    else:
+        notifications_count = await CassiaUserNotificationRepository.get_total_slack_notifications_count_pool(db)
+    return success_response(data={'notifications_count': notifications_count})
+
+
+async def get_count_backup(current_session):
     cassia_user_notification = await CassiaUserNotificationRepository.get_user_slack_notification(current_session.user_id)
     if not cassia_user_notification.empty:
         last_date = cassia_user_notification['last_date'][0]

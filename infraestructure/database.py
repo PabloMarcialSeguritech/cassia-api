@@ -56,7 +56,7 @@ class DB:
                     user=self.user,
                     password=self.password,
                     db=self.db,
-                    minsize=1,  # Número mínimo de conexiones en el pool
+                    minsize=5,  # Número mínimo de conexiones en el pool
                     maxsize=20,  # Número máximo de conexiones en el pool
                     autocommit=True,
                 )

@@ -31,7 +31,13 @@ async def get_aps_layer():
             orient="records"))
 
 
-async def get_aps_layer_async():
+async def get_aps_layer_async(db):
+    aps = await layers_repository.get_towers_pool(db)
+    return success_response(data=aps.to_dict(
+        orient="records"))
+
+
+async def get_aps_layer_async_backup():
     aps = await layers_repository.get_towers()
     return success_response(data=aps.to_dict(
         orient="records"))
@@ -104,7 +110,93 @@ where closed_at is null and depends_hostid is not null""")
         return success_response(data=response)
 
 
-async def get_downs_layer_async(municipality_id, dispId, subtype_id):
+async def get_downs_layer_async(municipality_id, dispId, subtype_id, db):
+    tasks = {
+        'downs_df': asyncio.create_task(layers_repository.get_host_downs_pool(municipality_id, dispId, subtype_id, db)),
+        'dependientes_df': asyncio.create_task(layers_repository.get_host_downs_dependientes_pool(db)),
+        'downs_origen_filtro_df': asyncio.create_task(CassiaDiagnostaRepository.get_downs_origen_pool(municipality_id, dispId, db)),
+        'downs_origen_df': asyncio.create_task(CassiaDiagnostaRepository.get_downs_origen_pool(0, '', db)),
+        'downs_totales_df': asyncio.create_task(layers_repository.get_host_downs_pool(0, '', '', db)),
+        'dependientes_filtro_df': asyncio.create_task(layers_repository.get_host_downs_dependientes_filtro_pool(municipality_id, dispId, db)),
+    }
+    results = await asyncio.gather(*tasks.values())
+    dfs = dict(zip(tasks.keys(), results))
+    downs = dfs['downs_df']
+    dependientes = dfs['dependientes_df']
+    downs_origen_filtro = dfs['downs_origen_filtro_df']
+    downs_origen = dfs['downs_origen_df']
+    """ downs_filtro = downs_origen """
+    """ downs_filtro = await AlertsRepository.get_problems_filter(municipality_id, dispId, subtype_id, "6")
+    downs_filtro = downs_filtro[downs_filtro['tipo'] == 1] """
+    if not downs.empty:
+        downs['value'] = [1 for i in range(len(downs))]
+        downs['description'] = [
+            'ICMP ping' for i in range(len(downs))]
+        downs['origen'] = [0 for i in range(len(downs))]
+    if 'hostid' in downs_origen.columns:
+        if not downs.empty:
+            downs_odd_no_analizados = downs[~downs['hostid'].isin(
+                dependientes['hostid'].to_list())]
+
+            downs_odd_analizados = downs[downs['hostid'].isin(
+                downs_origen['hostid'].to_list())]
+            downs_origen = pd.concat(
+                [downs_odd_no_analizados, downs_odd_analizados])
+            downs_origen = downs_origen.drop_duplicates()
+            downs.loc[downs['hostid'].isin(
+                downs_origen['hostid'].to_list()), 'origen'] = 1
+            if not downs_origen_filtro.empty:
+                downs_odd_no_analizados = downs[~downs['hostid'].isin(
+                    dependientes['hostid'].to_list())]
+
+                downs_odd_analizados = downs[downs['hostid'].isin(
+                    downs_origen_filtro['hostid'].to_list())]
+                downs_origen_filtro = pd.concat(
+                    [downs_odd_no_analizados, downs_odd_analizados])
+                downs_origen_filtro = downs_origen_filtro.drop_duplicates()
+            """ downs[downs['hostid'].isin(downs_origen['hostid'].to_list())] = 1 """
+
+    downs_totales = dfs['downs_totales_df']
+    # AQUI
+    dependientes_filtro = dfs['dependientes_filtro_df']
+    glob = {'downs_totales': 0,
+            'downs_dependientes': 0,
+            'downs_origen': 0}
+    filtro = {
+        'downs_totales': 0,
+        'downs_dependientes': 0,
+        'downs_origen': 0
+    }
+    if not downs_totales.empty:
+        downs_totales_count = len(downs_totales)
+        dependientes_count = len(dependientes)
+        origenes_count = len(downs_origen)
+
+        glob = {
+            'downs_totales': downs_totales_count,
+            'downs_dependientes': dependientes_count,
+            'downs_origen': origenes_count
+        }
+    if not downs.empty:
+        downs_count = len(downs)
+        dependientes_count = len(dependientes_filtro)
+        origenes_count = len(downs_origen_filtro)
+        filtro = {
+            'downs_totales': downs_count,
+            'downs_dependientes': dependientes_count,
+            'downs_origen': origenes_count
+        }
+    if not downs.empty and not dependientes.empty:
+        downs.loc[downs['hostid'].isin(
+            dependientes['hostid'].to_list()), 'origen'] = 0
+
+    response = {"downs": downs.to_dict(
+        orient="records"), 'global_count': glob, 'filter_count': filtro,
+    }
+    return success_response(data=response)
+
+
+async def get_downs_layer_async_backup(municipality_id, dispId, subtype_id):
 
     downs = await layers_repository.get_host_downs(municipality_id, dispId, subtype_id)
     print(downs)
@@ -361,7 +453,7 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id, leng
             odd_len = lenght
     print(f"ODD LEN: {odd_len}")
     print(f"ODD COUNT: {len(origenes)}")
-    
+
     if not origenes.empty:
         if len(origenes) > odd_len:
             hostids = ",".join(
@@ -373,7 +465,7 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id, leng
     response = {"downs": origenes.to_dict(
         orient="records"), 'global_count': glob, 'filter_count': filtro
     }
-   
+
     return success_response(data=response)
 
 

@@ -10,6 +10,25 @@ from models.cassia_exceptions_async_test import CassiaExceptionsAsyncTest
 from fastapi import status, HTTPException
 
 
+async def get_cassia_exceptions_count_pool(municipalityId, dispId, db) -> pd.DataFrame:
+
+    try:
+        # PINK
+        sp_get_exceptions_count = DBQueries(
+        ).stored_name_exceptions_count_test
+
+        exceptions_count_data = await db.run_stored_procedure(sp_get_exceptions_count, (municipalityId, dispId))
+        exceptions_count_df = pd.DataFrame(
+            exceptions_count_data).replace(np.nan, None)
+        return exceptions_count_df
+    except Exception as e:
+        print(f"Excepcion generada en get_cassia_exceptions_count: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion generada en get_cassia_exceptions_count {e}"
+        )
+
+
 async def get_cassia_exceptions_count(municipalityId, dispId) -> pd.DataFrame:
     db_model = DB()
     try:
@@ -29,6 +48,23 @@ async def get_cassia_exceptions_count(municipalityId, dispId) -> pd.DataFrame:
         )
     finally:
         await db_model.close_connection()
+
+
+async def get_cassia_exceptions_pool(municipalityId, dispId, db) -> pd.DataFrame:
+    try:
+        # PINK
+        sp_get_exceptions = DBQueries(
+        ).stored_name_get_cassia_exceptions_test
+        exceptions_data = await db.run_stored_procedure(sp_get_exceptions, (municipalityId, dispId))
+        exceptions_df = pd.DataFrame(
+            exceptions_data).replace(np.nan, None)
+        return exceptions_df
+    except Exception as e:
+        print(f"Excepcion generada en get_cassia_exceptions: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion generada en get_cassia_exceptions {e}"
+        )
 
 
 async def get_cassia_exceptions(municipalityId, dispId) -> pd.DataFrame:
@@ -182,7 +218,8 @@ async def get_cassia_instance_exception_by_id(exception_id: int = None):
             exception = await session.get(CassiaExceptionsAsyncTest, exception_id)
         return exception
     except Exception as e:
-        print(f"Excepcion generada en get_cassia_instance_exception_by_id: {e}")
+        print(
+            f"Excepcion generada en get_cassia_instance_exception_by_id: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Excepcion generada en get_cassia_instance_exception_by_id {e}"
