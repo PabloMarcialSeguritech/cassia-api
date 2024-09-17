@@ -670,7 +670,23 @@ async def get_problems_filter_(municipalityId, tech_host_type=0, subtype="", sev
     return success_response(data=problems.to_dict(orient="records"))
 
 
-async def get_problems_filter_errors(municipalityId, tech_host_type=0, subtype="", severities=""):
+async def get_problems_filter_errors(municipalityId, tech_host_type=0, subtype="", severities="", db=None):
+    init = time.time()
+    marcas = []
+    problems = await AlertsRepository.get_problems_filter_pool(municipalityId, tech_host_type, subtype, severities, db,marcas)
+    marcas.append({'total':time.time()-init})
+    print(marcas)
+    downs_df = await layers_repository.get_host_downs(municipalityId, '', '')
+    if not problems.empty:
+        problems['Estatus'] = problems['hostid'].apply(
+            lambda x: 'PROBLEM' if x in downs_df['hostid'].values else 'RESOLVED')
+    errores_eventos = []
+    if not problems.empty:
+        errores_eventos = await get_errores_eventos(problems)
+    return success_response(data=errores_eventos)
+
+
+async def get_problems_filter_errors_backup(municipalityId, tech_host_type=0, subtype="", severities=""):
     problems = await AlertsRepository.get_problems_filter(municipalityId, tech_host_type, subtype, severities)
 
     downs_df = await layers_repository.get_host_downs(municipalityId, '', '')

@@ -31,7 +31,7 @@ import subprocess
 import infraestructure.zabbix.host_repository as host_repository
 from infraestructure.zabbix import layers_repository
 from infraestructure.cassia import CassiaDiagnostaRepository
-
+from infraestructure.cassia import CassiaConfigRepository
 settings = Settings()
 
 
@@ -308,7 +308,7 @@ async def get_host_metrics_(host_id):
     return success_response(data=host_health_detail.to_dict(orient="records"))
 
 
-async def get_host_filter_(municipalityId, dispId, subtype_id):
+async def get_host_filter_backup(municipalityId, dispId, subtype_id):
     print("get_host_filter_ func")
     if subtype_id == "0":
         subtype_id = ""
@@ -702,3 +702,191 @@ async def downs_origin_count_(municipality_id, dispId, subtype_id, downs_excepci
     else:
         downs_origen = 0
     return {'downs': count_downs, 'downs_origen': downs_origen}
+
+
+async def get_host_filter_(municipalityId, dispId, subtype_id, db):
+    if subtype_id == "0":
+        subtype_id = ""
+    if dispId == "0":
+        dispId = ""
+    if dispId == "-1":
+        dispId = ''
+    if dispId == "11":
+        dispId_filter = "11,2"
+    else:
+        dispId_filter = dispId
+    hosts_task = host_repository.get_host_view_pool(
+        municipalityId, f'{dispId},2', None, db) if dispId == '11' else host_repository.get_host_view_pool(municipalityId, f'{dispId}', subtype_id, db)
+
+    tasks = {
+        'switch_config_df': asyncio.create_task(CassiaConfigRepository.get_config_value_by_name_pool('switch_id', db)),
+        'metric_switch_df': asyncio.create_task(CassiaConfigRepository.get_config_value_by_name_pool('switch_throughtput', db)),
+        'rfid_id_df': asyncio.create_task(CassiaConfigRepository.get_config_value_by_name_pool('rfid_id', db)),
+        'hosts_df': asyncio.create_task(hosts_task),
+        'problems_by_severity_df': asyncio.create_task(host_repository.get_problems_by_severity_pool(municipalityId, dispId_filter, subtype_id, db)),
+        'alertas_rfid': asyncio.create_task(host_repository.get_arch_traffic_events_date_close_null_pool(db)),
+        'municipios_df': asyncio.create_task(host_repository.get_catalog_city_pool(db)),
+        'host_available_ping_loss_df': asyncio.create_task(host_repository.get_host_available_ping_loss_pool(municipalityId, dispId, db)),
+        'downs_df': asyncio.create_task(layers_repository.get_host_downs_pool(municipalityId, dispId, subtype_id, db)),
+        'ups_df': asyncio.create_task(layers_repository.get_host_up_pool(municipalityId, dispId, subtype_id, db)),
+        'downs_exceptions_df': asyncio.create_task(layers_repository.get_host_down_excepciones_pool(db)),
+        'dependientes_df': asyncio.create_task(layers_repository.get_host_downs_dependientes_pool(db)),
+        'host_available_ping_loss_df2': asyncio.create_task(host_repository.get_host_available_ping_loss_pool('0', dispId, db)),
+
+    }
+
+    results = await asyncio.gather(*tasks.values())
+    dfs = dict(zip(tasks.keys(), results))
+    print("get_host_filter_ func")
+
+    switch_config = dfs['switch_config_df']
+
+    switch_id = "12"
+    switch_troughtput = False
+    if not switch_config.empty:
+        switch_id = switch_config['value'].iloc[0]
+    metric_switch_val = "Interface Bridge-Aggregation_: Bits"
+    metric_switch = dfs['metric_switch_df']
+
+    if not metric_switch.empty:
+        metric_switch_val = metric_switch['value'].iloc[0]
+    if subtype_id == metric_switch_val:
+        subtype_id = ""
+
+        if dispId == switch_id:
+            switch_troughtput = True
+
+    rfid_config = dfs['rfid_id_df']
+
+    rfid_id = "9"
+    if not rfid_config.empty:
+        rfid_id = rfid_config['value'].iloc[0]
+    if subtype_id == "3":
+        subtype_id = ""
+
+    data = pd.DataFrame(dfs['hosts_df'])
+
+    data = data.replace(np.nan, "")
+
+    if not data.empty:
+        hostids = tuple(data['hostid'].values.tolist())
+    else:
+        if len(data) == 1:
+            hostids = f"({data['hostid'][0]})"
+        else:
+            hostids = "(0)"
+    corelations = pd.DataFrame(await host_repository.get_host_correlation_pool(hostids, db))
+
+    data3 = pd.DataFrame(dfs['problems_by_severity_df']).replace(np.nan, "")
+
+    if dispId == rfid_id:
+        if municipalityId == '0':
+
+            alertas_rfid = pd.DataFrame(
+                dfs['alertas_rfid']).replace(np.nan, "")
+        else:
+            municipios = pd.DataFrame(dfs['municipios_df']).replace(np.nan, "")
+            municipio = municipios.loc[municipios['groupid'].astype(str) ==
+                                       municipalityId]
+            if not municipio.empty:
+                municipio = municipio['name'].item()
+            else:
+                municipio = ''
+
+            alertas_rfid = await host_repository.get_arch_traffic_events_date_close_null_municipality_pool(municipio, db)
+
+        """ alertas_rfid = pd.DataFrame([(
+            r.severity,
+        ) for r in alertas_rfid], columns=['severity']) """
+        if not alertas_rfid.empty:
+            alertas_rfid = alertas_rfid.groupby(
+                ['severity'])['severity'].count().rename_axis('Severities').reset_index()
+            alertas_rfid.rename(
+                columns={'severity': 'Severities', 'Severities': 'severity'}, inplace=True)
+            problems_count = pd.concat(
+                [data3, alertas_rfid], ignore_index=True)
+            data3 = problems_count.groupby(
+                ['severity']).sum().reset_index()
+
+    data4 = pd.DataFrame(
+        dfs['host_available_ping_loss_df']).replace(np.nan, "")
+
+    # GIO
+    downs = dfs['downs_df']
+    up = dfs['ups_df']
+    downs_excepcion = dfs['downs_exceptions_df']
+    if not data4.empty:
+        if 'Down' in data4.columns:  # Verifica si la columna 'Down' existe
+            up = up[~up['hostid'].isin(
+                downs_excepcion['hostid'].to_list())]
+            downs = downs[~downs['hostid'].isin(
+                downs_excepcion['hostid'].to_list())]
+            # Obtener el valor de la primera fila
+            print("******************SIN PROCESAR**********************")
+            print(data4)
+            data4['Down'].iloc[0] = len(downs)
+            data4['UP'].iloc[0] = len(up)
+            print("******************PROCESADO**********************")
+            print(data4)
+
+            down_value = data4['Down'].iloc[0]
+            if down_value == '0':
+                downs_totales = 0
+            elif down_value:  # Verifica si el valor no es una cadena vacía
+                downs_totales = int(down_value)
+            else:
+                downs_totales = 0  # Si el valor es una cadena vacía, establece en 0
+        else:
+            downs_totales = 0
+    else:
+        downs_totales = 0
+    dependientes = dfs['dependientes_df']
+
+    if not dependientes.empty:
+        if not downs.empty:
+            origenes = downs[~downs['hostid'].isin(
+                dependientes['hostid'].to_list())]
+            origenes_count = len(origenes)
+        else:
+            origenes_count = 0
+    else:
+        origenes_count = 0
+
+    data4['Downs_origen'] = origenes_count
+    data2 = corelations.replace(np.nan, "")
+    # aditional data
+    subgroup_data = pd.DataFrame([])
+
+    if subtype_id != "":
+        subgroup_data = pd.DataFrame(await host_repository.get_metric_view_h_pool(municipalityId, dispId, subtype_id, db))
+
+    if switch_troughtput:
+        subgroup_data = pd.DataFrame(await host_repository.get_switch_through_put_pool(municipalityId, switch_id, metric_switch_val, db))
+    data6 = subgroup_data.replace(np.nan, "")
+    global_host_available = pd.DataFrame(
+        dfs['host_available_ping_loss_df2']).replace(np.nan, "")
+    """ downs_global = await downs_count(0, dispId, '') """
+    if not global_host_available.empty:
+        up = up[~up['hostid'].isin(
+                downs_excepcion['hostid'].to_list())]
+        global_host_available['UP'].iloc[0] = len(up)
+
+        # {'downs': count_downs, 'downs_origen': downs_origen}
+        conteo_downs = await downs_origin_count_(0, dispId, '', downs_excepcion)
+
+        global_host_available['Down'].iloc[0] = conteo_downs['downs']
+        # downs_totales = int(global_host_available['Down'][0])
+        origenes = conteo_downs['downs_origen']
+        global_host_available['Downs_origen'] = origenes
+        print(global_host_available)
+    print(global_host_available.to_dict(orient="records"))
+    response = {"hosts": data.to_dict(
+        orient="records"), "relations": data2.to_dict(orient="records"),
+        "problems_by_severity": data3.to_dict(orient="records"),
+        "host_availables": data4.to_dict(orient="records", ),
+        "subgroup_info": data6.to_dict(orient="records"),
+        "global_host_availables": global_host_available.to_dict(orient="records")
+    }
+
+    # print(response)
+    return success_response(data=response)

@@ -12,7 +12,9 @@ from utils.settings import Settings
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 import services.zabbix.hosts_service_ as hosts_service_
-
+import time
+from dependencies import get_db
+from infraestructure.database import DB
 settings = Settings()
 hosts_router = APIRouter(prefix="/hosts")
 sessions = {}
@@ -452,6 +454,8 @@ async def get_hosts_filter(hostId: int = Path(description="ID of Host", example=
     summary="Get host by municipality ID, technology or device type, and subtype",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_hosts_filter(municipalityId: str = "", dispId: str = "", subtype_id: str = ""):
-    response = await hosts_service_.get_host_filter_(municipalityId, dispId, subtype_id)
+async def get_hosts_filter(municipalityId: str = "", dispId: str = "", subtype_id: str = "", db: DB = Depends(get_db)):
+    init = time.time()
+    response = await hosts_service_.get_host_filter_(municipalityId, dispId, subtype_id, db)
+    print(time.time()-init)
     return response

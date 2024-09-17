@@ -25,6 +25,8 @@ async def get_last_error_tickets_pool(db):
         tickets_error_data = await db.run_query(query_get_active_gs_tickets)
         tickets_error_df = pd.DataFrame(
             tickets_error_data).replace(np.nan, None)
+        if tickets_error_df.empty:
+            tickets_error_df = pd.DataFrame(columns=['afiliacion', 'error'])
         return tickets_error_df
 
     except Exception as e:
@@ -115,6 +117,9 @@ async def get_active_tickets():
 
         tickets_data = await db_model.run_query(query_get_active_gs_tickets)
         tickets_df = pd.DataFrame(tickets_data).replace(np.nan, None)
+        if tickets_df.empty:
+            tickets_df = pd.DataFrame(
+                columns=['afiliacion', 'ticket_id', 'status'])
         return tickets_df
 
     except Exception as e:

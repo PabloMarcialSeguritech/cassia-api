@@ -11,6 +11,24 @@ from utils.settings import Settings
 SETTINGS = Settings()
 
 
+async def get_cassia_exception_agencies_pool(db) -> pd.DataFrame:
+
+    try:
+        query_get_exception_agencies = DBQueries(
+        ).query_get_cassia_exception_agencies
+
+        exception_agencies_data = await db.run_query(query_get_exception_agencies)
+        exception_agencies_df = pd.DataFrame(
+            exception_agencies_data).replace(np.nan, None)
+        return exception_agencies_df
+    except Exception as e:
+        print(f"Excepcion generada en get_cassia_exception_agencies: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion generada en get_cassia_exception_agencies {e}"
+        )
+
+
 async def get_cassia_exception_agencies() -> pd.DataFrame:
     db_model = DB()
     try:

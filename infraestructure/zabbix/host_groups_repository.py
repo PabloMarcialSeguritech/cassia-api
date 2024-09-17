@@ -6,6 +6,25 @@ import pandas as pd
 import numpy as np
 
 
+async def get_catalog_city_pool(db) -> pd.DataFrame:
+
+    db_queries = db_queries_model.DBQueries()
+    try:
+
+        print(db_queries.stored_name_catalog_city)
+        catalog_city_data = await db.run_stored_procedure(db_queries.stored_name_catalog_city,
+                                                          ())
+        catalog_city_df = pd.DataFrame(catalog_city_data).replace(np.nan, None)
+        return catalog_city_df
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error en get_catalog_city {e}"
+        )
+
+
 async def get_catalog_city() -> pd.DataFrame:
 
     db_connection = db.DB()
@@ -28,6 +47,24 @@ async def get_catalog_city() -> pd.DataFrame:
         await db_connection.close_connection()
 
 
+async def get_device_type_catalog_pool(municipality_id: int, db) -> pd.DataFrame:
+
+    try:
+        sp_name_catalog_devices = db_queries_model.DBQueries().stored_name_catalog_devices_types
+
+        database_response = await db.run_stored_procedure(sp_name_catalog_devices,
+                                                          (municipality_id,))
+        data_df = pd.DataFrame(database_response).replace(np.nan, None)
+        return data_df
+
+    except Exception as e:
+        print(f"Excepcion en get_device_type_catalog {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion en get_device_type_catalog {e}"
+        )
+
+
 async def get_device_type_catalog(municipality_id: int) -> pd.DataFrame:
     db_connection = db.DB()
     try:
@@ -47,6 +84,24 @@ async def get_device_type_catalog(municipality_id: int) -> pd.DataFrame:
         )
     finally:
         await db_connection.close_connection()
+
+
+async def get_tech_metrics_catalog_pool(tech_id: int, db) -> pd.DataFrame:
+
+    try:
+        sp_name_catalog_metrics = db_queries_model.DBQueries().stored_name_catalog_metric
+
+        metrics_data = await db.run_stored_procedure(sp_name_catalog_metrics,
+                                                     (tech_id,))
+        metrics_df = pd.DataFrame(metrics_data).replace(np.nan, None)
+        return metrics_df
+
+    except Exception as e:
+        print(f"Excepcion en get_tech_metrics_catalog {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion en get_tech_metrics_catalog {e}"
+        )
 
 
 async def get_tech_metrics_catalog(tech_id: int) -> pd.DataFrame:
