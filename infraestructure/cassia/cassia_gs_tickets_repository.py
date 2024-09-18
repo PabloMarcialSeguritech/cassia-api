@@ -149,6 +149,25 @@ async def get_host_data(hostid) -> pd.DataFrame:
         await db_model.close_connection()
 
 
+async def get_event_tickets_by_affiliation_and_date(afiliacion, date) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        query_statement_get_active_tickets_by_afiliation_and_date = DBQueries(
+        ).builder_query_statement_get_active_tickets_by_afiliation_and_date(afiliacion, date)
+        await db_model.start_connection()
+
+        tickets_data = await db_model.run_query(query_statement_get_active_tickets_by_afiliation_and_date)
+        tickets_df = pd.DataFrame(tickets_data).replace(np.nan, None)
+        return tickets_df
+
+    except Exception as e:
+        print(f"Excepcion en get_event_tickets_by_affiliation_and_date: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_event_tickets_by_affiliation_and_date: {e}")
+    finally:
+        await db_model.close_connection()
+
+
 async def get_active_tickets_by_afiliation(afiliacion) -> pd.DataFrame:
     db_model = DB()
     try:
