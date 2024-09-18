@@ -1521,7 +1521,6 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
             problems, municipalityId, rfid_id, severities, 'rfid', ping_loss_message, db)
         marcas.append({"problems.alerts_local_rfid": time.time()-init})
     init = time.time()
-
     entro1 = False
     entro2 = False
 
@@ -1532,12 +1531,15 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
         marcas.append({"problems.get_cassia_events": time.time()-init})
     init = time.time()
 
-    if tech_host_type != '' and subtype == '':
+    if tech_host_type != '':
 
         entro2 = True
         problems = await get_cassia_events_by_tech_id_pool(problems, municipalityId, tech_host_type, severities,
                                                            ping_loss_message, db)
         marcas.append({"problems.get_cassia_events_by_tech": time.time()-init})
+        print("********************************ACAAAAAAAA****************************************")
+        print(problems)
+        print(problems.columns)
     init = time.time()
 
     downs_origen = dfs['downs_origen_df']
@@ -1644,6 +1646,8 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
     problems['create_ticket'] = 0
     suscriptores_id = dfs['suscriptores_id_df']
     suscriptores_id = suscriptores_id['value'][0] if not suscriptores_id.empty else 11
+    print(problems)
+    print(problems.columns)
     if all(col in problems.columns for col in ['affiliation', 'no_serie']):
         problems['create_ticket'] = problems.apply(
             lambda row: assign_value(row, suscriptores_id), axis=1)
@@ -1657,50 +1661,47 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
     problems['ticket_error'] = None
     problems['ticket_status'] = None
     if not problems.empty:
+        problems['tech_id'] = problems['tech_id'].astype(str)
+        suscriptores_id_str = str(suscriptores_id)
+        if not last_error_tickets.empty:
+            # Crear una máscara para las filas que cumplen con las condiciones
+            mask = (
+                (problems['affiliation'].isin(last_error_tickets['afiliacion'])) &
+                (problems['tech_id'] == suscriptores_id_str)
+            )
+            # Actualizar las columnas 'ticket_error' y 'ticket_status' basadas en la máscara
+            problems.loc[mask, 'ticket_error'] = last_error_tickets.set_index(
+                'afiliacion').loc[problems.loc[mask, 'affiliation'], 'error'].values
+            problems.loc[mask, 'ticket_status'] = 'error'
+
         active_tickets = dfs['active_tickets_df']
-        # Optimización de la asignación de 'ticket_error' y 'ticket_status' para last_error_tickets
-        condition_last_error = (
-            problems['tech_id'].astype(str) == str(suscriptores_id))
-        problems = problems.merge(
-            last_error_tickets[['afiliacion', 'error']],
-            left_on='affiliation', right_on='afiliacion', how='left'
-        )
-        problems.loc[condition_last_error &
-                     problems['error'].notnull(), 'ticket_error'] = problems['error']
-        problems.loc[condition_last_error &
-                     problems['error'].notnull(), 'ticket_status'] = 'error'
+        if not active_tickets.empty:
+            active_tickets['ticket_active_id'] = active_tickets['ticket_active_id'].astype(
+                str)
+            # Asegúrate de que ambos DataFrames tengan una columna en común para poder unirlos, por ejemplo, 'affiliation'.
+            merged_df = problems.merge(active_tickets[['afiliacion', 'created_at_ticket', 'ticket_active_status', 'ticket_active_id']],
+                                       left_on='affiliation',
+                                       right_on='afiliacion',
+                                       how='left')
+            merged_df['Time'] = pd.to_datetime(
+                merged_df['Time'], errors='coerce')
+            merged_df['created_at_ticket'] = pd.to_datetime(
+                merged_df['created_at_ticket'], errors='coerce')
 
-        # Eliminar la columna de 'error' que proviene del merge
-        problems.drop(columns=['error'], inplace=True)
-
-        # Optimización de la asignación para active_tickets
-        problems = problems.merge(
-            active_tickets[['afiliacion', 'ticket_id', 'status']],
-            left_on='affiliation', right_on='afiliacion', how='left',
-            suffixes=('', '_active')
-        )
-        condition_active_tickets = (
-            problems['tech_id'].astype(str) == str(suscriptores_id))
-
-        problems.loc[condition_active_tickets &
-                     problems['ticket_id'].notnull(), 'has_ticket'] = True
-        problems.loc[condition_active_tickets & problems['ticket_id'].notnull(
-        ), 'ticket_id'] = problems['ticket_id']
-        problems.loc[condition_active_tickets &
-                     problems['ticket_id'].notnull(), 'ticket_error'] = None
-        problems.loc[condition_active_tickets & problems['ticket_id'].notnull(
-        ), 'ticket_status'] = problems['status']
-
-        # Eliminar la columna de 'status' y 'ticket_id' que proviene del merge
-        problems.drop(columns=['status',
-                      'ticket_id_active', 'afiliacion_active','afiliacion'], inplace=True)
-        # Eliminar duplicados
-        problems = problems.drop_duplicates(subset=['eventid', 'local'])
-        print(problems.columns)
-    """ print("BANDERAS************************************")
-    print(entro1)
-    print(entro2)
-    print(ping_loss_message)
-    hast = problems[problems['create_ticket'] == True]
-    print(hast) """
+            """ print("*********************TIPOS*******************")
+            print(merged_df[['created_at_ticket']].dtypes)
+            print("*********************TIPOS*******************")
+            print(merged_df[['Time']].dtypes) """
+            # Ahora puedes hacer la comparación ya que ambas columnas ('Time' y 'created_at') están en el mismo DataFrame
+            mask = merged_df['Time'] <= merged_df['created_at_ticket']
+            # Aplicar la máscara y realizar la actualización
+            merged_df.loc[mask, 'has_ticket'] = True
+            merged_df.loc[mask, 'ticket_id'] = merged_df['ticket_active_id']
+            merged_df.loc[mask, 'ticket_error'] = None
+            merged_df.loc[mask,
+                          'ticket_status'] = merged_df['ticket_active_status']
+            merged_df.drop(
+                columns=['ticket_active_id', 'ticket_active_status', 'created_at_ticket', 'afiliacion'], inplace=True)
+            problems = merged_df
+    print(problems)
     return problems

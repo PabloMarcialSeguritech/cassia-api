@@ -221,9 +221,20 @@ where ct.deleted_at  is NULL"""
         # RESETS
         self.query_get_resets = """SELECT reset_id, affiliation, object_id, updated_at, imei FROM cassia_reset"""
         self.query_get_active_gs_tickets = f"""
-select * from cassia_gs_tickets cgt
-where status !='Cerrado'
-and status !='error'"""
+WITH ranked_tickets AS (
+    SELECT 
+        cgt.afiliacion, 
+        cgt.created_at as created_at_ticket, 
+        cgt.status as ticket_active_status, 
+        cgt.ticket_id as ticket_active_id,
+        ROW_NUMBER() OVER (PARTITION BY cgt.afiliacion ORDER BY cgt.created_at DESC) AS rn
+    FROM cassia_gs_tickets cgt
+    WHERE cgt.status NOT IN ('error', 'Cancelado')
+)
+SELECT afiliacion, created_at_ticket, ticket_active_status, ticket_active_id
+FROM ranked_tickets
+WHERE rn = 1;
+"""
 
         # RESETS
         self.storeProcedure_getDispositivosCapa1 = 'sp_dragAfilition'
