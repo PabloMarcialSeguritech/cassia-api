@@ -86,28 +86,30 @@ async def get_acks(eventid, is_cassia_event):
                          'message': event_acknowledges['message'][ind],
                          'date': parse_date(event_acknowledges['Time'][ind]),
                          'user': event_acknowledges['user'][ind]})
-    event_tickets = await cassia_gs_tickets_repository.get_active_tickets_by_afiliation(event['alias'][0])
+
+    event_tickets = await cassia_gs_tickets_repository.get_event_tickets_by_affiliation_and_date(event['alias'][0], clock_problem)
     if not event_tickets.empty:
-        ticket = event_tickets.loc[0].to_dict()
-        if ticket['requested_at'] is not None:
-            messages.append({'type': 'Solicitud de ticket',
-                             'message': "Ticket solicitado",
-                             'date': parse_date(ticket['requested_at']),
-                             'user': ticket['user_mail']})
-        if ticket['created_at'] is not None:
-            messages.append({'type': 'Creación de ticket',
-                             'message': f"Ticket creado con folio {ticket['ticket_id']} con correo {ticket['created_with_mail']}",
-                             'date': parse_date(ticket['created_at']),
-                             'user': ticket['user_mail']})
-        ticket_detail = await cassia_gs_tickets_repository.get_ticket_detail_by_ticket_id(ticket['ticket_id'])
-        for ind in ticket_detail.index:
-            if ticket_detail['status'][ind] == 'creado':
-                tipo = "Nota interna" if ticket_detail['type'][
-                    ind] == "ticketcommentinternalnote" else "Avance y solución" if ticket_detail['type'][ind] == "ticketcommentprogresssolution" else "Comentario"
-                messages.append({'type': 'Comentario de ticket',
-                                 'message': f"Tipo: {tipo} - Comentario: {ticket_detail['comment'][ind]}",
-                                 'date': parse_date(ticket_detail['created_at'][ind]),
-                                 'user': ticket_detail['user_email'][ind]})
+        for ticket_index in event_tickets.index:
+            ticket = event_tickets.loc[ticket_index].to_dict()
+            if ticket['requested_at'] is not None:
+                messages.append({'type': 'Solicitud de ticket',
+                                'message': "Ticket solicitado",
+                                 'date': parse_date(ticket['requested_at']),
+                                 'user': ticket['user_mail']})
+            if ticket['created_at'] is not None:
+                messages.append({'type': 'Creación de ticket',
+                                'message': f"Ticket creado con folio {ticket['ticket_id']} con correo {ticket['created_with_mail']}",
+                                 'date': parse_date(ticket['created_at']),
+                                 'user': ticket['user_mail']})
+            ticket_detail = await cassia_gs_tickets_repository.get_ticket_detail_by_ticket_id(ticket['ticket_id'])
+            for ind in ticket_detail.index:
+                if ticket_detail['status'][ind] == 'creado':
+                    tipo = "Ticket - Nota interna" if ticket_detail['type'][
+                        ind] == "ticketcommentinternalnote" else "Ticket - Avance y solución" if ticket_detail['type'][ind] == "ticketcommentprogresssolution" else "Ticket - Cambio de estatus" if ticket_detail['type'][ind] == 'ticketstatuschange' else 'Comentario'
+                    messages.append({'type': tipo,
+                                    'message': ticket_detail['comment'][ind],
+                                     'date': parse_date(ticket_detail['created_at'][ind]),
+                                     'user': ticket_detail['user_email'][ind]})
 
     messages = sorted(messages, key=lambda x: parse_date(
         x["date"]) or datetime.min)
@@ -120,7 +122,7 @@ async def get_acks(eventid, is_cassia_event):
                      'message': f'Acumulado del evento: {acumulated_cassia} hrs.',
                      'date': now_str,
                      'user': None})
-    
+
     return success_response(data=messages)
 
     # Obtiene los tickets del evento
