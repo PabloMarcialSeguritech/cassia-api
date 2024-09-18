@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
     await db.close_pool()  # Cerrar el pool de conexiones
 
 app.router.lifespan_context = lifespan
-app.version = '1.4'
+app.version = '3.1'
 origins = ["*"]
 
 app.add_middleware(
