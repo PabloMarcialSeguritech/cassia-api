@@ -326,15 +326,18 @@ class ResetServiceImpl(ResetServiceFacade):
             return success_ping, message
 
     async def async_ping_by_proxy(self, ip, ssh_host, ssh_user, ssh_pass):
-        # Si hace el ping retorna 1 sino retorna 0
         success_ping = False
         message = ""
         try:
-
             async with asyncssh.connect(ssh_host, username=ssh_user, password=ssh_pass, known_hosts=None,
                                         connect_timeout=6) as conn:
                 result = await conn.run(f'ping -c 2 -W 5 {ip}', check=False)
-                is_package_lost = await self.verify_output_ping(result.stdout)
+                if result and result.stdout:
+                    is_package_lost = await self.verify_output_ping(result.stdout)
+                else:
+                    print(f"Error al ejecutar el ping: {result.stderr if result else 'No response'}")
+                    is_package_lost = True
+
                 if is_package_lost:
                     success_ping = False
                     message = "no ejecutado con exito"
@@ -343,19 +346,39 @@ class ResetServiceImpl(ResetServiceFacade):
                     message = "success"
                 return success_ping, message
 
+        except asyncssh.DisconnectError as e:
+            print(f"Error de desconexión SSH: {str(e)}")
+            success_ping = False
+            message = "fallo de desconexión SSH"
+        except asyncssh.AuthenticationFailed as e:
+            print(f"Fallo de autenticación SSH: {str(e)}")
+            success_ping = False
+            message = "fallo de autenticación"
+        except asyncssh.Error as e:
+            print(f"Otro error de asyncssh: {str(e)}")
+            success_ping = False
+            message = "error SSH"
         except Exception as e:
             print(f"Excepción ocurrida en la función async_ping_by_proxy:{str(e)}")
             success_ping = False
             message = "no ejecutado con exito"
+
         return success_ping, message
 
     async def verify_output_ping(self, output):
-        is_package_lost = 1
+        # Inicia como no perdido
+        is_package_lost = False
+
+        # Buscar coincidencia con el texto que indica pérdida del 100%
         text_coincidence = re.search(
             r'(\d+ packets transmitted, \d+ received, 100% packet loss, time \d+ms)',
-            output)
-        if not text_coincidence:
-            is_package_lost = 0
+            output
+        )
+
+        # Si encuentra una coincidencia, marca como pérdida de paquetes
+        if text_coincidence:
+            is_package_lost = True
+
         return is_package_lost
 
     async def proxy_validation(self, ip):
@@ -474,7 +497,7 @@ class ResetServiceImpl(ResetServiceFacade):
                 devices_pmi_status_df = await self.get_devices_pmi_status_connection(devices_pmi_df,
                                                                                      is_initial_status=False)
                 # evaluar si hay algun dispositivo que ya se levanto
-                is_any_device_up = self.is_any_pmi_up(
+                is_any_device_up = await self.is_any_pmi_up(
                     devices_pmi_status_df)  # is_pmi_up(devices_pmi_status_df, is_initial_status=False)
                 if is_any_device_up:
                     # si ya se levanto uno salir del while, sino manetenerse
@@ -497,7 +520,9 @@ class ResetServiceImpl(ResetServiceFacade):
         response = None
         if object_id:
             response = await self.send_request_api_reset(object_id, is_hard_reset=False)
-            if response['status'] == 'no ejecutado con exito':
+            response_data = response.body.decode('utf-8')
+            response_data = json.loads(response_data)
+            if response_data['data']['status'] == 'no ejecutado con exito':
                 return response
         else:
             return failure_response(message="Object ID necesario para la petición")
@@ -516,6 +541,7 @@ class ResetServiceImpl(ResetServiceFacade):
                 # Evaluar si al menos uno está abajo
                 is_pmi_down = await self.is_any_pmi_down(
                     devices_pmi_status_df)  # is_pmi_up(devices_pmi_status_df, is_initial_status=False)
+
                 if is_pmi_down:
                     # Verificar que al menos uno este arriba
                     pmi_status, devices_pmi_status_df = await self.monitoring_any_device_up(devices_pmi_df)
@@ -554,7 +580,9 @@ class ResetServiceImpl(ResetServiceFacade):
         pmi_status = False
         if object_id:
             response = await self.send_request_api_reset(object_id, is_hard_reset=False)
-            if response['status'] == 'no ejecutado con exito':
+            response_data = response.body.decode('utf-8')
+            response_data = json.loads(response_data)
+            if response_data['data']['status'] == 'no ejecutado con exito':
                 return response
         else:
             return failure_response(message="Object ID necesario para la petición")
@@ -589,7 +617,9 @@ class ResetServiceImpl(ResetServiceFacade):
         object_id = await self.get_object_id_by_affiliation(pmiAfiliacion)
         if object_id:
             response = await self.send_request_api_reset(object_id, is_hard_reset=False)
-            if response['status'] == 'no ejecutado con exito':
+            response_data = response.body.decode('utf-8')
+            response_data = json.loads(response_data)
+            if response_data['data']['status'] == 'no ejecutado con exito':
                 return response
         else:
             return failure_response(message="Esta afiliación parece no existir en el sistema de resets")
@@ -615,7 +645,9 @@ class ResetServiceImpl(ResetServiceFacade):
                 print("Forzamos hard reset")
                 if object_id:
                     response = await self.send_request_api_reset(object_id, is_hard_reset=True)
-                    if response['status'] == 'no ejecutado con exito':
+                    response_data = response.body.decode('utf-8')
+                    response_data = json.loads(response_data)
+                    if response_data['data']['status'] == 'no ejecutado con exito':
                         return response
                 else:
                     return failure_response(message="Object ID necesario para la petición")
