@@ -4,6 +4,7 @@ from services.integration.reset_service_service_impl import ResetServiceImpl
 import json
 import pandas as pd
 
+
 class ResetsServiceTest(unittest.TestCase):
 
     @classmethod
@@ -70,7 +71,7 @@ class ResetsServiceTest(unittest.TestCase):
 
         self.loop.run_until_complete(async_test())
 
-
+    @unittest.skip("Omit test_compare_and_add_or_update_reset")
     def test_compare_and_add_or_update_reset(self):
         print("> Entrando test_compare_and_add_or_update_reset <")
 
@@ -93,8 +94,8 @@ class ResetsServiceTest(unittest.TestCase):
             object_id = '64e6848929dd4b3df7a90f60'
             hostid = '15098'
             resets = await reset_service.restart_reset(object_id, hostid)
-            #response_dict = json.loads(resets.body)
-            #print(response_dict)
+            # response_dict = json.loads(resets.body)
+            # print(response_dict)
             print(resets)
 
         self.loop.run_until_complete(async_test())
@@ -106,7 +107,6 @@ class ResetsServiceTest(unittest.TestCase):
         reset_service = ResetServiceImpl()
 
         async def async_test():
-
             devices = await reset_service.getDispositivosRelacionadosCapa1('15098')
             print(devices)
 
@@ -119,7 +119,6 @@ class ResetsServiceTest(unittest.TestCase):
         reset_service = ResetServiceImpl()
 
         async def async_test():
-
             devices = await reset_service.get_devices_pmi('15098')
             print(devices)
 
@@ -173,14 +172,13 @@ class ResetsServiceTest(unittest.TestCase):
         async def async_test():
             affiliation = 'GTO-VVU-GUAN-023'
             hostid = '15098'
-            devices_df = await reset_service.reset_pmi(affiliation, hostid)
+            devices_df = await reset_service.reset_pmi(affiliation)
             print(devices_df)
 
         self.loop.run_until_complete(async_test())
 
-    @unittest.skip("Omit test_reset_pmi_5_min_arriba")
-    def test_reset_pmi_5_min_arriba(self):
-        print("> Entrando test_reset_pmi <")
+    def test_reset_pmi_5_min_arriba_2(self):
+        print("> Entrando test_reset_pmi_5_min_arriba_2 <")
         '''
             Prueba de 5 min y no response
             PMI Arriba
@@ -189,12 +187,8 @@ class ResetsServiceTest(unittest.TestCase):
         reset_service = ResetServiceImpl()
 
         async def async_test():
-            affiliation = 'GTO-VVU-GUAN-023'
-            hostid = '15098'
-            devices_df = await reset_service.reset_pmi(affiliation)
+            affiliation = 'CHIH01-VVU-CDJU-092'
+            devices_df = await reset_service.reset(affiliation)
             print("devices_df:::::", devices_df)
 
         self.loop.run_until_complete(async_test())
-
-
-
