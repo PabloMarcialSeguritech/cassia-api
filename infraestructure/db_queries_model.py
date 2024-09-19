@@ -1229,6 +1229,15 @@ and status !='error'
 
         return self.query_statement_get_active_tickets_by_afiliation
 
+    def builder_query_statement_get_active_tickets_by_afiliation_and_date(self, afiliacion, date):
+        self.query_statement_get_active_tickets_by_afiliation_and_date = f"""
+select * from cassia_gs_tickets cgt 
+where cgt.afiliacion ='{afiliacion}'
+and created_at>'{date}'
+"""
+
+        return self.query_statement_get_active_tickets_by_afiliation_and_date
+
     def builder_query_statement_get_ticket_by_ticket_id(self, ticket_id):
         self.query_statement_get_ticket_by_ticket_id = f"""
 select * from cassia_gs_tickets cgt 
