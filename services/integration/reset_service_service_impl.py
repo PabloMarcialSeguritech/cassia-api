@@ -14,6 +14,7 @@ import nest_asyncio
 import time
 from fastapi.responses import JSONResponse
 import json
+import platform
 
 
 class ResetServiceImpl(ResetServiceFacade):
@@ -270,11 +271,14 @@ class ResetServiceImpl(ResetServiceFacade):
 
     async def async_ping(self, ip, ssh_host, ssh_user, ssh_pass):
         try:
-            tasks = {
-                asyncio.create_task(self.async_ping_by_local(ip)),
-                asyncio.create_task(self.async_ping_by_proxy(
-                    ip, ssh_host, ssh_user, ssh_pass))
-            }
+            tasks = set()
+            # Crear tarea para async_ping_by_local siempre
+            tasks.add(asyncio.create_task(self.async_ping_by_local(ip)))
+
+            # Validar que ssh_host, ssh_user y ssh_pass estén presentes antes de crear la tarea para async_ping_by_proxy
+            if ssh_host and ssh_user and ssh_pass:
+                tasks.add(asyncio.create_task(self.async_ping_by_proxy(ip, ssh_host, ssh_user, ssh_pass)))
+
             while tasks:
                 # Espera hasta que al menos una tarea se complete
                 done, pending = await asyncio.wait(
@@ -304,8 +308,12 @@ class ResetServiceImpl(ResetServiceFacade):
             return success, message
 
     async def async_ping_by_local(self, ip):
-        # -n para windows -c para ubuntu
-        cmd = ['ping', '-c', '4', '-w', '5', ip]  # Envía 4 paquetes
+        # Detecta si el sistema operativo es Windows
+        if platform.system().lower() == 'windows':
+            cmd = ['ping', '-n', '4', '-w', '5000', ip]  # En Windows se usa -n y el tiempo en milisegundos
+        else:
+            cmd = ['ping', '-c', '4', '-w', '5', ip]  # En Linux/Ubuntu se usa -c
+
         try:
             process = await asyncio.create_subprocess_exec(*cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = await process.communicate()
@@ -313,11 +321,10 @@ class ResetServiceImpl(ResetServiceFacade):
             if "100% packet loss" in output or "100% pérdida de paquetes" in output or "100% perdidos" in output:
                 success_ping = False
                 message = "no ejecutado con exito"
-                return success_ping, message
             else:
                 success_ping = True
                 message = "success"
-                return success_ping, message
+            return success_ping, message
 
         except Exception as e:
             print(f"Excepción ocurrida en la función async_ping_by_local: {e}")
@@ -335,33 +342,29 @@ class ResetServiceImpl(ResetServiceFacade):
                 if result and result.stdout:
                     is_package_lost = await self.verify_output_ping(result.stdout)
                 else:
-                    print(f"Error al ejecutar el ping: {result.stderr if result else 'No response'}")
+                    print(f"Error al ejecutar el ping en {ssh_host}: {result.stderr if result else 'No response'}")
                     is_package_lost = True
 
                 if is_package_lost:
                     success_ping = False
-                    message = "no ejecutado con exito"
+                    message = f"Ping fallido al IP {ip} desde {ssh_host}"
                 else:
                     success_ping = True
-                    message = "success"
+                    message = "Ping exitoso"
                 return success_ping, message
 
         except asyncssh.DisconnectError as e:
-            print(f"Error de desconexión SSH: {str(e)}")
+            print(f"Error de desconexión SSH en {ssh_host}: {str(e)}")
             success_ping = False
-            message = "fallo de desconexión SSH"
-        except asyncssh.AuthenticationFailed as e:
-            print(f"Fallo de autenticación SSH: {str(e)}")
+            message = f"Fallo de desconexión SSH en {ssh_host}"
+        except asyncssh.Error as e:  # Maneja cualquier error SSH, incluido un fallo de autenticación
+            print(f"Error SSH en {ssh_host}: {str(e)}")
             success_ping = False
-            message = "fallo de autenticación"
-        except asyncssh.Error as e:
-            print(f"Otro error de asyncssh: {str(e)}")
-            success_ping = False
-            message = "error SSH"
+            message = f"Error SSH en {ssh_host}: {str(e)}"
         except Exception as e:
-            print(f"Excepción ocurrida en la función async_ping_by_proxy:{str(e)}")
+            print(f"Excepción en la función async_ping_by_proxy para {ssh_host}: {str(e)}")
             success_ping = False
-            message = "no ejecutado con exito"
+            message = "No ejecutado con éxito debido a una excepción"
 
         return success_ping, message
 
