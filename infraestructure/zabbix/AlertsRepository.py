@@ -1676,8 +1676,10 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
 
         active_tickets = dfs['active_tickets_df']
         if not active_tickets.empty:
-            active_tickets['ticket_active_id'] = active_tickets['ticket_active_id'].astype(
-                str)
+            active_tickets['ticket_active_id'] = pd.to_numeric(active_tickets['ticket_active_id'],errors='coerce').astype(
+                'Int64')
+            print("****************ACTIVE TICKETS")
+            print(active_tickets)
             # Asegúrate de que ambos DataFrames tengan una columna en común para poder unirlos, por ejemplo, 'affiliation'.
             merged_df = problems.merge(active_tickets[['afiliacion', 'created_at_ticket', 'ticket_active_status', 'ticket_active_id']],
                                        left_on='affiliation',
@@ -1703,5 +1705,5 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
             merged_df.drop(
                 columns=['ticket_active_id', 'ticket_active_status', 'created_at_ticket', 'afiliacion'], inplace=True)
             problems = merged_df
-    print(problems)
+
     return problems
