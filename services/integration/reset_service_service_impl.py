@@ -30,13 +30,15 @@ class ResetServiceImpl(ResetServiceFacade):
             "role": self.settings.resets_role
         }
         try:
-            response = requests.post(self.settings.resets_auth_url, json=body, headers=headers)
+            response = requests.post(
+                self.settings.resets_auth_url, json=body, headers=headers)
             if response.status_code == 200:
                 print("Authentication successful")
                 response_json = response.json()
                 return response_json.get('session', {}).get('token')
             else:
-                print(f"Failed to authenticate, status code: {response.status_code}, response: {response.text}")
+                print(
+                    f"Failed to authenticate, status code: {response.status_code}, response: {response.text}")
                 return None
         except requests.exceptions.RequestException as e:
             print(f"Request exception occurred: {e}")
@@ -48,7 +50,8 @@ class ResetServiceImpl(ResetServiceFacade):
             'Authorization': f'Bearer {token}'
         }
         try:
-            response = requests.get(self.settings.resets_device_url, headers=headers)
+            response = requests.get(
+                self.settings.resets_device_url, headers=headers)
             if response.status_code == 200:
                 print("Successfully retrieved devices")
                 devices_json = response.json()
@@ -58,7 +61,8 @@ class ResetServiceImpl(ResetServiceFacade):
                     print("No 'device' key in response JSON")
                     return pd.DataFrame()
             else:
-                print(f"Failed to get devices, status code: {response.status_code}, response: {response.text}")
+                print(
+                    f"Failed to get devices, status code: {response.status_code}, response: {response.text}")
                 return pd.DataFrame()
         except requests.exceptions.RequestException as e:
             print(f"Request exception occurred: {e}")
@@ -77,7 +81,8 @@ class ResetServiceImpl(ResetServiceFacade):
 
         # Aplicar la función a cada elemento de la columna 'info'
         if 'info' in devices_df.columns:
-            devices_df['affiliation'] = devices_df['info'].apply(get_first_info_value).str.strip()
+            devices_df['affiliation'] = devices_df['info'].apply(
+                get_first_info_value).str.strip()
 
         devices_df['longitude'] = devices_df['gis'].apply(
             lambda x: x['coordinates'][0] if 'coordinates' in x and len(x['coordinates']) > 0 else 'N/A')
@@ -107,7 +112,8 @@ class ResetServiceImpl(ResetServiceFacade):
         resets_df = await self.get_cassia_resets()
         # Si resets_df está vacío, insertar todos los registros de devices_df
         if resets_df.empty:
-            print("No resets data available. Insertando todos los registros de devices_df.")
+            print(
+                "No resets data available. Insertando todos los registros de devices_df.")
             # Inserción masiva
             await CassiaResetRepository.create_cassia_resets_bulk(devices_df.to_dict('records'))
             print("Todos los registros de devices_df han sido insertados.")
@@ -123,7 +129,8 @@ class ResetServiceImpl(ResetServiceFacade):
                 # Evitar dispositivos con IMEI {device['IMEI']} que no tienen affiliation
                 continue
 
-            matching_resets = resets_df[resets_df['affiliation'] == affiliation]
+            matching_resets = resets_df[resets_df['affiliation']
+                                        == affiliation]
 
             if not matching_resets.empty:
 
@@ -135,7 +142,8 @@ class ResetServiceImpl(ResetServiceFacade):
                         updates.append(reset.to_dict())
                     else:
                         # Insertar un nuevo registro
-                        print(f"Inserting new reset for affiliation {affiliation}")
+                        print(
+                            f"Inserting new reset for affiliation {affiliation}")
                         # Añadir a la lista de inserciones
                         inserts.append(device.to_dict())
             else:
@@ -161,11 +169,13 @@ class ResetServiceImpl(ResetServiceFacade):
 
         devices_related_pmi_df = await self.getDispositivosRelacionadosCapa1(host_id)
 
-        suscriptor_ip = devices_related_pmi_df.loc[devices_related_pmi_df['name'] == 'SUSCRIPTOR', 'ip']
+        suscriptor_ip = devices_related_pmi_df.loc[devices_related_pmi_df['name']
+                                                   == 'SUSCRIPTOR', 'ip']
 
         # Assuming you want to return the IP or do something with it
         if not suscriptor_ip.empty:
-            suscriptor_ip = suscriptor_ip.iloc[0]  # Get the first IP if there are multiple matches
+            # Get the first IP if there are multiple matches
+            suscriptor_ip = suscriptor_ip.iloc[0]
             # Print or log the IP if needed
             print(f"SUSCRIPTOR IP: {suscriptor_ip}")
             success_ping, ping_message = await self.async_ping_by_local(suscriptor_ip)
@@ -199,7 +209,8 @@ class ResetServiceImpl(ResetServiceFacade):
                             data=reset_json
                         )
                     else:
-                        print(f"Failed to post device, status code: {response.status_code}, response: {response.text}")
+                        print(
+                            f"Failed to post device, status code: {response.status_code}, response: {response.text}")
                         return pd.DataFrame()
                 except requests.exceptions.RequestException as e:
                     print(f"Request exception occurred: {e}")
@@ -255,16 +266,19 @@ class ResetServiceImpl(ResetServiceFacade):
                 else:
                     tasks.append(self.async_ping_by_local(ip))
             else:
-                tasks.append(asyncio.sleep(0, result=(False, "No IP provided")))
+                tasks.append(asyncio.sleep(
+                    0, result=(False, "No IP provided")))
 
         # Ejecutar todas las tareas concurrentemente y obtener los resultados
         results = await asyncio.gather(*tasks)
 
         # Asignar los resultados a las columnas del DataFrame
         if is_initial_status:
-            devices_pmi_df['initial_status'] = [result[0] for result in results]
+            devices_pmi_df['initial_status'] = [result[0]
+                                                for result in results]
         else:
-            devices_pmi_df['current_status'] = [result[0] for result in results]
+            devices_pmi_df['current_status'] = [result[0]
+                                                for result in results]
 
         return devices_pmi_df
 
@@ -335,7 +349,8 @@ class ResetServiceImpl(ResetServiceFacade):
                 if result and result.stdout:
                     is_package_lost = await self.verify_output_ping(result.stdout)
                 else:
-                    print(f"Error al ejecutar el ping: {result.stderr if result else 'No response'}")
+                    print(
+                        f"Error al ejecutar el ping: {result.stderr if result else 'No response'}")
                     is_package_lost = True
 
                 if is_package_lost:
@@ -359,7 +374,8 @@ class ResetServiceImpl(ResetServiceFacade):
             success_ping = False
             message = "error SSH"
         except Exception as e:
-            print(f"Excepción ocurrida en la función async_ping_by_proxy:{str(e)}")
+            print(
+                f"Excepción ocurrida en la función async_ping_by_proxy:{str(e)}")
             success_ping = False
             message = "no ejecutado con exito"
 
@@ -549,13 +565,15 @@ class ResetServiceImpl(ResetServiceFacade):
                         print("Reset de PMI exitoso")
                         # El listado de dispositivos con el estatus y mensaje de respuesta
                         return success_response(
-                            data=devices_pmi_status_df.to_dict(orient="records"),
+                            data=devices_pmi_status_df.to_dict(
+                                orient="records"),
                             message="Reset de PMI exitoso"
                         )
                     else:
                         print("Reset de PMI no exitoso")
                         return failure_response(
-                            data=devices_pmi_status_df.to_dict(orient="records"),
+                            data=devices_pmi_status_df.to_dict(
+                                orient="records"),
                             message="No se realizó con éxito el reset"
                         )
             except Exception as e:
@@ -603,9 +621,10 @@ class ResetServiceImpl(ResetServiceFacade):
 
         return failure_response(message="No se realizó con éxito el reset")
 
-    async def reset(self, pmiAfiliacion):
+    async def reset(self, pmiAfiliacion,current_user_session):
         print("__ reset function __")
-        pmiDevices = await self.get_pmi_devices_by_afiliacion(pmiAfiliacion)  # pmi dispositivos
+        # pmi dispositivos
+        pmiDevices = await self.get_pmi_devices_by_afiliacion(pmiAfiliacion)
         pmiDevices_initState = await self.agregarEstatusConectividadInicial(
             pmiDevices)  # pmi dispositivos con estado inicial
         print("pmiDevices_InitState: ", pmiDevices_initState)
@@ -656,7 +675,7 @@ class ResetServiceImpl(ResetServiceFacade):
                     return failure_response(message="No se realizó con éxito el hard reset restart, hubo falla en la petición")
 
                 pmiStatusRecuperacion, pmiDetalleRecuperacion = await self.monitorear_recuperacion(pmiDevices_initState,
-                                                                                              recovery_time=360)  # Monitorear la recuperación durante un tiempo
+                                                                                                   recovery_time=360)  # Monitorear la recuperación durante un tiempo
                 if pmiStatusRecuperacion:
                     response = {
                         'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron en desconectados/down',
@@ -664,7 +683,7 @@ class ResetServiceImpl(ResetServiceFacade):
                         'pmiDetalleRecuperacion': pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo',
                     }
                     return success_response(message=pmiDetalleRecuperacion +
-                                                    ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo', success=pmiStatusRecuperacion, data=response)
+                                            ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo', success=pmiStatusRecuperacion, data=response)
                 else:
                     response = {
                         'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron en desconectados/down',
@@ -673,13 +692,12 @@ class ResetServiceImpl(ResetServiceFacade):
                     }
                     return failure_response(message=pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro', data=response)
 
-
         # Caso 2: Todos son up :
         # Step 1: Monitorear durante un DownTime la caida de algun dispositivo que esta en up originalmente
         # Step 2: Monitorear durante un recoveryTime la recuperación de dispositivos
         if all(pmiDevices_initState['statusInicial'] == True):
             print("**** Todos los dispositivos están conectados inicialmente. ****")
-            ## monitorear caida
+            # monitorear caida
             pmiStatusShutDown, pmiDetalleShutDown = await self.monitorear_apagado_fromAllUp(pmiDevices_initState,
                                                                                             shutDown_time=90)
 
@@ -699,7 +717,7 @@ class ResetServiceImpl(ResetServiceFacade):
 
                 return failure_response(message=pmiDetalleShutDown, data=response)
 
-            ## monitorear recuperacion
+            # monitorear recuperacion
             pmiStatusRecuperacion, pmiDetalleRecuperacion = await self.monitorear_recuperacion(pmiDevices_initState,
                                                                                                recovery_time=360)  # Monitorear la recuperación durante un tiempo
             if pmiStatusRecuperacion:
@@ -733,7 +751,7 @@ class ResetServiceImpl(ResetServiceFacade):
                         'pmiDetalleRecuperacion': pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo',
                     }
                     return success_response(message=pmiDetalleRecuperacion +
-                                                    ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo',
+                                            ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo',
                                             success=pmiStatusRecuperacion, data=response)
                 else:
                     response = {
@@ -742,7 +760,8 @@ class ResetServiceImpl(ResetServiceFacade):
                         'pmiDetalleRecuperacion': pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro',
                     }
                     return failure_response(
-                        message=pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro',
+                        message=pmiDetalleRecuperacion +
+                        ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro',
                         data=response)
 
         # Caso 3: No todos comienzan ni up ni down
@@ -753,7 +772,7 @@ class ResetServiceImpl(ResetServiceFacade):
             print(
                 "**** No todos los dispositivos están ni completamente conectados ni completamente desconectados inicialmente. ****")
 
-            ## Monitorear caída de un dispositivo que estaba up inicialmente
+            # Monitorear caída de un dispositivo que estaba up inicialmente
             pmiStatusShutDown, pmiDetalleShutDown = await self.monitorear_caida_fromMixedState(pmiDevices_initState,
                                                                                                shutDown_time=90)
 
@@ -774,7 +793,7 @@ class ResetServiceImpl(ResetServiceFacade):
 
                 return failure_response(message=pmiDetalleShutDown, data=response)
 
-                ## Monitorear recuperación de dispositivos
+                # Monitorear recuperación de dispositivos
             pmiStatusRecuperacion, pmiDetalleRecuperacion = await self.monitorear_recuperacion(pmiDevices_initState,
                                                                                                recovery_time=360)
             # Monitorear la recuperación durante un tiempo
@@ -805,7 +824,8 @@ class ResetServiceImpl(ResetServiceFacade):
             # print("pmiDevices obtenidos en services: ", pmiDevices)
             return pmiDevices
         except Exception as e:
-            print(f"Excepción ocurrida en la get pmi devices by afiliation function:{str(e)}")
+            print(
+                f"Excepción ocurrida en la get pmi devices by afiliation function:{str(e)}")
             pmiDevices = None
             return pmiDevices
 
@@ -828,7 +848,8 @@ class ResetServiceImpl(ResetServiceFacade):
                 proxy_password = proxy_credentials['password_proxy']
         print("tareas::::")
         # Creando tareas asíncronas para cada IP en el DataFrame
-        tasks = [self.async_ping(ip, proxy_ip, proxy_user, proxy_password) for ip in dispositivosCapa['ip']]
+        tasks = [self.async_ping(ip, proxy_ip, proxy_user, proxy_password)
+                 for ip in dispositivosCapa['ip']]
         status_list = await asyncio.gather(*tasks)
         # Extraer solo el primer elemento de cada tupla para la nueva columna de estatus
         status_values_only = [status[0] for status in status_list]
@@ -852,7 +873,8 @@ class ResetServiceImpl(ResetServiceFacade):
                 proxy_user = proxy_credentials['user_proxy']
                 proxy_password = proxy_credentials['password_proxy']
         # Creando tareas asíncronas para cada IP en el DataFrame
-        tasks = [self.async_ping(ip, proxy_ip, proxy_user, proxy_password) for ip in dispositivosCapa['ip']]
+        tasks = [self.async_ping(ip, proxy_ip, proxy_user, proxy_password)
+                 for ip in dispositivosCapa['ip']]
         status_list = await asyncio.gather(*tasks)
         # Extraer solo el primer elemento de cada tupla para la nueva columna de estatus
         status_values_only = [status[0] for status in status_list]
@@ -877,7 +899,8 @@ class ResetServiceImpl(ResetServiceFacade):
                 proxy_user = proxy_credentials['user_proxy']
                 proxy_password = proxy_credentials['password_proxy']
         # Creando tareas asíncronas para cada IP en el DataFrame
-        tasks = [self.async_ping(ip, proxy_ip, proxy_user, proxy_password) for ip in dispositivosCapa['ip']]
+        tasks = [self.async_ping(ip, proxy_ip, proxy_user, proxy_password)
+                 for ip in dispositivosCapa['ip']]
         status_list = await asyncio.gather(*tasks)
         # Extraer solo el primer elemento de cada tupla para la nueva columna de estatus
         status_values_only = [status[0] for status in status_list]
@@ -903,7 +926,8 @@ class ResetServiceImpl(ResetServiceFacade):
                 # print("Todos los dispositivos se han recuperado exitosamente.")
                 return True, "Todos los dispositivos de PMI fueron recuperados"
 
-            await asyncio.sleep(5)  # Espera 5 segundos antes de volver a verificar
+            # Espera 5 segundos antes de volver a verificar
+            await asyncio.sleep(5)
 
         if all(pmiDevices_finalState['statusFinal'] == False):
             print("Ningun dispositivo se ha recuperado exitosamente.")
@@ -926,12 +950,13 @@ class ResetServiceImpl(ResetServiceFacade):
                 dispositivos)  # pmi dispositivos con estado inicial
 
             print("pmiDevices_ShutDownState: ", pmiDevices_ShutDownState)
-            ###chat modifica de aqui en adelante"""
+            # chat modifica de aqui en adelante"""
             if any(pmiDevices_ShutDownState['statusShutDown'] == False):
                 print("Al menos un dispositivo ha caído durante el tiempo de apagado.")
                 return True, "Al menos un dispositivo de PMI ha caído, indicando un apagado exitoso."
 
-            await asyncio.sleep(5)  # Espera 5 segundos antes de volver a verificar
+            # Espera 5 segundos antes de volver a verificar
+            await asyncio.sleep(5)
 
         print("Ningún dispositivo ha caído durante el tiempo de apagado.")
         return False, "Ningún dispositivo de PMI ha caído durante el tiempo de apagado, el reset no parece haber funcionado."
@@ -951,10 +976,12 @@ class ResetServiceImpl(ResetServiceFacade):
 
             # Verificar si algún dispositivo que estaba up cae a estado down
             if any((dispositivos['statusInicial'] == True) & (pmiDevices_ShutDownState['statusShutDown'] == False)):
-                print("Al menos un dispositivo que estaba arriba ha caído durante el tiempo de apagado.")
+                print(
+                    "Al menos un dispositivo que estaba arriba ha caído durante el tiempo de apagado.")
                 return True, "Al menos un dispositivo de PMI que estaba arriba ha caído, indicando un apagado exitoso."
 
-            await asyncio.sleep(5)  # Espera 5 segundos antes de volver a verificar
+            # Espera 5 segundos antes de volver a verificar
+            await asyncio.sleep(5)
 
         print("Ningún dispositivo que estaba arriba ha caído durante el tiempo de apagado.")
         return False, "Ningún dispositivo de PMI que estaba arriba ha caído durante el tiempo de apagado, el reset no parece haber funcionado."
@@ -992,7 +1019,8 @@ class ResetServiceImpl(ResetServiceFacade):
                     data=reset_json
                 )
             else:
-                print(f"Failed to post device, status code: {response.status_code}, response: {response.text}")
+                print(
+                    f"Failed to post device, status code: {response.status_code}, response: {response.text}")
                 return pd.DataFrame()
         except requests.exceptions.Timeout:
             mensaje_error = "El sistema de Reset no respondió a la petición después de 10 segundos"
@@ -1002,3 +1030,198 @@ class ResetServiceImpl(ResetServiceFacade):
             print(f"Request exception occurred: {e}")
             return pd.DataFrame()
 
+
+async def reset_backup(self, pmiAfiliacion):
+    print("__ reset function __")
+    # pmi dispositivos
+    pmiDevices = await self.get_pmi_devices_by_afiliacion(pmiAfiliacion)
+    pmiDevices_initState = await self.agregarEstatusConectividadInicial(
+        pmiDevices)  # pmi dispositivos con estado inicial
+    print("pmiDevices_InitState: ", pmiDevices_initState)
+
+    # Realizar aqui la acción de reset
+    # **
+    # ***
+    # **
+    object_id = await self.get_object_id_by_affiliation(pmiAfiliacion)
+    if object_id:
+        response = await self.send_request_api_reset(object_id, is_hard_reset=False)
+        response_data = response.body.decode('utf-8')
+        response_data = json.loads(response_data)
+        if response_data['data']['status'] == 'no ejecutado con exito':
+            return response
+    else:
+        return failure_response(message="Esta afiliación parece no existir en el sistema de resets")
+    if not await self.is_response_good(response):
+        print("No se realizó con éxito el reset, hubo falla en la petición")
+        return failure_response(message="Reset no realizado, sistema de Resets no pudo procesar la solicitud")
+
+    # Caso 1: Todos son down :
+    # Step 1: Monitorear durante un recoveryTime la recuperación de algun dispositivo
+    if all(pmiDevices_initState['statusInicial'] == False):
+        print("**** Todos los dispositivos están caídos inicialmente. ****")
+        pmiStatusRecuperacion, pmiDetalleRecuperacion = await self.monitorear_recuperacion(pmiDevices_initState,
+                                                                                           recovery_time=360)  # Monitorear la recuperación durante un tiempo
+        if pmiStatusRecuperacion:
+            response = {
+                'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron en desconectados/down',
+                'action': pmiStatusRecuperacion,
+                'pmiDetalleRecuperacion': pmiDetalleRecuperacion
+            }
+            return success_response(message=pmiDetalleRecuperacion, success=pmiStatusRecuperacion, data=response)
+        # Reintento por que no hubo recuperación total
+        else:
+            print("Forzamos hard reset")
+            if object_id:
+                response = await self.send_request_api_reset(object_id, is_hard_reset=True)
+                response_data = response.body.decode('utf-8')
+                response_data = json.loads(response_data)
+                if response_data['data']['status'] == 'no ejecutado con exito':
+                    return response
+            else:
+                return failure_response(message="Object ID necesario para la petición")
+            if not await self.is_response_good(response):
+                print("No se realizó con éxito el reset, hubo falla en la petición")
+                return failure_response(message="No se realizó con éxito el hard reset restart, hubo falla en la petición")
+
+            pmiStatusRecuperacion, pmiDetalleRecuperacion = await self.monitorear_recuperacion(pmiDevices_initState,
+                                                                                               recovery_time=360)  # Monitorear la recuperación durante un tiempo
+            if pmiStatusRecuperacion:
+                response = {
+                    'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron en desconectados/down',
+                    'action': pmiStatusRecuperacion,
+                    'pmiDetalleRecuperacion': pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo',
+                }
+                return success_response(message=pmiDetalleRecuperacion +
+                                        ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo', success=pmiStatusRecuperacion, data=response)
+            else:
+                response = {
+                    'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron en desconectados/down',
+                    'action': pmiStatusRecuperacion,
+                    'pmiDetalleRecuperacion': pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro',
+                }
+                return failure_response(message=pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro', data=response)
+
+    # Caso 2: Todos son up :
+    # Step 1: Monitorear durante un DownTime la caida de algun dispositivo que esta en up originalmente
+    # Step 2: Monitorear durante un recoveryTime la recuperación de dispositivos
+    if all(pmiDevices_initState['statusInicial'] == True):
+        print("**** Todos los dispositivos están conectados inicialmente. ****")
+        # monitorear caida
+        pmiStatusShutDown, pmiDetalleShutDown = await self.monitorear_apagado_fromAllUp(pmiDevices_initState,
+                                                                                        shutDown_time=90)
+
+        if not pmiStatusShutDown:  # si ningun dispositivo cae
+            '''
+            response = {
+                'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron conectados/up',
+                'pmiStatusRecuperacion': False,
+                'pmiDetalleRecuperacion': pmiDetalleShutDown
+            }
+            '''
+            response = {
+                'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron conectados/up',
+                'action': False,
+                'pmiDetalleRecuperacion': pmiDetalleShutDown
+            }
+
+            return failure_response(message=pmiDetalleShutDown, data=response)
+
+        # monitorear recuperacion
+        pmiStatusRecuperacion, pmiDetalleRecuperacion = await self.monitorear_recuperacion(pmiDevices_initState,
+                                                                                           recovery_time=360)  # Monitorear la recuperación durante un tiempo
+        if pmiStatusRecuperacion:
+            response = {
+                'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron conectados/up',
+                'action': pmiStatusRecuperacion,
+                'pmiDetalleRecuperacion': pmiDetalleRecuperacion
+            }
+
+            print("response::::", response)
+            return success_response(message=pmiDetalleRecuperacion, success=pmiStatusRecuperacion, data=response)
+        else:
+            print("Forzamos hard reset")
+            if object_id:
+                response = await self.send_request_api_reset(object_id, is_hard_reset=True)
+                if response['status'] == 'no ejecutado con exito':
+                    return response
+            else:
+                return failure_response(message="Object ID necesario para la petición")
+            if not await self.is_response_good(response):
+                print("No se realizó con éxito el reset, hubo falla en la petición")
+                return failure_response(
+                    message="No se realizó con éxito el hard reset restart, hubo falla en la petición")
+
+            pmiStatusRecuperacion, pmiDetalleRecuperacion = await self.monitorear_recuperacion(pmiDevices_initState,
+                                                                                               recovery_time=360)  # Monitorear la recuperación durante un tiempo
+            if pmiStatusRecuperacion:
+                response = {
+                    'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron en desconectados/down',
+                    'action': pmiStatusRecuperacion,
+                    'pmiDetalleRecuperacion': pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo',
+                }
+                return success_response(message=pmiDetalleRecuperacion +
+                                        ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo',
+                                        success=pmiStatusRecuperacion, data=response)
+            else:
+                response = {
+                    'pmiStatusInicialMessage': 'Todos los dispositivos del pmi comenzaron en desconectados/down',
+                    'action': pmiStatusRecuperacion,
+                    'pmiDetalleRecuperacion': pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro',
+                }
+                return failure_response(
+                    message=pmiDetalleRecuperacion +
+                    ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro',
+                    data=response)
+
+    # Caso 3: No todos comienzan ni up ni down
+    # Step1: Monitorear durante un DownTime la caida de un dispositivo que anteriormente estuvo arriba
+    # Step2: Monitorear durante un recoveryTime la recuperación de dispositivos
+    if not all(pmiDevices_initState['statusInicial'] == True) and not all(
+            pmiDevices_initState['statusInicial'] == False):
+        print(
+            "**** No todos los dispositivos están ni completamente conectados ni completamente desconectados inicialmente. ****")
+
+        # Monitorear caída de un dispositivo que estaba up inicialmente
+        pmiStatusShutDown, pmiDetalleShutDown = await self.monitorear_caida_fromMixedState(pmiDevices_initState,
+                                                                                           shutDown_time=90)
+
+        if not pmiStatusShutDown:  # si ningún dispositivo que estaba arriba cae
+            '''
+            response = {
+                'pmiStatusInicialMessage': 'Dispositivos del pmi comenzaron en estados mixtos (algunos up, otros down)',
+                'pmiStatusRecuperacion': False,
+                'pmiDetalleRecuperacion': pmiDetalleShutDown
+            }
+            '''
+
+            response = {
+                'pmiStatusInicialMessage': 'Dispositivos del pmi comenzaron en estados mixtos (algunos up, otros down)',
+                'action': False,
+                'pmiDetalleRecuperacion': pmiDetalleShutDown
+            }
+
+            return failure_response(message=pmiDetalleShutDown, data=response)
+
+            # Monitorear recuperación de dispositivos
+        pmiStatusRecuperacion, pmiDetalleRecuperacion = await self.monitorear_recuperacion(pmiDevices_initState,
+                                                                                           recovery_time=360)
+        # Monitorear la recuperación durante un tiempo
+
+        '''
+            response = {
+                'pmiStatusInicialMessage': 'Dispositivos del pmi comenzaron en estados mixtos (algunos up, otros down)',
+                'pmiStatusRecuperacion': pmiStatusRecuperacion,
+                'pmiDetalleRecuperacion': pmiDetalleRecuperacion
+            }
+            '''
+
+        response = {
+            'pmiStatusInicialMessage': 'Dispositivos del pmi comenzaron en estados mixtos (algunos up, otros down)',
+            'action': pmiStatusRecuperacion,
+            'pmiDetalleRecuperacion': pmiDetalleRecuperacion
+        }
+
+        return success_response(message=pmiDetalleRecuperacion, success=pmiStatusRecuperacion, data=response)
+
+    return {}

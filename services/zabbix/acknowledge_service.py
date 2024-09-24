@@ -7,9 +7,12 @@ from fastapi import HTTPException, status
 from datetime import datetime
 import pytz
 import pandas as pd
-
+import time
+import asyncio
 
 # Función para convertir la cadena de fecha a un objeto datetime, manejando 'NaT'
+
+
 def parse_date(date_str):
     if isinstance(date_str, datetime):  # Si ya es un objeto datetime
         return date_str
@@ -46,12 +49,12 @@ def format_date(date):
     return date  # En caso de cualquier otro tipo, devolver la fecha original
 
 
-async def get_acks(eventid, is_cassia_event):
+async def get_acks(eventid, is_cassia_event, db):
     if int(is_cassia_event):
         # Obtiene el evento de cassia
-        event = await CassiaEventRepository.get_cassia_event(eventid)
+        event = await CassiaEventRepository.get_cassia_event_pool(eventid, db)
     else:
-        event = await ZabbixEventRepository.get_zabbix_event(eventid)
+        event = await ZabbixEventRepository.get_zabbix_event_pool(eventid, db)
     # Si no existe regresa un excepcion de http
     if event.empty:
         raise HTTPException(
@@ -76,18 +79,39 @@ async def get_acks(eventid, is_cassia_event):
                      'message': 'Creación del evento.',
                      'date': parse_date(clock_problem),
                      'user': None})
-
+    tasks = {
+        'event_acknowledges_df': asyncio.create_task(AcknowledgesRepository.get_acknowledges_pool(eventid, is_cassia_event, db)),
+        'event_exceptions_df': asyncio.create_task(AcknowledgesRepository.get_exceptions_pool(event['hostid'][0], clock_problem, db)),
+        'event_tickets_df': asyncio.create_task(cassia_gs_tickets_repository.get_event_tickets_by_affiliation_and_date_pool(event['alias'][0], clock_problem, db)),
+        'event_resets_df': asyncio.create_task(cassia_gs_tickets_repository.get_event_resets_by_affiliation_and_date_pool(event['alias'][0], clock_problem, db)),
+    }
+    results = await asyncio.gather(*tasks.values())
+    dfs = dict(zip(tasks.keys(), results))
     # Obtiene los acknowledges del evento
-
-    event_acknowledges = await AcknowledgesRepository.get_acknowledges(eventid, is_cassia_event)
-    print(event_acknowledges)
+    event_acknowledges = dfs['event_acknowledges_df']
     for ind in event_acknowledges.index:
         messages.append({'type': 'Acknowledge',
                          'message': event_acknowledges['message'][ind],
                          'date': parse_date(event_acknowledges['Time'][ind]),
                          'user': event_acknowledges['user'][ind]})
 
-    event_tickets = await cassia_gs_tickets_repository.get_event_tickets_by_affiliation_and_date(event['alias'][0], clock_problem)
+    # Obtiene las excepciones dentro del timepo de vida del evento
+
+    event_exceptions = dfs['event_exceptions_df']
+
+    if not event_exceptions.empty:
+        for ind in event_exceptions.index:
+            messages.append({'type': 'Excepcion',
+                            'message': f'ID: {event_exceptions["exception_id"][ind]}. Agencia: {event_exceptions["agency_name"][ind]}. Descripcion: {event_exceptions["description"][ind]}.',
+                             'date': parse_date(event_exceptions['created_at'][ind]),
+                             'user': ''})
+            if event_exceptions['closed_at'][ind] is not None:
+                messages.append({'type': 'Cierre de Excepcion',
+                                 'message': f'ID: {event_exceptions["exception_id"][ind]}. Agencia: {event_exceptions["agency_name"][ind]}.',
+                                 'date': parse_date(event_exceptions['closed_at'][ind]),
+                                 'user': ''})
+    # Obtiene los tickets dentro del tiempo de vida del evento
+    event_tickets = dfs['event_tickets_df']
     if not event_tickets.empty:
         for ticket_index in event_tickets.index:
             ticket = event_tickets.loc[ticket_index].to_dict()
@@ -101,7 +125,7 @@ async def get_acks(eventid, is_cassia_event):
                                 'message': f"Ticket creado con folio {ticket['ticket_id']} con correo {ticket['created_with_mail']}",
                                  'date': parse_date(ticket['created_at']),
                                  'user': ticket['user_mail']})
-            ticket_detail = await cassia_gs_tickets_repository.get_ticket_detail_by_ticket_id(ticket['ticket_id'])
+            ticket_detail = await cassia_gs_tickets_repository.get_ticket_detail_by_ticket_id_pool(ticket['ticket_id'], db)
             for ind in ticket_detail.index:
                 if ticket_detail['status'][ind] == 'creado':
                     tipo = "Ticket - Nota interna" if ticket_detail['type'][
@@ -110,7 +134,14 @@ async def get_acks(eventid, is_cassia_event):
                                     'message': ticket_detail['comment'][ind],
                                      'date': parse_date(ticket_detail['created_at'][ind]),
                                      'user': ticket_detail['user_email'][ind]})
+    event_resets = dfs['event_resets_df']
 
+    if not event_resets.empty:
+        for ind in event_resets.index:
+            messages.append({'type': 'Reset',
+                            'message': f'Estatus inicial: {event_resets["initial_status"][ind]}. Resultado: {event_resets["result"][ind]}',
+                             'date': parse_date(event_resets['date'][ind]),
+                             'user': ''})
     messages = sorted(messages, key=lambda x: parse_date(
         x["date"]) or datetime.min)
     for message in messages:
@@ -122,22 +153,7 @@ async def get_acks(eventid, is_cassia_event):
                      'message': f'Acumulado del evento: {acumulated_cassia} hrs.',
                      'date': now_str,
                      'user': None})
-
     return success_response(data=messages)
-
-    # Obtiene los tickets del evento
-    print("auiiiiiii")
-    print(event)
-
-    tickets = await AcknowledgesRepository.get_event_tickets(eventid, is_cassia_event)
-    # Procesa los acknowledges y tickets para obtener el acmulado de cada uno hasta hoy y retorna un diccionario
-    resume = await AcknowledgesRepository.process_acknowledges_tickets(event, event_acknowledges, tickets, is_cassia_event)
-    response = dict()
-    response.update(resume)
-    response.update({'history': event_acknowledges.to_dict(orient="records")})
-    response.update({'tickets': tickets.to_dict(orient='records')})
-
-    return success_response(message="success", data=response)
 
 
 async def register_ack(eventid, message, current_session, close, is_zabbix_event):
