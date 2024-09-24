@@ -5,6 +5,20 @@ import pandas as pd
 import numpy as np
 
 
+async def get_zabbix_event_pool(eventid, db):
+    try:
+        get_event_query = DBQueries().builder_query_statement_get_zabbix_event(eventid)
+        """ print("Query: ", get_event_query) """
+        event_data = await db.run_query(get_event_query)
+        event = pd.DataFrame(event_data)
+
+        return event
+    except Exception as e:
+        print(f"Excepcion en get_zabbix_event_pool: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_zabbix_event_pool: {e}")
+
+
 async def get_zabbix_event(eventid):
     db_model = DB()
     try:

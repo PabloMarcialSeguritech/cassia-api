@@ -5,6 +5,25 @@ import pandas as pd
 import numpy as np
 
 
+async def get_cassia_event_pool(eventid, db) -> pd.DataFrame:
+    try:
+        # PINK
+        get_event_query = DBQueries().builder_query_statement_get_cassia_event_test(
+            eventid)
+        event_data = await db.run_query(get_event_query)
+        event = pd.DataFrame(event_data).replace(np.nan, None)
+        """ if event.empty:
+            get_event_query = DBQueries().builder_query_statement_get_cassia_event_2(
+                eventid)
+            event_data = await db_model.run_query(get_event_query)
+            event = pd.DataFrame(event_data).replace(np.nan, None) """
+        return event
+    except Exception as e:
+        print(f"Excepcion en get_cassia_event_pool: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_cassia_event_pool: {e}")
+
+
 async def get_cassia_event(eventid) -> pd.DataFrame:
     db_model = DB()
     try:

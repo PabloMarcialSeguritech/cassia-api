@@ -274,7 +274,7 @@ WHERE rn = 1;
 
     def builder_query_statement_get_cassia_event_test(self, eventid):
         # ACTUALIZAR NOMBRE
-        self.query_statement_get_cassia_event = f"""select cassia_arch_traffic_events_id,created_at,hi.alias  from cassia_events_test p
+        self.query_statement_get_cassia_event = f"""select cassia_arch_traffic_events_id,created_at,hi.alias,p.hostid  from cassia_events_test p
 inner join host_inventory hi on hi.hostid =p.hostid  
 where cassia_arch_traffic_events_id ={eventid}"""
         return self.query_statement_get_cassia_event
@@ -293,7 +293,7 @@ where cassia_arch_traffic_events_id ={eventid}"""
         return self.query_statement_get_cassia_event_tickets
 
     def builder_query_statement_get_zabbix_event(self, eventid):
-        self.query_statement_get_zabbix_event = f"""SELECT e.eventid, e.clock, hi.alias 
+        self.query_statement_get_zabbix_event = f"""SELECT e.eventid, e.clock, hi.alias,hi.hostid
 FROM events e
 JOIN triggers t ON e.objectid = t.triggerid
 JOIN functions f ON t.triggerid = f.triggerid
@@ -1233,7 +1233,7 @@ and status !='error'
         self.query_statement_get_active_tickets_by_afiliation_and_date = f"""
 select * from cassia_gs_tickets cgt 
 where cgt.afiliacion ='{afiliacion}'
-and created_at>'{date}'
+and created_at>='{date}'
 """
 
         return self.query_statement_get_active_tickets_by_afiliation_and_date
@@ -1348,3 +1348,24 @@ and hostid in ({hostids})
 order by created_at asc limit {limit}
 """
         return self.query_statement_get_local_events_by_tech_id
+
+    def builder_query_statement_get_event_exceptions(self, hostid, date):
+        self.query_statement_get_event_exceptions = f"""
+select cet.hostid,cet.created_at,cet.closed_at,
+cet.description, cet.exception_id,cea.name as agency_name 
+from cassia_exceptions_test cet
+inner join cassia_exception_agencies cea 
+on cea.exception_agency_id =cet.exception_agency_id 
+where cet.hostid ={hostid}
+and cet.created_at >= '{date}'
+and cet.deleted_at  is NULL
+"""
+        return self.query_statement_get_event_exceptions
+
+    def builder_query_statement_get_resets_by_afiliation_and_date(self, afiliacion, date):
+        self.query_statement_get_resets_by_afiliation_and_date = f"""
+select * from cassia_resets_history crh 
+where crh.affiliation ='{afiliacion}'
+and date>='{date}'
+"""
+        return self.query_statement_get_resets_by_afiliation_and_date

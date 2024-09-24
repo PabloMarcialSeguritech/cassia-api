@@ -149,6 +149,37 @@ async def get_host_data(hostid) -> pd.DataFrame:
         await db_model.close_connection()
 
 
+async def get_event_resets_by_affiliation_and_date_pool(afiliacion, date, db) -> pd.DataFrame:
+    try:
+        query_statement_get_resets_by_afiliation_and_date = DBQueries(
+        ).builder_query_statement_get_resets_by_afiliation_and_date(afiliacion, date)
+        print(query_statement_get_resets_by_afiliation_and_date)
+        tickets_data = await db.run_query(query_statement_get_resets_by_afiliation_and_date)
+        tickets_df = pd.DataFrame(tickets_data).replace(np.nan, None)
+        return tickets_df
+
+    except Exception as e:
+        print(
+            f"Excepcion en get_event_resets_by_affiliation_and_date_pool: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_event_resets_by_affiliation_and_date_pool: {e}")
+
+
+async def get_event_tickets_by_affiliation_and_date_pool(afiliacion, date, db) -> pd.DataFrame:
+    try:
+        query_statement_get_active_tickets_by_afiliation_and_date = DBQueries(
+        ).builder_query_statement_get_active_tickets_by_afiliation_and_date(afiliacion, date)
+
+        tickets_data = await db.run_query(query_statement_get_active_tickets_by_afiliation_and_date)
+        tickets_df = pd.DataFrame(tickets_data).replace(np.nan, None)
+        return tickets_df
+
+    except Exception as e:
+        print(f"Excepcion en get_event_tickets_by_affiliation_and_date: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_event_tickets_by_affiliation_and_date: {e}")
+
+
 async def get_event_tickets_by_affiliation_and_date(afiliacion, date) -> pd.DataFrame:
     db_model = DB()
     try:
@@ -185,6 +216,19 @@ async def get_active_tickets_by_afiliation(afiliacion) -> pd.DataFrame:
                             detail=f"Excepcion en get_host_data: {e}")
     finally:
         await db_model.close_connection()
+
+
+async def get_ticket_detail_by_ticket_id_pool(ticket_id, db) -> pd.DataFrame:
+    try:
+        query_statement_get_ticket_detail_by_ticket_id = DBQueries(
+        ).builder_query_statement_get_ticket_detail_by_ticket_id(ticket_id)
+        ticket_data = await db.run_query(query_statement_get_ticket_detail_by_ticket_id)
+        ticket_df = pd.DataFrame(ticket_data)
+        return ticket_df
+    except Exception as e:
+        print(f"Excepcion en get_ticket_by_ticket_id: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_ticket_by_ticket_id: {e}")
 
 
 async def get_ticket_detail_by_ticket_id(ticket_id) -> pd.DataFrame:
