@@ -187,8 +187,30 @@ class ResetsServiceTest(unittest.TestCase):
         reset_service = ResetServiceImpl()
 
         async def async_test():
-            affiliation = 'CHIH01-VVU-CDJU-092'
+            #affiliation = 'CHIH01-VVU-CDJU-419'
+            affiliation = 'CHIH01-VVU-CDJU-058'
             devices_df = await reset_service.reset(affiliation)
             print("devices_df:::::", devices_df)
 
         self.loop.run_until_complete(async_test())
+
+    @unittest.skip("Omit test_reset_pmi_5_min_arriba_2")
+    def test_reset_async_ping_by_local(self):
+        print("> Entrando test_reset_async_ping_by_local <")
+        '''
+            Prueba de 5 min y no response
+            PMI Arriba
+        '''
+
+        reset_service = ResetServiceImpl()
+
+        async def async_test():
+            ip = '10.171.21.148'
+            respuesta = await reset_service.async_ping_by_local(ip)
+            print("respuesta:::::", respuesta)
+
+        self.loop.run_until_complete(async_test())
+
+
+
+
