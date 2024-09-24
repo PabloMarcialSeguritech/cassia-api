@@ -12,6 +12,53 @@ import pytz
 from utils.traits import get_datetime_now_with_tz
 
 
+async def get_exceptions_pool(hostid, date, db) -> pd.DataFrame:
+    try:
+        # PINK
+        query_statement_get_event_exceptions = DBQueries(
+        ).builder_query_statement_get_event_exceptions(hostid, date)
+        print(query_statement_get_event_exceptions)
+        exceptions_data = await db.run_query(query_statement_get_event_exceptions)
+        exceptions_df = pd.DataFrame(exceptions_data).replace(np.nan, None)
+        return exceptions_df
+    except Exception as e:
+        print(f"Excepcion en get_exceptions: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_exceptions: {e}")
+
+
+async def get_exceptions(hostid, date) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        # PINK
+        query_statement_get_event_exceptions = DBQueries(
+        ).builder_query_statement_get_event_exceptions(hostid, date)
+        print(query_statement_get_event_exceptions)
+        await db_model.start_connection()
+        exceptions_data = await db_model.run_query(query_statement_get_event_exceptions)
+        exceptions_df = pd.DataFrame(exceptions_data).replace(np.nan, None)
+        return exceptions_df
+    except Exception as e:
+        print(f"Excepcion en get_exceptions: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_exceptions: {e}")
+    finally:
+        await db_model.close_connection()
+
+
+async def get_acknowledges_pool(eventid, is_zabbix_event, db) -> pd.DataFrame:
+    try:
+        # PINK
+        sp_get_acknowledges = DBQueries().stored_name_get_acknowledges_test
+        acknowledges_data = await db.run_stored_procedure(sp_get_acknowledges, (eventid, is_zabbix_event))
+        acknowledges = pd.DataFrame(acknowledges_data).replace(np.nan, None)
+        acknowledges['tickets'] = ['' for ack in range(len(acknowledges))]
+        return acknowledges
+    except Exception as e:
+        print(f"Excepcion en get_acknowledges: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_acknowledges: {e}")
+
 
 async def get_acknowledges(eventid, is_zabbix_event) -> pd.DataFrame:
     db_model = DB()
