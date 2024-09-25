@@ -309,3 +309,21 @@ async def get_reset_by_affiliation(affiliation) -> pd.DataFrame:
         )
     finally:
         await db_model.close_connection()
+
+
+async def save_reset_history_data(data) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        query_save_reset_history = DBQueries(
+        ).builder_query_statement_save_reset_history_data(data)
+        await db_model.start_connection()
+        reset_data = await db_model.run_query(query_save_reset_history)
+        return True
+    except Exception as e:
+        print(f"Excepcion generada en save_reset_history_data: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion generada en save_reset_history_data {e}"
+        )
+    finally:
+        await db_model.close_connection()

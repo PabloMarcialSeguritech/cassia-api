@@ -1369,3 +1369,12 @@ where crh.affiliation ='{afiliacion}'
 and date>='{date}'
 """
         return self.query_statement_get_resets_by_afiliation_and_date
+
+    def builder_query_statement_save_reset_history_data(self, data):
+        self.query_statement_save_reset_history_data = f"""
+INSERT INTO cassia_resets_history 
+(affiliation,date,result,initial_status,action,user_id)
+values 
+('{data['affiliation']}','{data['date']}','{data['result']}','{data['initial_status']}',{data['action']},{data['user_id']})
+"""
+        return self.query_statement_save_reset_history_data
