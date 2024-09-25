@@ -138,156 +138,189 @@ async def get_exceptions(hostids: list, session):
 
 
 async def get_host_alerts(hostid):
-    try:
-        zabbix_alerts = await get_host_zabbix_alerts(hostid)
+    zabbix_alerts = await get_host_zabbix_alerts(hostid)
+    ping_loss_message = await CassiaConfigRepository.get_config_ping_loss_message()
+    zabbix_alerts = await normalizar_alertas_zabbix(zabbix_alerts, ping_loss_message)
+    zabbix_alerts = await eliminar_downs_zabbix(zabbix_alerts, ping_loss_message)
+    cassia_alerts = await get_host_cassia_alerts(hostid)
+    problems = zabbix_alerts
+    print("***************ANTES")
+    print(cassia_alerts.columns)
+    print(cassia_alerts)
 
-        ping_loss_message = await CassiaConfigRepository.get_config_ping_loss_message()
-
-        zabbix_alerts = await normalizar_alertas_zabbix(zabbix_alerts, ping_loss_message)
-        zabbix_alerts = await eliminar_downs_zabbix(zabbix_alerts, ping_loss_message)
-        cassia_alerts = await get_host_cassia_alerts(hostid)
-
-        problems = zabbix_alerts
-
-        if not cassia_alerts.empty:
-
-            diagnosta_events = await CassiaDiagnostaRepository.get_local_events_diagnosta_by_host(
-                hostid)
-
-            cassia_alerts = await process_cassia_alerts(cassia_alerts)
-            problems = pd.concat([cassia_alerts, problems],
-                                 ignore_index=True).replace(np.nan, "")
-
-            if not diagnosta_events.empty:
-                problems.loc[problems['eventid'].isin(
-                    diagnosta_events['local_eventid'].to_list()), 'tipo'] = 1
-
-        dependientes = await CassiaDiagnostaRepository.get_host_dependientes()
-
-        if not dependientes.empty:
-            problems = await process_dependientes_data(problems, ping_loss_message, dependientes)
-
-        problemas_sincronizados_diagnosta = await CassiaDiagnostaRepository.get_open_problems_diagnosta()
-
-        if not problemas_sincronizados_diagnosta.empty:
-
-            if not problems.empty:
-                problems = await process_sincronizados_data(problems, ping_loss_message,
-                                                            problemas_sincronizados_diagnosta)
-
+    if not cassia_alerts.empty:
+        diagnosta_events = await CassiaDiagnostaRepository.get_local_events_diagnosta_by_host(
+            hostid)
+        cassia_alerts = await process_cassia_alerts(cassia_alerts)
+        problems = pd.concat([cassia_alerts, problems],
+                             ignore_index=True).replace(np.nan, "")
+        if not diagnosta_events.empty:
+            problems.loc[problems['eventid'].isin(
+                diagnosta_events['local_eventid'].to_list()), 'tipo'] = 1
+    print("***************DESPUES")
+    print(cassia_alerts.columns)
+    print(cassia_alerts)
+    dependientes = await CassiaDiagnostaRepository.get_host_dependientes()
+    if not dependientes.empty:
+        problems = await process_dependientes_data(problems, ping_loss_message, dependientes)
+    problemas_sincronizados_diagnosta = await CassiaDiagnostaRepository.get_open_problems_diagnosta()
+    if not problemas_sincronizados_diagnosta.empty:
         if not problems.empty:
-            problems = await procesar_fechas_problemas(problems)
+            problems = await process_sincronizados_data(problems, ping_loss_message,
+                                                        problemas_sincronizados_diagnosta)
+    if not problems.empty:
+        problems = await procesar_fechas_problemas(problems)
+    if not problems.empty:
+        exceptions = await get_exceptions_async(problems['hostid'].to_list())
+        problems = pd.merge(problems, exceptions, on='hostid',
+                            how='left').replace(np.nan, None)
+    if not problems.empty:
+        problems_zabbix = problems[problems['local'] == 0]
+        problems_zabbix_ids = problems_zabbix['eventid']
+        zabbix_eventids = '0'
+        if not problems_zabbix.empty:
+            zabbix_eventids = ','.join(
+                problems_zabbix_ids.astype('str').to_list())
+        # AQUI
+        print(zabbix_eventids)
+        acks_zabbix = await get_zabbix_acks(zabbix_eventids)
+        print(acks_zabbix)
+        if not acks_zabbix.empty:
+            acks_zabbix_mensajes = acks_zabbix.groupby('eventid')[
+                'message'].agg(lambda x: ' | '.join(x)).reset_index()
+            acks_zabbix_mensajes.columns = [
+                'eventid', 'acknowledges_concatenados']
+        else:
+            acks_zabbix_mensajes = pd.DataFrame(
+                columns=['eventid', 'acknowledges_concatenados'])
+        if not problems_zabbix.empty:
+            problems_zabbix = pd.merge(
+                problems_zabbix, acks_zabbix_mensajes, how='left', on='eventid').replace(np.nan, None)
+        problems_cassia = problems[problems['local'] == 1]
+        problems_cassia_ids = problems_cassia['eventid']
+        cassia_eventids = '0'
+        if not problems_cassia.empty:
+            cassia_eventids = ','.join(
+                problems_cassia_ids.astype('str').to_list())
+        acks_cassia = await get_cassia_acks(cassia_eventids)
+        if not acks_cassia.empty:
+            acks_cassia_mensajes = acks_cassia.groupby('eventid')[
+                'message'].agg(lambda x: ' | '.join(x)).reset_index()
+            acks_cassia_mensajes.columns = [
+                'eventid', 'acknowledges_concatenados']
+        else:
+            acks_cassia_mensajes = pd.DataFrame(
+                columns=['eventid', 'acknowledges_concatenados'])
+        problems_cassia = pd.merge(
+            problems_cassia, acks_cassia_mensajes, how='left', on='eventid').replace(np.nan, None)
+        problems = pd.concat([problems_zabbix, problems_cassia])
+        problems = problems.sort_values(by='fecha', ascending=False)
+    affiliations_df = await CassiaResetRepository.get_affiliations_by_hosts_ids(problems['hostid'].tolist())
+    if not affiliations_df.empty:
+        # Realizar el merge para agregar las columnas de affiliations_df a problems
+        problems = pd.merge(problems, affiliations_df,
+                            on='hostid', how='left').replace(np.nan, None)
+    hostids_str_2 = ",".join(
+        [str(hostid) for hostid in problems['hostid'].tolist()]) if not problems.empty else "0"
+    serial_numbers_df = await cassia_gs_tickets_repository.get_serial_numbers_by_host_ids(hostids_str_2)
+    if not serial_numbers_df.empty:
+        # Realizar el merge para agregar las columnas de serial_numbers_df a problems
+        problems = pd.merge(problems, serial_numbers_df,
+                            on='hostid', how='left').replace(np.nan, None)
+    problems['create_ticket'] = 0
+    suscriptores_id = await CassiaConfigRepository.get_config_value_by_name('suscriptores_id')
+    suscriptores_id = suscriptores_id['value'][0] if not suscriptores_id.empty else 11
+    if all(col in problems.columns for col in ['affiliation', 'no_serie']):
+        problems['create_ticket'] = problems.apply(
+            lambda row: assign_value(row, suscriptores_id), axis=1)
+        print("Ambas columnas existen en el DataFrame.")
+    last_error_tickets = await cassia_gs_tickets_repository.get_last_error_tickets()
+    problems['has_ticket'] = False
+    problems['ticket_id'] = None
+    problems['ticket_error'] = None
+    problems['ticket_status'] = None
+    """ print("***************************PROBLEMS")
+    print(problems.columns)
+    print(problems) """
 
-        if not problems.empty:
-            exceptions = await get_exceptions_async(problems['hostid'].to_list())
-            problems = pd.merge(problems, exceptions, on='hostid',
-                                how='left').replace(np.nan, None)
+    if not problems.empty:
+        problems['tech_id'] = problems['tech_id'].astype(str)
+        suscriptores_id_str = str(suscriptores_id)
+        active_tickets = await cassia_gs_tickets_repository.get_active_tickets()
+        if not last_error_tickets.empty:
+            # Crear una máscara para las filas que cumplen con las condiciones
+            mask = (
+                (problems['affiliation'].isin(last_error_tickets['afiliacion'])) &
+                (problems['tech_id'] == suscriptores_id_str)
+            )
+            # Actualizar las columnas 'ticket_error' y 'ticket_status' basadas en la máscara
+            problems.loc[mask, 'ticket_error'] = last_error_tickets.set_index(
+                'afiliacion').loc[problems.loc[mask, 'affiliation'], 'error'].values
+            problems.loc[mask, 'ticket_status'] = 'error'
 
-        if not problems.empty:
-            problems_zabbix = problems[problems['local'] == 0]
-            problems_zabbix_ids = problems_zabbix['eventid']
-            zabbix_eventids = '0'
-            if not problems_zabbix.empty:
-                zabbix_eventids = ','.join(
-                    problems_zabbix_ids.astype('str').to_list())
-            # AQUI
-            print(zabbix_eventids)
-            acks_zabbix = await get_zabbix_acks(zabbix_eventids)
-            print(acks_zabbix)
-            if not acks_zabbix.empty:
-                acks_zabbix_mensajes = acks_zabbix.groupby('eventid')[
-                    'message'].agg(lambda x: ' | '.join(x)).reset_index()
-                acks_zabbix_mensajes.columns = [
-                    'eventid', 'acknowledges_concatenados']
-            else:
-                acks_zabbix_mensajes = pd.DataFrame(
-                    columns=['eventid', 'acknowledges_concatenados'])
-            if not problems_zabbix.empty:
+        if not active_tickets.empty:
+            active_tickets['ticket_active_id'] = pd.to_numeric(active_tickets['ticket_active_id'], errors='coerce').astype(
+                'Int64')
+            print("****************ACTIVE TICKETS")
+            print(active_tickets)
+            # Asegúrate de que ambos DataFrames tengan una columna en común para poder unirlos, por ejemplo, 'affiliation'.
+            merged_df = problems.merge(active_tickets[['afiliacion', 'created_at_ticket', 'ticket_active_status', 'ticket_active_id']],
+                                       left_on='affiliation',
+                                       right_on='afiliacion',
+                                       how='left')
+            merged_df['Time'] = pd.to_datetime(
+                merged_df['Time'], errors='coerce')
+            merged_df['created_at_ticket'] = pd.to_datetime(
+                merged_df['created_at_ticket'], errors='coerce')
 
-                problems_zabbix = pd.merge(
-                    problems_zabbix, acks_zabbix_mensajes, how='left', on='eventid').replace(np.nan, None)
+            """ print("*********************TIPOS*******************")
+            print(merged_df[['created_at_ticket']].dtypes)
+            print("*********************TIPOS*******************")
+            print(merged_df[['Time']].dtypes) """
+            # Ahora puedes hacer la comparación ya que ambas columnas ('Time' y 'created_at') están en el mismo DataFrame
+            mask = merged_df['Time'] <= merged_df['created_at_ticket']
+            # Aplicar la máscara y realizar la actualización
+            merged_df.loc[mask, 'has_ticket'] = True
+            merged_df.loc[mask, 'ticket_id'] = merged_df['ticket_active_id']
+            merged_df.loc[mask, 'ticket_error'] = None
+            merged_df.loc[mask,
+                          'ticket_status'] = merged_df['ticket_active_status']
+            merged_df.drop(
+                columns=['ticket_active_id', 'ticket_active_status', 'created_at_ticket', 'afiliacion'], inplace=True)
+            problems = merged_df
 
-            problems_cassia = problems[problems['local'] == 1]
-            problems_cassia_ids = problems_cassia['eventid']
-            cassia_eventids = '0'
-            if not problems_cassia.empty:
-                cassia_eventids = ','.join(
-                    problems_cassia_ids.astype('str').to_list())
-
-            acks_cassia = await get_cassia_acks(cassia_eventids)
-            if not acks_cassia.empty:
-                acks_cassia_mensajes = acks_cassia.groupby('eventid')[
-                    'message'].agg(lambda x: ' | '.join(x)).reset_index()
-                acks_cassia_mensajes.columns = [
-                    'eventid', 'acknowledges_concatenados']
-            else:
-                acks_cassia_mensajes = pd.DataFrame(
-                    columns=['eventid', 'acknowledges_concatenados'])
-            problems_cassia = pd.merge(
-                problems_cassia, acks_cassia_mensajes, how='left', on='eventid').replace(np.nan, None)
-            problems = pd.concat([problems_zabbix, problems_cassia])
-            problems = problems.sort_values(by='fecha', ascending=False)
-        affiliations_df = await CassiaResetRepository.get_affiliations_by_hosts_ids(problems['hostid'].tolist())
-        if not affiliations_df.empty:
-            # Realizar el merge para agregar las columnas de affiliations_df a problems
-            problems = pd.merge(problems, affiliations_df,
-                                on='hostid', how='left').replace(np.nan, None)
-        hostids_str_2 = ",".join(
-            [str(hostid) for hostid in problems['hostid'].tolist()]) if not problems.empty else "0"
-        serial_numbers_df = await cassia_gs_tickets_repository.get_serial_numbers_by_host_ids(hostids_str_2)
-        if not serial_numbers_df.empty:
-            # Realizar el merge para agregar las columnas de serial_numbers_df a problems
-            problems = pd.merge(problems, serial_numbers_df,
-                                on='hostid', how='left').replace(np.nan, None)
-        problems['create_ticket'] = 0
-        suscriptores_id = await CassiaConfigRepository.get_config_value_by_name('suscriptores_id')
-        suscriptores_id = suscriptores_id['value'][0] if not suscriptores_id.empty else 11
-        if all(col in problems.columns for col in ['affiliation', 'no_serie']):
-            problems['create_ticket'] = problems.apply(
-                lambda row: assign_value(row, suscriptores_id), axis=1)
-            print("Ambas columnas existen en el DataFrame.")
-        last_error_tickets = await cassia_gs_tickets_repository.get_last_error_tickets()
-        problems['has_ticket'] = False
-        problems['ticket_id'] = None
-        problems['ticket_error'] = None
-        problems['ticket_status'] = None
-        if not problems.empty:
-            for index in last_error_tickets.index:
-                problems.loc[(problems['affiliation'] == last_error_tickets['afiliacion'][index]) & (
-                    problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_error'] = last_error_tickets['error'][index]
-                problems.loc[(problems['affiliation'] == last_error_tickets['afiliacion']
-                              [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_status'] = 'error'
-            active_tickets = await cassia_gs_tickets_repository.get_active_tickets()
-            for index in active_tickets.index:
-                problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
-                              [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'has_ticket'] = True
-                problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
-                              [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_id'] = active_tickets['ticket_id'][index]
-                problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
-                              [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_error'] = None
-                problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
-                              [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_status'] = active_tickets['status'][index]
-        """ for index in last_error_tickets.index:
-            problems.loc[problems['affiliation'] == last_error_tickets['afiliacion']
-                         [index], 'ticket_error'] = last_error_tickets['error'][index]
-            problems.loc[problems['affiliation'] == last_error_tickets['afiliacion']
-                         [index], 'ticket_status'] = 'error'
+    """ if not problems.empty:
+        for index in last_error_tickets.index:
+            problems.loc[(problems['affiliation'] == last_error_tickets['afiliacion'][index]) & (
+                problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_error'] = last_error_tickets['error'][index]
+            problems.loc[(problems['affiliation'] == last_error_tickets['afiliacion']
+                          [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_status'] = 'error'
         active_tickets = await cassia_gs_tickets_repository.get_active_tickets()
         for index in active_tickets.index:
-            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
-                         [index], 'has_ticket'] = True
-            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
-                         [index], 'ticket_id'] = active_tickets['ticket_id'][index]
-            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
-                         [index], 'ticket_error'] = None
-            problems.loc[problems['affiliation'] == active_tickets['afiliacion']
-                         [index], 'ticket_status'] = active_tickets['status'][index] """
-
-        return problems
-    except Exception as e:
-        print(f"Excepcion en get_host_alerts: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Error en get_host_alerts {e}")
+            problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
+                          [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'has_ticket'] = True
+            problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
+                          [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_id'] = active_tickets['ticket_id'][index]
+            problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
+                          [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_error'] = None
+            problems.loc[(problems['affiliation'] == active_tickets['afiliacion']
+                          [index]) & (problems['tech_id'].astype(str) == str(suscriptores_id)), 'ticket_status'] = active_tickets['status'][index] """
+    """ for index in last_error_tickets.index:
+        problems.loc[problems['affiliation'] == last_error_tickets['afiliacion']
+                     [index], 'ticket_error'] = last_error_tickets['error'][index]
+        problems.loc[problems['affiliation'] == last_error_tickets['afiliacion']
+                     [index], 'ticket_status'] = 'error'
+    active_tickets = await cassia_gs_tickets_repository.get_active_tickets()
+    for index in active_tickets.index:
+        problems.loc[problems['affiliation'] == active_tickets['afiliacion']
+                     [index], 'has_ticket'] = True
+        problems.loc[problems['affiliation'] == active_tickets['afiliacion']
+                     [index], 'ticket_id'] = active_tickets['ticket_id'][index]
+        problems.loc[problems['affiliation'] == active_tickets['afiliacion']
+                     [index], 'ticket_error'] = None
+        problems.loc[problems['affiliation'] == active_tickets['afiliacion']
+                     [index], 'ticket_status'] = active_tickets['status'][index] """
+    return problems
 
 
 async def get_host_zabbix_alerts(hositd) -> pd.DataFrame:
@@ -364,7 +397,7 @@ async def process_cassia_alerts(cassia_alerts) -> pd.DataFrame:
 
     cassia_alerts['tipo'] = [
         0 for i in range(len(cassia_alerts))]
-    cassia_alerts.drop(columns={'updated_at', 'tech_id'}, inplace=True)
+    cassia_alerts.drop(columns={'updated_at', }, inplace=True)
     cassia_alerts['created_at'] = pd.to_datetime(
         cassia_alerts['created_at'])
     cassia_alerts["created_at"] = cassia_alerts['created_at'].dt.strftime(
@@ -1676,7 +1709,7 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
 
         active_tickets = dfs['active_tickets_df']
         if not active_tickets.empty:
-            active_tickets['ticket_active_id'] = pd.to_numeric(active_tickets['ticket_active_id'],errors='coerce').astype(
+            active_tickets['ticket_active_id'] = pd.to_numeric(active_tickets['ticket_active_id'], errors='coerce').astype(
                 'Int64')
             print("****************ACTIVE TICKETS")
             print(active_tickets)
