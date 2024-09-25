@@ -4,6 +4,8 @@ from services import auth_service2
 from models.cassia_user_session import CassiaUserSession
 from services.zabbix import acknowledge_service
 from fastapi import Form, Query
+from infraestructure.database import DB
+from dependencies import get_db
 acknowledge_router = APIRouter()
 
 
@@ -28,6 +30,6 @@ async def get_problems_filter(eventid: str = "34975081", message: str = Form(max
     summary="Get acknowledges of one event, Ex: 34975081",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_problems_filter(eventid: str = "34975081", is_cassia_event: int = Query(0)):
-    response = await acknowledge_service.get_acks(eventid, is_cassia_event)
+async def get_problems_filter(eventid: str = "34975081", is_cassia_event: int = Query(0), db: DB = Depends(get_db)):
+    response = await acknowledge_service.get_acks(eventid, is_cassia_event, db)
     return response
