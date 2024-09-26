@@ -84,6 +84,7 @@ async def get_acks(eventid, is_cassia_event, db):
         'event_exceptions_df': asyncio.create_task(AcknowledgesRepository.get_exceptions_pool(event['hostid'][0], clock_problem, db)),
         'event_tickets_df': asyncio.create_task(cassia_gs_tickets_repository.get_event_tickets_by_affiliation_and_date_pool(event['alias'][0], clock_problem, db)),
         'event_resets_df': asyncio.create_task(cassia_gs_tickets_repository.get_event_resets_by_affiliation_and_date_pool(event['alias'][0], clock_problem, db)),
+
     }
     results = await asyncio.gather(*tasks.values())
     dfs = dict(zip(tasks.keys(), results))
@@ -122,7 +123,7 @@ async def get_acks(eventid, is_cassia_event, db):
                                  'user': ticket['user_mail']})
             if ticket['created_at'] is not None:
                 messages.append({'type': 'Creación de ticket',
-                                'message': f"Ticket creado con folio {ticket['ticket_id']} con correo {ticket['created_with_mail']}",
+                                'message': f"Ticket creado con folio {ticket['ticket_id']}",
                                  'date': parse_date(ticket['created_at']),
                                  'user': ticket['user_mail']})
             ticket_detail = await cassia_gs_tickets_repository.get_ticket_detail_by_ticket_id_pool(ticket['ticket_id'], db)
@@ -141,7 +142,7 @@ async def get_acks(eventid, is_cassia_event, db):
             messages.append({'type': 'Reset',
                             'message': f'Estatus inicial: {event_resets["initial_status"][ind]}. Resultado: {event_resets["result"][ind]}',
                              'date': parse_date(event_resets['date'][ind]),
-                             'user': ''})
+                             'user': event_resets['mail'][ind]})
     messages = sorted(messages, key=lambda x: parse_date(
         x["date"]) or datetime.min)
     for message in messages:

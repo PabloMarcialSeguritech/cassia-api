@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
     await db.close_pool()  # Cerrar el pool de conexiones
 
 app.router.lifespan_context = lifespan
-app.version = '3.1'
+app.version = '3.2'
 origins = ["*"]
 
 app.add_middleware(
@@ -35,7 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 # ACTUALIZAR NOMBRE
-""" app.add_middleware(ErrorHandler) """
+app.add_middleware(ErrorHandler)
 
 app.include_router(auth_router)
 app.include_router(zabbix_router, dependencies=[Depends(get_db)])
