@@ -1621,6 +1621,10 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
             exceptions['created_at'], format='%Y-%m-%d %H:%M:%S').dt.tz_localize(None)
         problems = pd.merge(problems, exceptions, on='hostid',
                             how='left').replace(np.nan, None)
+        problems['acknowledges_concatenados'] = problems['exception_message'].fillna(
+            '')
+    else:
+        problems['acknowledges_concatenados'] = None
 
     if not problems.empty:
         problems_zabbix = problems[problems['local'] == 0]
@@ -1655,6 +1659,16 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
         # Concatenar problemas zabbix y cassia
         problems = pd.concat([problems_zabbix, problems_cassia]).sort_values(
             by='fecha', ascending=False)
+
+        problems['acknowledges_concatenados'] = problems['acknowledges_concatenados'] + \
+            problems['message'].fillna('')
+    if 'acknowledges_concatenados' in problems.columns:
+        problems['acknowledges_concatenados'] = problems['acknowledges_concatenados'].replace(
+            '', None)
+
+    print("**********************AQUIII")
+    print(problems.columns)
+    print(problems)
 
     # Procesar afiliaciones y números de serie
     if not problems.empty:
