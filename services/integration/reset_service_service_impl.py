@@ -3,7 +3,7 @@ from utils.settings import Settings
 import requests
 import pandas as pd
 from infraestructure.cassia import CassiaResetRepository
-from utils.traits import success_response, failure_response
+from utils.traits import success_response, failure_response, get_datetime_now_str_with_tz
 from fastapi import Depends
 from typing import Optional
 import asyncio
@@ -628,6 +628,15 @@ class ResetServiceImpl(ResetServiceFacade):
         return failure_response(message="No se realizó con éxito el reset")
 
     async def reset(self, pmiAfiliacion, current_user_session):
+        reset_history_data = {
+            'affiliation': pmiAfiliacion,
+            'date': get_datetime_now_str_with_tz(),
+            'result': 'Todos los dispositivos de PMI fueron recuperados',
+            'initial_status': 'No se recuperaron todos los dispositivos',
+            'action': 0,
+            'user_id': current_user_session.user_id
+        }
+
         print("__ reset function __")
         # pmi dispositivos
         pmiDevices = await self.get_pmi_devices_by_afiliacion(pmiAfiliacion)
@@ -664,6 +673,10 @@ class ResetServiceImpl(ResetServiceFacade):
                     'action': pmiStatusRecuperacion,
                     'pmiDetalleRecuperacion': pmiDetalleRecuperacion
                 }
+                reset_history_data['result'] = pmiDetalleRecuperacion
+                reset_history_data['initial_status'] = 'Todos los dispositivos del pmi comenzaron en desconectados/down'
+                reset_history_data['action'] = 1 if pmiStatusRecuperacion else 0
+                result = await CassiaResetRepository.save_reset_history_data(reset_history_data)
                 return success_response(message=pmiDetalleRecuperacion, success=pmiStatusRecuperacion, data=response)
             # Reintento por que no hubo recuperación total
             else:
@@ -688,6 +701,11 @@ class ResetServiceImpl(ResetServiceFacade):
                         'action': pmiStatusRecuperacion,
                         'pmiDetalleRecuperacion': pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo',
                     }
+                    reset_history_data['result'] = pmiDetalleRecuperacion + \
+                        ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo'
+                    reset_history_data['initial_status'] = 'Todos los dispositivos del pmi comenzaron en desconectados/down'
+                    reset_history_data['action'] = 1 if pmiStatusRecuperacion else 0
+                    result = await CassiaResetRepository.save_reset_history_data(reset_history_data)
                     return success_response(message=pmiDetalleRecuperacion +
                                             ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo', success=pmiStatusRecuperacion, data=response)
                 else:
@@ -696,6 +714,11 @@ class ResetServiceImpl(ResetServiceFacade):
                         'action': pmiStatusRecuperacion,
                         'pmiDetalleRecuperacion': pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro',
                     }
+                    reset_history_data['result'] = pmiDetalleRecuperacion + \
+                        ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro'
+                    reset_history_data['initial_status'] = 'Todos los dispositivos del pmi comenzaron en desconectados/down'
+                    reset_history_data['action'] = 1 if pmiStatusRecuperacion else 0
+                    result = await CassiaResetRepository.save_reset_history_data(reset_history_data)
                     return failure_response(message=pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro', data=response)
 
         # Caso 2: Todos son up :
@@ -720,7 +743,10 @@ class ResetServiceImpl(ResetServiceFacade):
                     'action': False,
                     'pmiDetalleRecuperacion': pmiDetalleShutDown
                 }
-
+                reset_history_data['result'] = pmiDetalleShutDown
+                reset_history_data['initial_status'] = 'Todos los dispositivos del pmi comenzaron conectados/up'
+                reset_history_data['action'] = False
+                result = await CassiaResetRepository.save_reset_history_data(reset_history_data)
                 return failure_response(message=pmiDetalleShutDown, data=response)
 
             # monitorear recuperacion
@@ -732,7 +758,10 @@ class ResetServiceImpl(ResetServiceFacade):
                     'action': pmiStatusRecuperacion,
                     'pmiDetalleRecuperacion': pmiDetalleRecuperacion
                 }
-
+                reset_history_data['result'] = pmiDetalleRecuperacion
+                reset_history_data['initial_status'] = 'Todos los dispositivos del pmi comenzaron conectados/up'
+                reset_history_data['action'] = pmiStatusRecuperacion
+                result = await CassiaResetRepository.save_reset_history_data(reset_history_data)
                 print("response::::", response)
                 return success_response(message=pmiDetalleRecuperacion, success=pmiStatusRecuperacion, data=response)
             else:
@@ -756,6 +785,11 @@ class ResetServiceImpl(ResetServiceFacade):
                         'action': pmiStatusRecuperacion,
                         'pmiDetalleRecuperacion': pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo',
                     }
+                    reset_history_data['result'] = pmiDetalleRecuperacion + \
+                        ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo'
+                    reset_history_data['initial_status'] = 'Todos los dispositivos del pmi comenzaron en desconectados/down'
+                    reset_history_data['action'] = pmiStatusRecuperacion
+                    result = await CassiaResetRepository.save_reset_history_data(reset_history_data)
                     return success_response(message=pmiDetalleRecuperacion +
                                             ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo',
                                             success=pmiStatusRecuperacion, data=response)
@@ -765,6 +799,11 @@ class ResetServiceImpl(ResetServiceFacade):
                         'action': pmiStatusRecuperacion,
                         'pmiDetalleRecuperacion': pmiDetalleRecuperacion + ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro',
                     }
+                    reset_history_data['result'] = pmiDetalleRecuperacion + \
+                        ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro'
+                    reset_history_data['initial_status'] = 'Todos los dispositivos del pmi comenzaron en desconectados/down'
+                    reset_history_data['action'] = pmiStatusRecuperacion
+                    result = await CassiaResetRepository.save_reset_history_data(reset_history_data)
                     return failure_response(
                         message=pmiDetalleRecuperacion +
                         ', fue requerido 1 reintento adicional por el sistema para recuperar el PMI completo pero no se logro',
@@ -796,7 +835,11 @@ class ResetServiceImpl(ResetServiceFacade):
                     'action': False,
                     'pmiDetalleRecuperacion': pmiDetalleShutDown
                 }
-
+                reset_history_data['result'] = pmiDetalleShutDown
+                reset_history_data[
+                    'initial_status'] = 'Dispositivos del pmi comenzaron en estados mixtos (algunos up, otros down)'
+                reset_history_data['action'] = False
+                result = await CassiaResetRepository.save_reset_history_data(reset_history_data)
                 return failure_response(message=pmiDetalleShutDown, data=response)
 
                 # Monitorear recuperación de dispositivos
@@ -817,6 +860,11 @@ class ResetServiceImpl(ResetServiceFacade):
                 'action': pmiStatusRecuperacion,
                 'pmiDetalleRecuperacion': pmiDetalleRecuperacion
             }
+            reset_history_data['result'] = pmiDetalleRecuperacion
+            reset_history_data[
+                'initial_status'] = 'Dispositivos del pmi comenzaron en estados mixtos (algunos up, otros down)'
+            reset_history_data['action'] = pmiStatusRecuperacion
+            result = await CassiaResetRepository.save_reset_history_data(reset_history_data)
 
             return success_response(message=pmiDetalleRecuperacion, success=pmiStatusRecuperacion, data=response)
 

@@ -1364,7 +1364,8 @@ and cet.deleted_at  is NULL
 
     def builder_query_statement_get_resets_by_afiliation_and_date(self, afiliacion, date):
         self.query_statement_get_resets_by_afiliation_and_date = f"""
-select * from cassia_resets_history crh 
+select crh.*,cu.mail from cassia_resets_history crh 
+inner join cassia_users cu on cu.user_id =crh.user_id 
 where crh.affiliation ='{afiliacion}'
 and date>='{date}'
 """
