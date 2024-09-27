@@ -172,49 +172,58 @@ async def get_host_alerts(hostid):
         problems = await procesar_fechas_problemas(problems)
     if not problems.empty:
         exceptions = await get_exceptions_async(problems['hostid'].to_list())
-        problems = pd.merge(problems, exceptions, on='hostid',
-                            how='left').replace(np.nan, None)
+        print(exceptions)
+        if not exceptions.empty:
+            exceptions['created_at'] = pd.to_datetime(
+                exceptions['created_at'], format='%Y-%m-%d %H:%M:%S').dt.tz_localize(None)
+            problems = pd.merge(problems, exceptions, on='hostid',
+                                how='left').replace(np.nan, None)
+            problems['acknowledges_concatenados'] = problems['exception_message'].fillna(
+                '')
+        else:
+            problems['acknowledges_concatenados'] = None
     if not problems.empty:
         problems_zabbix = problems[problems['local'] == 0]
-        problems_zabbix_ids = problems_zabbix['eventid']
-        zabbix_eventids = '0'
-        if not problems_zabbix.empty:
-            zabbix_eventids = ','.join(
-                problems_zabbix_ids.astype('str').to_list())
-        # AQUI
-        print(zabbix_eventids)
-        acks_zabbix = await get_zabbix_acks(zabbix_eventids)
-        print(acks_zabbix)
-        if not acks_zabbix.empty:
-            acks_zabbix_mensajes = acks_zabbix.groupby('eventid')[
-                'message'].agg(lambda x: ' | '.join(x)).reset_index()
-            acks_zabbix_mensajes.columns = [
-                'eventid', 'acknowledges_concatenados']
-        else:
-            acks_zabbix_mensajes = pd.DataFrame(
-                columns=['eventid', 'acknowledges_concatenados'])
-        if not problems_zabbix.empty:
-            problems_zabbix = pd.merge(
-                problems_zabbix, acks_zabbix_mensajes, how='left', on='eventid').replace(np.nan, None)
         problems_cassia = problems[problems['local'] == 1]
-        problems_cassia_ids = problems_cassia['eventid']
-        cassia_eventids = '0'
-        if not problems_cassia.empty:
-            cassia_eventids = ','.join(
-                problems_cassia_ids.astype('str').to_list())
-        acks_cassia = await get_cassia_acks(cassia_eventids)
+
+        # Obtener acknowledgements
+        zabbix_eventids = ','.join(problems_zabbix['eventid'].astype(
+            str).tolist()) if not problems_zabbix.empty else '0'
+        cassia_eventids = ','.join(problems_cassia['eventid'].astype(
+            str).tolist()) if not problems_cassia.empty else '0'
+        task_2 = {
+            'acks_zabbix_df': get_zabbix_acks(zabbix_eventids),
+            'acks_cassia_df': get_cassia_acks(cassia_eventids)
+        }
+        results2 = await asyncio.gather(*task_2.values())
+        acks_zabbix = results2[0]
+        acks_cassia = results2[1]
+
+        # Concatenar acknowledges
+        if not acks_zabbix.empty:
+            acks_zabbix_mensajes = acks_zabbix.groupby(
+                'eventid')['message'].agg(' | '.join).reset_index()
+            problems_zabbix = pd.merge(
+                problems_zabbix, acks_zabbix_mensajes, on='eventid', how='left')
+
         if not acks_cassia.empty:
-            acks_cassia_mensajes = acks_cassia.groupby('eventid')[
-                'message'].agg(lambda x: ' | '.join(x)).reset_index()
-            acks_cassia_mensajes.columns = [
-                'eventid', 'acknowledges_concatenados']
-        else:
-            acks_cassia_mensajes = pd.DataFrame(
-                columns=['eventid', 'acknowledges_concatenados'])
-        problems_cassia = pd.merge(
-            problems_cassia, acks_cassia_mensajes, how='left', on='eventid').replace(np.nan, None)
-        problems = pd.concat([problems_zabbix, problems_cassia])
-        problems = problems.sort_values(by='fecha', ascending=False)
+            acks_cassia_mensajes = acks_cassia.groupby(
+                'eventid')['message'].agg(' | '.join).reset_index()
+            problems_cassia = pd.merge(
+                problems_cassia, acks_cassia_mensajes, on='eventid', how='left')
+
+        # Concatenar problemas zabbix y cassia
+        problems = pd.concat([problems_zabbix, problems_cassia]).sort_values(
+            by='fecha', ascending=False)
+
+        print(problems.columns)
+        print(problems)
+        if 'message' in problems.columns:
+            problems['acknowledges_concatenados'] = problems['acknowledges_concatenados'] + \
+                problems['message'].fillna('')
+    if 'acknowledges_concatenados' in problems.columns:
+        problems['acknowledges_concatenados'] = problems['acknowledges_concatenados'].replace(
+            '', None)
     affiliations_df = await CassiaResetRepository.get_affiliations_by_hosts_ids(problems['hostid'].tolist())
     if not affiliations_df.empty:
         # Realizar el merge para agregar las columnas de affiliations_df a problems
@@ -1659,9 +1668,9 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
         # Concatenar problemas zabbix y cassia
         problems = pd.concat([problems_zabbix, problems_cassia]).sort_values(
             by='fecha', ascending=False)
-
-        problems['acknowledges_concatenados'] = problems['acknowledges_concatenados'] + \
-            problems['message'].fillna('')
+        if 'message' in problems.empty:
+            problems['acknowledges_concatenados'] = problems['acknowledges_concatenados'] + \
+                problems['message'].fillna('')
     if 'acknowledges_concatenados' in problems.columns:
         problems['acknowledges_concatenados'] = problems['acknowledges_concatenados'].replace(
             '', None)
