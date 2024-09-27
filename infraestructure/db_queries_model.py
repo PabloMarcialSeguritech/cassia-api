@@ -1379,3 +1379,15 @@ values
 ('{data['affiliation']}','{data['date']}','{data['result']}','{data['initial_status']}',{data['action']},{data['user_id']})
 """
         return self.query_statement_save_reset_history_data
+
+    def builder_query_statement_get_active_tickets_by_hostid(self, hostid):
+        self.query_statement_get_active_tickets_by_hostid = f"""
+select * from cassia_gs_tickets cgt 
+where cgt.host_id ={hostid}
+and status !='Cerrado'
+and status !='error'
+and status !='solicitado'
+and ticket_id is not null
+"""
+
+        return self.query_statement_get_active_tickets_by_hostid

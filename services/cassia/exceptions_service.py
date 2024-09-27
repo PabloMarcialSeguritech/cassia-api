@@ -6,6 +6,7 @@ import schemas.exceptions_schema as exception_schema
 from utils.traits import success_response, get_datetime_now_with_tz
 from infraestructure.cassia import cassia_exception_agencies_repository
 from infraestructure.cassia import cassia_exceptions_repository
+from infraestructure.cassia import cassia_gs_tickets_repository
 from fastapi import status
 import pandas as pd
 import pytz
@@ -110,10 +111,24 @@ async def create_exception_async(exception: exception_schema.CassiaExceptionsBas
         )
     current_time = get_datetime_now_with_tz()
     exception_dict = exception.dict()
-    exception_dict['session_id'] = current_user_session
+    exception_dict['session_id'] = current_user_session.session_id.hex
     exception_dict['closed_at'] = None
     exception_dict['created_at'] = current_time.strftime("%Y-%m-%d %H:%M:%S")
     exception = await cassia_exceptions_repository.create_cassia_exception(exception_dict)
+    """ TICKETS_PROGRESS_SOLUTION """
+    """ if exception is not None:
+        active_tickets = await cassia_gs_tickets_repository.get_active_tickets_by_hostid(exception.hostid)
+        if not active_tickets.empty:
+            ticket_data = {
+                "ticketId": int(active_tickets['ticket_id'][0]),
+                "comment": exception.description,
+                "engineer": current_user_session.mail,
+            }
+            print(ticket_data)
+            created_ticket_comment = await cassia_gs_tickets_repository.create_ticket_comment_avance_solucion(ticket_data)
+            print(created_ticket_comment)
+            save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_avance_solucion(ticket_data, created_ticket_comment, current_user_session.mail, active_tickets['cassia_gs_tickets_id'][0])
+            print(save_ticket_data) """
 
     return success_response(message="Excepcion creada correctamente",
                             data=exception,
