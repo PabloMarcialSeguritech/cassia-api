@@ -1668,7 +1668,7 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
         # Concatenar problemas zabbix y cassia
         problems = pd.concat([problems_zabbix, problems_cassia]).sort_values(
             by='fecha', ascending=False)
-        if 'message' in problems.empty:
+        if 'message' in problems.columns:
             problems['acknowledges_concatenados'] = problems['acknowledges_concatenados'] + \
                 problems['message'].fillna('')
     if 'acknowledges_concatenados' in problems.columns:
