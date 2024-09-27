@@ -184,6 +184,22 @@ async def register_ack_cassia(eventid, message, current_session, close):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El evento de CASSIA no existe",
         )
+
     created_acknowledge = await AcknowledgesRepository.create_cassia_event_acknowledge(eventid, message, current_session, close)
+    """ TICKETS_PROGRESS_SOLUTION """
+    """ if created_acknowledge:
+        active_tickets = await cassia_gs_tickets_repository.get_active_tickets_by_hostid(event['hostid'][0])
+        if not active_tickets.empty:
+            ticket_data = {
+                "ticketId": int(active_tickets['ticket_id'][0]),
+                "comment": message,
+                "engineer": current_session.mail,
+            }
+            print(ticket_data)
+            created_ticket_comment = await cassia_gs_tickets_repository.create_ticket_comment_avance_solucion(ticket_data)
+            print(created_ticket_comment)
+            save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_avance_solucion(ticket_data, created_ticket_comment, current_session.mail, active_tickets['cassia_gs_tickets_id'][0])
+            print(save_ticket_data)
+ """
     message = "Acknowledge de CASSIA creado correctamente" if created_acknowledge else "Error al crear Acknowledge de CASSIA"
     return success_response(message=message)

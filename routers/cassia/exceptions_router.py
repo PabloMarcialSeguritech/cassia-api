@@ -96,7 +96,7 @@ async def create_exception_async(exception: exception_schema.CassiaExceptionsBas
                                  current_user_session: CassiaUserSession = Depends(
                                      auth_service2.get_current_user_session)):
     return await exceptions_service.create_exception_async(exception=exception,
-                                                           current_user_session=current_user_session.session_id.hex)
+                                                           current_user_session=current_user_session)
 
 
 @exceptions_router.post(
