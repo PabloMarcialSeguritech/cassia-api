@@ -199,6 +199,25 @@ async def get_event_tickets_by_affiliation_and_date(afiliacion, date) -> pd.Data
         await db_model.close_connection()
 
 
+async def get_active_tickets_by_hostid(hostid) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        query_statement_get_active_tickets_by_hostid = DBQueries(
+        ).builder_query_statement_get_active_tickets_by_hostid(hostid)
+        await db_model.start_connection()
+
+        tickets_data = await db_model.run_query(query_statement_get_active_tickets_by_hostid)
+        tickets_df = pd.DataFrame(tickets_data)
+        return tickets_df
+
+    except Exception as e:
+        print(f"Excepcion en get_active_tickets_by_hostid: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_active_tickets_by_hostid: {e}")
+    finally:
+        await db_model.close_connection()
+
+
 async def get_active_tickets_by_afiliation(afiliacion) -> pd.DataFrame:
     db_model = DB()
     try:
@@ -454,3 +473,62 @@ async def get_mac_address_by_hostid(hostid) -> pd.DataFrame:
                             detail=f"Excepcion en get_mac_address_by_hostid: {e}")
     finally:
         await db_model.close_connection()
+
+
+async def create_ticket_comment_avance_solucion(ticket_data):
+    queue_name = 'cassia-gser'
+    message_data = {
+        "ticketId": ticket_data['ticketId'],
+        "comment": ticket_data['comment'],
+        "engineer": ticket_data['engineer'],
+    }
+
+    message_content = json.dumps(message_data)
+    subject = "ticketcommentprogresssolution"
+    print(subject)
+    try:
+        with ServiceBusClient.from_connection_string(conn_str=gs_connection_string, logging_enable=True) as servicebus_client:
+            sender = servicebus_client.get_queue_sender(queue_name=queue_name)
+            message = ServiceBusMessage(
+                message_content, subject=subject)
+            sender.send_messages(message)
+            print(f"Sent: {message_content} with subject: {subject}")
+            print(f"Message_id: {message.message_id}")
+            print(f"correlation_id: {message.correlation_id}")
+            message.subject = subject
+            return message
+    except:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Error al agregar comentario al ticket en SGS")
+
+
+async def save_ticket_comment_avance_solucion(ticket_data, created_ticket_comment, mail, created_ticket_gs_id) -> pd.DataFrame:
+    db_model = DB()
+    try:
+        session = await db_model.get_session()
+        now = traits.get_datetime_now_with_tz()
+        cassia_gs_ticket_detail = cassia_gs_tickets_detail.CassiaGSTicketsDetailModel(
+            cassia_gs_tickets_id=created_ticket_gs_id,
+            ticket_id=ticket_data['ticketId'],
+            type="ticketcommentprogresssolution",
+            comment=ticket_data['comment'],
+            status="solicitado",
+            user_email=mail,
+            file_url=None,
+            last_update=now,
+            message_id=created_ticket_comment.message_id,
+            requested_at=now,
+            created_at=now,
+            created_with_mail=mail
+        )
+        session.add(cassia_gs_ticket_detail)
+        await session.commit()
+        await session.refresh(cassia_gs_ticket_detail)
+        return cassia_gs_ticket_detail
+
+    except Exception as e:
+        print(f"Excepcion en save_ticket_comment_avance_solucion: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en save_ticket_comment_avance_solucion: {e}")
+    finally:
+        await session.close()
