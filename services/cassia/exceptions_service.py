@@ -116,7 +116,7 @@ async def create_exception_async(exception: exception_schema.CassiaExceptionsBas
     exception_dict['created_at'] = current_time.strftime("%Y-%m-%d %H:%M:%S")
     exception = await cassia_exceptions_repository.create_cassia_exception(exception_dict)
     """ TICKETS_PROGRESS_SOLUTION """
-    """ if exception is not None:
+    if exception is not None:
         active_tickets = await cassia_gs_tickets_repository.get_active_tickets_by_hostid(exception.hostid)
         if not active_tickets.empty:
             ticket_data = {
@@ -128,7 +128,7 @@ async def create_exception_async(exception: exception_schema.CassiaExceptionsBas
             created_ticket_comment = await cassia_gs_tickets_repository.create_ticket_comment_avance_solucion(ticket_data)
             print(created_ticket_comment)
             save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_avance_solucion(ticket_data, created_ticket_comment, current_user_session.mail, active_tickets['cassia_gs_tickets_id'][0])
-            print(save_ticket_data) """
+            print(save_ticket_data)
 
     return success_response(message="Excepcion creada correctamente",
                             data=exception,

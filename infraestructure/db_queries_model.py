@@ -1229,6 +1229,18 @@ and status !='error'
 
         return self.query_statement_get_active_tickets_by_afiliation
 
+    def builder_query_statement_get_active_tickets_by_afiliation_reset(self, afiliacion):
+        self.query_statement_get_active_tickets_by_afiliation_reset = f"""
+select * from cassia_gs_tickets cgt 
+where cgt.afiliacion ='{afiliacion}'
+and status !='Cerrado'
+and status !='error'
+and status !='solicitado'
+and ticket_id is not null
+"""
+
+        return self.query_statement_get_active_tickets_by_afiliation_reset
+
     def builder_query_statement_get_active_tickets_by_afiliation_and_date(self, afiliacion, date):
         self.query_statement_get_active_tickets_by_afiliation_and_date = f"""
 select * from cassia_gs_tickets cgt 
