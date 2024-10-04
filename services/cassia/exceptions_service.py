@@ -134,9 +134,10 @@ async def create_exception_async(exception: exception_schema.CassiaExceptionsBas
                 }
                 print(ticket_data)
                 created_ticket_comment = await cassia_gs_tickets_repository.create_ticket_comment_avance_solucion(ticket_data)
-                print(created_ticket_comment)
-                save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_avance_solucion(ticket_data, created_ticket_comment, current_user_session.mail, active_tickets['cassia_gs_tickets_id'][0])
-                print(save_ticket_data)
+                if created_ticket_comment is not False:
+                    print(created_ticket_comment)
+                    save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_avance_solucion(ticket_data, created_ticket_comment, current_user_session.mail, active_tickets['cassia_gs_tickets_id'][0])
+                    print(save_ticket_data)
 
     return success_response(message="Excepcion creada correctamente",
                             data=exception,

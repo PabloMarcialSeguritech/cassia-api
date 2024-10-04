@@ -636,9 +636,12 @@ class ResetServiceImpl(ResetServiceFacade):
             "engineer": current_user_session.mail,
         }
         created_ticket_comment = await cassia_gs_tickets_repository.create_ticket_comment_avance_solucion(ticket_data)
-        save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_avance_solucion(ticket_data, created_ticket_comment, current_user_session.mail, active_tickets['cassia_gs_tickets_id'][0])
-        print(ticket_data)
-        print(save_ticket_data)
+        if created_ticket_comment is not False:
+            save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_avance_solucion(ticket_data, created_ticket_comment, current_user_session.mail, active_tickets['cassia_gs_tickets_id'][0])
+            print(ticket_data)
+            print(save_ticket_data)
+        else:
+            return False
         return True
 
     async def reset(self, pmiAfiliacion, current_user_session):
