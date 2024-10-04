@@ -14,6 +14,7 @@ from tasks.syslog_schedule import syslog_schedule
 from tasks.diagnosta_schedule import diagnosta_schedule
 from tasks.reports_notification_schedule import report_scheduler
 from tasks.actions_automation_schedule import automation_actions_scheduler
+from tasks.resets_schedule import resets_schedule
 # Creating the Rocketry app
 app = Rocketry(config={"task_execution": "async"})
 
@@ -25,6 +26,7 @@ app.include_grouper(syslog_schedule)
 app.include_grouper(diagnosta_schedule)
 app.include_grouper(report_scheduler)
 app.include_grouper(automation_actions_scheduler)
+app.include_grouper(resets_schedule)
 
 
 if __name__ == "__main__":
