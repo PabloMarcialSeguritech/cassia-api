@@ -2,6 +2,7 @@ from infraestructure.cassia import CassiaEventRepository
 from infraestructure.zabbix import ZabbixEventRepository
 from infraestructure.zabbix import AcknowledgesRepository
 from infraestructure.cassia import cassia_gs_tickets_repository
+from infraestructure.cassia import CassiaConfigRepository
 from utils.traits import success_response, get_datetime_now_str_with_tz, get_datetime_now_with_tz
 from fastapi import HTTPException, status
 from datetime import datetime
@@ -170,18 +171,25 @@ async def register_ack(eventid, message, current_session, close, is_zabbix_event
         created_acknowledge = await AcknowledgesRepository.create_zabbix_acknowledge(eventid, message, current_session, close)
         message = "Acknowledge creado correctamente" if created_acknowledge else "Error al crear Acknowledge"
         if created_acknowledge:
-            active_tickets = await cassia_gs_tickets_repository.get_active_tickets_by_hostid(event['hostid'][0])
-            if not active_tickets.empty:
-                ticket_data = {
-                    "ticketId": int(active_tickets['ticket_id'][0]),
-                    "comment": message,
-                    "engineer": current_session.mail,
-                }
-                print(ticket_data)
-                created_ticket_comment = await cassia_gs_tickets_repository.create_ticket_comment_avance_solucion(ticket_data)
-                print(created_ticket_comment)
-                save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_avance_solucion(ticket_data, created_ticket_comment, current_session.mail, active_tickets['cassia_gs_tickets_id'][0])
-                print(save_ticket_data)
+            is_gs_tickets_active = await CassiaConfigRepository.get_config_value_by_name(
+                'gs_tickets')
+            if is_gs_tickets_active.empty:
+                is_gs_tickets_active = 0
+            else:
+                is_gs_tickets_active = is_gs_tickets_active['value'][0]
+            if is_gs_tickets_active:
+                active_tickets = await cassia_gs_tickets_repository.get_active_tickets_by_hostid(event['hostid'][0])
+                if not active_tickets.empty:
+                    ticket_data = {
+                        "ticketId": int(active_tickets['ticket_id'][0]),
+                        "comment": message,
+                        "engineer": current_session.mail,
+                    }
+                    print(ticket_data)
+                    created_ticket_comment = await cassia_gs_tickets_repository.create_ticket_comment_avance_solucion(ticket_data)
+                    print(created_ticket_comment)
+                    save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_avance_solucion(ticket_data, created_ticket_comment, current_session.mail, active_tickets['cassia_gs_tickets_id'][0])
+                    print(save_ticket_data)
         return success_response(message=message)
     else:
 
@@ -201,18 +209,25 @@ async def register_ack_cassia(eventid, message, current_session, close):
     created_acknowledge = await AcknowledgesRepository.create_cassia_event_acknowledge(eventid, message, current_session, close)
     """ TICKETS_PROGRESS_SOLUTION """
     if created_acknowledge:
-        active_tickets = await cassia_gs_tickets_repository.get_active_tickets_by_hostid(event['hostid'][0])
-        if not active_tickets.empty:
-            ticket_data = {
-                "ticketId": int(active_tickets['ticket_id'][0]),
-                "comment": message,
-                "engineer": current_session.mail,
-            }
-            print(ticket_data)
-            created_ticket_comment = await cassia_gs_tickets_repository.create_ticket_comment_avance_solucion(ticket_data)
-            print(created_ticket_comment)
-            save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_avance_solucion(ticket_data, created_ticket_comment, current_session.mail, active_tickets['cassia_gs_tickets_id'][0])
-            print(save_ticket_data)
+        is_gs_tickets_active = await CassiaConfigRepository.get_config_value_by_name(
+            'gs_tickets')
+        if is_gs_tickets_active.empty:
+            is_gs_tickets_active = 0
+        else:
+            is_gs_tickets_active = is_gs_tickets_active['value'][0]
+        if is_gs_tickets_active:
+            active_tickets = await cassia_gs_tickets_repository.get_active_tickets_by_hostid(event['hostid'][0])
+            if not active_tickets.empty:
+                ticket_data = {
+                    "ticketId": int(active_tickets['ticket_id'][0]),
+                    "comment": message,
+                    "engineer": current_session.mail,
+                }
+                print(ticket_data)
+                created_ticket_comment = await cassia_gs_tickets_repository.create_ticket_comment_avance_solucion(ticket_data)
+                print(created_ticket_comment)
+                save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_avance_solucion(ticket_data, created_ticket_comment, current_session.mail, active_tickets['cassia_gs_tickets_id'][0])
+                print(save_ticket_data)
 
     message = "Acknowledge de CASSIA creado correctamente" if created_acknowledge else "Error al crear Acknowledge de CASSIA"
     return success_response(message=message)

@@ -675,33 +675,62 @@ async def downs_count_backup(municipality_id, dispId, subtype_id):
 
 
 async def downs_origin_count_(municipality_id, dispId, subtype_id, downs_excepcion):
-    downs = await layers_repository.get_host_downs(0, dispId, '')
+    try:
+        # Recuperar los 'downs' desde la base de datos
+        downs = await layers_repository.get_host_downs(0, dispId, '')
+        print("***********************EXCEPCIONES**************************")
+        print(downs_excepcion)
+        print("***********************DOWNS**************************")
+        print(downs)
 
-    print("***********************EXCEPCIONES**************************")
-    print(downs_excepcion)
-    print("***********************DOWNS**************************")
-    print(downs)
-    if not downs.empty:
-        downs = downs[~downs['hostid'].isin(
-            downs_excepcion['hostid'].to_list())]
-    print("##############################################")
-    print("***********************DOWNS SIN EXCEPCIONES**************************")
-    print(downs)
-    dependientes = await layers_repository.get_host_downs_dependientes()
-    print(1)
-    print(dependientes)
-    dependientes_down = dependientes.merge(downs, how='inner', on='hostid')
-    print(dependientes_down)
-    print(2)
-    count_downs = len(downs)
-    if not downs.empty and not dependientes.empty:
-        downs_origen = len(downs)-len(dependientes_down)
-        print(3)
-    elif dependientes.empty and not downs.empty:
-        downs_origen = len(downs)
-    else:
-        downs_origen = 0
-    return {'downs': count_downs, 'downs_origen': downs_origen}
+        # Verificar si 'downs' está vacío
+        if downs.empty:
+            print("El DataFrame 'downs' está vacío.")
+            return {'downs': 0, 'downs_origen': 0}
+
+        # Filtrar 'downs' eliminando los 'hostid' en 'downs_excepcion'
+        downs = downs[~downs['hostid'].isin(downs_excepcion['hostid'].to_list())]
+        print("##############################################")
+        print("***********************DOWNS SIN EXCEPCIONES**************************")
+        print(downs)
+
+        # Recuperar los 'dependientes' desde la base de datos
+        dependientes = await layers_repository.get_host_downs_dependientes()
+        print("***********************DEPENDIENTES**************************")
+        print(dependientes)
+
+        # Contar los 'downs' totales
+        count_downs = len(downs)
+
+        # Verificar si 'dependientes' está vacío
+        if not dependientes.empty:
+            # Intentar hacer el 'merge' entre 'dependientes' y 'downs'
+            try:
+                dependientes_down = dependientes.merge(downs, how='inner', on='hostid')
+                print("***********************DEPENDIENTES DOWN**************************")
+                print(dependientes_down)
+                
+                # Calcular los 'downs_origen' si ambos 'DataFrames' tienen datos
+                downs_origen = len(downs) - len(dependientes_down)
+            except Exception as e:
+                print(f"Error durante el merge: {e}")
+                return {'error': 'Error al hacer merge de dependientes y downs', 'message': str(e)}
+        else:
+            # Si 'dependientes' está vacío y 'downs' tiene datos
+            print("El DataFrame 'dependientes' está vacío.")
+            downs_origen = len(downs)
+
+        # Si ambos DataFrames están vacíos
+        if downs.empty and dependientes.empty:
+            downs_origen = 0
+
+        print(f"Total downs: {count_downs}, Downs origen: {downs_origen}")
+        return {'downs': count_downs, 'downs_origen': downs_origen}
+
+    except Exception as e:
+        # Capturar cualquier otro error inesperado
+        print(f"Error inesperado: {e}")
+        return {'error': 'Ocurrió un error inesperado', 'message': str(e)}
 
 
 async def get_host_filter_(municipalityId, dispId, subtype_id, db):

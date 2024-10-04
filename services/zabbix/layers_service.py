@@ -123,6 +123,8 @@ async def get_downs_layer_async(municipality_id, dispId, subtype_id, db):
     dfs = dict(zip(tasks.keys(), results))
     downs = dfs['downs_df']
     dependientes = dfs['dependientes_df']
+    if dependientes.empty:
+        dependientes = pd.DataFrame(columns=['hostid'])
     downs_origen_filtro = dfs['downs_origen_filtro_df']
     downs_origen = dfs['downs_origen_df']
     """ downs_filtro = downs_origen """
@@ -417,6 +419,8 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id, leng
     dependientes = dfs['dependientes_df']
     print("***********DEPENDIENTES***********")
     print(dependientes)
+    if dependientes.empty:
+        dependientes = pd.DataFrame(columns=['hostid'])
     origenes = downs[~downs['hostid'].isin(dependientes['hostid'].to_list())]
     print("***********ORIGENES***********")
     print(origenes)
