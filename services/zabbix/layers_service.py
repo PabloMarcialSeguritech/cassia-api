@@ -123,6 +123,8 @@ async def get_downs_layer_async(municipality_id, dispId, subtype_id, db):
     dfs = dict(zip(tasks.keys(), results))
     downs = dfs['downs_df']
     dependientes = dfs['dependientes_df']
+    if dependientes.empty:
+        dependientes = pd.DataFrame(columns=['hostid'])
     downs_origen_filtro = dfs['downs_origen_filtro_df']
     downs_origen = dfs['downs_origen_df']
     """ downs_filtro = downs_origen """
@@ -417,6 +419,8 @@ async def get_downs_origin_layer_async(municipality_id, dispId, subtype_id, leng
     dependientes = dfs['dependientes_df']
     print("***********DEPENDIENTES***********")
     print(dependientes)
+    if dependientes.empty:
+        dependientes = pd.DataFrame(columns=['hostid'])
     origenes = downs[~downs['hostid'].isin(dependientes['hostid'].to_list())]
     print("***********ORIGENES***********")
     print(origenes)
@@ -895,7 +899,74 @@ group by c.latitude, c.longitude
     return success_response_with_alert(data=data.to_dict(orient="records"))
 
 
-async def get_carreteros2_async(municipality_id):
+async def get_carreteros2_async(municipality_id, db):
+    tasks = {
+        'rfid_id': asyncio.create_task(CassiaConfigRepository.get_config_value_by_name_pool('rfid_id', db)),
+        'activos': asyncio.create_task(layers_repository.get_rfid_host_active_pool(db)),
+    }
+    results = await asyncio.gather(*tasks.values())
+    dfs = dict(zip(tasks.keys(), results))
+    rfid_id = dfs['rfid_id']
+    if not rfid_id.empty:
+        rfid_id = rfid_id['value'][0]
+    else:
+        rfid_id = "9"
+
+    if municipality_id != "0":
+        municipios = await CassiaConfigRepository.get_city_catalog_pool(db)
+        try:
+            municipio = municipios.loc[municipios["groupid"] == int(
+                municipality_id)]
+        except:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Municipality id is not a int value"
+            )
+        if len(municipio) < 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Municipality id not exist"
+            )
+        rfids = await host_repository.get_host_view_pool(municipality_id, rfid_id, '', db)
+        rfids = pd.DataFrame(rfids).replace(np.nan, "")
+    else:
+        rfids = await host_repository.get_host_view_pool('0', rfid_id, '', db)
+        rfids = pd.DataFrame(rfids).replace(np.nan, "")
+    if not rfids.empty:
+        rfids = rfids[['latitude', 'longitude']]
+        rfids = rfids[rfids['latitude'] != '--']
+        rfids = rfids[rfids['longitude'] != '--']
+        rfids = rfids.drop_duplicates(subset=['latitude', 'longitude'])
+    data = rfids
+
+    if municipality_id != "0":
+        lecturas = await layers_repository.get_rfid_readings_by_municipality_pool(municipio['name'].values[0], db)
+    else:
+        lecturas = await layers_repository.get_rfid_readings_global_pool(db)
+    activos = dfs['activos']
+    if not lecturas.empty:
+        data = pd.merge(data, lecturas, how='right', left_on=['latitude', 'longitude'],
+                        right_on=['latitude', 'longitude']).replace(np.nan, 0)
+        data['activo'] = 0
+        if not activos.empty:
+            data.loc[data.set_index(['latitude', 'longitude']).index.isin(
+                activos.set_index(['latitude', 'longitude']).index), 'activo'] = 1
+    else:
+        data['Lecturas'] = [0 for i in range(len(data))]
+    alerts = await layers_repository.get_max_serverities_by_tech_pool(rfid_id, db)
+    if not alerts.empty and not data.empty:
+        data = pd.merge(data, alerts, how="left", left_on=[
+            'latitude', 'longitude'], right_on=['latitude', 'longitude']).replace(np.nan, 0)
+    else:
+        data['max_severity'] = [0 for al in range(len(data))]
+    no_ceros = data[data['Lecturas'] != 0]
+    print(len(data))
+    if no_ceros.empty:
+        return success_response_with_alert(data=data.to_dict(orient="records"), alert="Error al conectar a la base de datos de arcos carreteros, favor de contactar a soporte.")
+    return success_response_with_alert(data=data.to_dict(orient="records"))
+
+
+async def get_carreteros2_async_backup(municipality_id):
     rfid_id = await CassiaConfigRepository.get_config_value_by_name('rfid_id')
     if not rfid_id.empty:
         rfid_id = rfid_id['value'][0]
@@ -1043,7 +1114,74 @@ group by c.latitude, c.longitude
     return success_response_with_alert(data=data.to_dict(orient="records"))
 
 
-async def get_lpr_async(municipality_id):
+async def get_lpr_async(municipality_id, db):
+    tasks = {
+        'lpr_id': asyncio.create_task(CassiaConfigRepository.get_config_value_by_name_pool('lpr_id', db)),
+        'activos': asyncio.create_task(layers_repository.get_lpr_host_active_pool(db)),
+    }
+    results = await asyncio.gather(*tasks.values())
+    dfs = dict(zip(tasks.keys(), results))
+    lpr_id = dfs['lpr_id']
+    if not lpr_id.empty:
+        lpr_id = lpr_id['value'][0]
+    else:
+        lpr_id = "1"
+    if municipality_id != "0":
+        municipios = await CassiaConfigRepository.get_city_catalog_pool(db)
+        try:
+            municipio = municipios.loc[municipios["groupid"] == int(
+                municipality_id)]
+        except:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Municipality id is not a int value"
+            )
+        if len(municipio) < 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Municipality id not exist"
+            )
+        lprs = await host_repository.get_host_view_pool(municipality_id, lpr_id, '', db)
+        lprs = pd.DataFrame(lprs).replace(np.nan, "")
+    else:
+        lprs = await host_repository.get_host_view_pool('0', lpr_id, '', db)
+        lprs = pd.DataFrame(lprs).replace(np.nan, "")
+    if not lprs.empty:
+        lprs = lprs[['latitude', 'longitude']]
+        lprs = lprs[lprs['latitude'] != '--']
+        lprs = lprs[lprs['longitude'] != '--']
+        lprs = lprs.drop_duplicates(subset=['latitude', 'longitude'])
+    data = lprs
+
+    if municipality_id != "0":
+        lecturas = await layers_repository.get_lpr_readings_by_municipality_pool(municipio['name'].values[0], db)
+    else:
+        lecturas = await layers_repository.get_lpr_readings_global_pool(db)
+    activos = dfs['activos']
+    if not lecturas.empty:
+        data = pd.merge(data, lecturas, how='left', left_on=['latitude', 'longitude'],
+                        right_on=['latitude', 'longitude']).replace(np.nan, 0)
+        data['activo'] = 0
+        if not activos.empty:
+            data.loc[data.set_index(['latitude', 'longitude']).index.isin(
+                activos.set_index(['latitude', 'longitude']).index), 'activo'] = 1
+    else:
+        data['Lecturas'] = [0 for i in range(len(data))]
+    alerts = await layers_repository.get_max_serverities_by_tech_pool(lpr_id, db)
+    if not alerts.empty and not data.empty:
+        data = pd.merge(data, alerts, how="left", left_on=[
+            'latitude', 'longitude'], right_on=['latitude', 'longitude']).replace(np.nan, 0)
+
+    else:
+        data['max_severity'] = [0 for al in range(len(data))]
+    no_ceros = data[data['Lecturas'] != 0]
+
+    if no_ceros.empty:
+        return success_response_with_alert(data=data.to_dict(orient="records"), alert="Error al conectar a la base de datos de syslog, favor de contactar a soporte.")
+    return success_response_with_alert(data=data.to_dict(orient="records"))
+
+
+async def get_lpr_async_backup(municipality_id):
     lpr_id = await CassiaConfigRepository.get_config_value_by_name('lpr_id')
     if not lpr_id.empty:
         lpr_id = lpr_id['value'][0]

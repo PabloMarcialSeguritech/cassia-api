@@ -161,7 +161,9 @@ async def get_host_alerts(hostid):
     print(cassia_alerts.columns)
     print(cassia_alerts)
     dependientes = await CassiaDiagnostaRepository.get_host_dependientes()
-    if not dependientes.empty:
+    if dependientes.empty:
+        dependientes = pd.DataFrame(columns=['hostid'])
+    if 'hostid' in dependientes.columns:
         problems = await process_dependientes_data(problems, ping_loss_message, dependientes)
     problemas_sincronizados_diagnosta = await CassiaDiagnostaRepository.get_open_problems_diagnosta()
     if not problemas_sincronizados_diagnosta.empty:
@@ -428,6 +430,8 @@ async def process_dependientes_data(problems, ping_loss_message, dependientes) -
         dependientes['hostid'].to_list())]
     problems.loc[problems.index.isin(
         indexes.index.to_list()), 'tipo'] = 0
+    problems.loc[~problems.index.isin(
+        indexes.index.to_list()), 'tipo'] = 1
     return problems
 
 
@@ -1585,6 +1589,8 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
     init = time.time()
 
     downs_origen = dfs['downs_origen_df']
+    print("*******************ORIGENES")
+    print(downs_origen)
     marcas.append({"problems.downs_origen": time.time()-init})
     init = time.time()
 
@@ -1598,10 +1604,12 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
     print(entro1)
     print(entro2)
     dependientes = dfs['dependientes_df']
+    if dependientes.empty:
+        dependientes = pd.DataFrame(columns=['hostid'])
     marcas.append({"problems.get_dependientes": time.time()-init})
     init = time.time()
 
-    if not dependientes.empty:
+    if 'hostid' in dependientes.columns:
         print("******************ENTRA A DEPENDIENTES**************")
         if not problems.empty:
             dependientes_hostids = dependientes['hostid'].tolist()
@@ -1741,7 +1749,7 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
                                        left_on='affiliation',
                                        right_on='afiliacion',
                                        how='left')
-            merged_df['Time'] = pd.to_datetime(
+            merged_df['Time_event'] = pd.to_datetime(
                 merged_df['Time'], errors='coerce')
             merged_df['created_at_ticket'] = pd.to_datetime(
                 merged_df['created_at_ticket'], errors='coerce')
@@ -1751,7 +1759,7 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
             print("*********************TIPOS*******************")
             print(merged_df[['Time']].dtypes) """
             # Ahora puedes hacer la comparación ya que ambas columnas ('Time' y 'created_at') están en el mismo DataFrame
-            mask = merged_df['Time'] <= merged_df['created_at_ticket']
+            mask = merged_df['Time_event'] <= merged_df['created_at_ticket']
             # Aplicar la máscara y realizar la actualización
             merged_df.loc[mask, 'has_ticket'] = True
             merged_df.loc[mask, 'ticket_id'] = merged_df['ticket_active_id']
@@ -1759,7 +1767,7 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
             merged_df.loc[mask,
                           'ticket_status'] = merged_df['ticket_active_status']
             merged_df.drop(
-                columns=['ticket_active_id', 'ticket_active_status', 'created_at_ticket', 'afiliacion'], inplace=True)
+                columns=['ticket_active_id', 'ticket_active_status', 'created_at_ticket', 'afiliacion', 'Time_event'], inplace=True)
             problems = merged_df
 
     return problems
