@@ -517,6 +517,7 @@ async def create_ticket_comment_avance_solucion(ticket_data):
             message.subject = subject
             return message
     except:
+        return False
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Error al agregar comentario al ticket en SGS")
 

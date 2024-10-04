@@ -100,8 +100,8 @@ def get_hosts_filter(municipalityId: str = "0"):
     summary="Get traffic info",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_hosts_filter_async(municipalityId: str = "0"):
-    return await layers_service.get_carreteros2_async(municipalityId)
+async def get_hosts_filter_async(municipalityId: str = "0", db: DB = Depends(get_db)):
+    return await layers_service.get_carreteros2_async(municipalityId, db)
 
 
 @layers_router.get(
@@ -122,8 +122,8 @@ def get_hosts_filter(municipalityId: str = "0"):
     summary="Get traffic info",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def get_hosts_filter_asyn(municipalityId: str = "0"):
-    return await layers_service.get_lpr_async(municipalityId)
+async def get_hosts_filter_asyn(municipalityId: str = "0", db: DB = Depends(get_db)):
+    return await layers_service.get_lpr_async(municipalityId, db)
 
 
 @layers_router.get(
