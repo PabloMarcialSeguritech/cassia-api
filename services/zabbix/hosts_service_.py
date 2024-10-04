@@ -744,12 +744,31 @@ async def get_host_filter_(municipalityId, dispId, subtype_id, db):
         dispId_filter = "11,2"
     else:
         dispId_filter = dispId
+    switch_config = await CassiaConfigRepository.get_config_value_by_name_pool('switch_id', db)
+    switch_id = "12"
+    switch_troughtput = False
+    if not switch_config.empty:
+        switch_id = switch_config['value'].iloc[0]
+    metric_switch_val = "Interface Bridge-Aggregation_: Bits"
+    metric_switch = await CassiaConfigRepository.get_config_value_by_name_pool('switch_throughtput', db)
+
+    if not metric_switch.empty:
+        metric_switch_val = metric_switch['value'].iloc[0]
+    print("******************************SUBTYPE")
+    print(subtype_id)
+    print("******************************METRIC_SWITCH_VAL")
+    print(metric_switch_val)
+
+    if subtype_id == metric_switch_val:
+        subtype_id = ""
+
+        if dispId == switch_id:
+            switch_troughtput = True
+    print("******************************SUBTYPE")
+    print(subtype_id)
     hosts_task = host_repository.get_host_view_pool(
         municipalityId, f'{dispId},2', None, db) if dispId == '11' else host_repository.get_host_view_pool(municipalityId, f'{dispId}', subtype_id, db)
-
     tasks = {
-        'switch_config_df': asyncio.create_task(CassiaConfigRepository.get_config_value_by_name_pool('switch_id', db)),
-        'metric_switch_df': asyncio.create_task(CassiaConfigRepository.get_config_value_by_name_pool('switch_throughtput', db)),
         'rfid_id_df': asyncio.create_task(CassiaConfigRepository.get_config_value_by_name_pool('rfid_id', db)),
         'hosts_df': asyncio.create_task(hosts_task),
         'problems_by_severity_df': asyncio.create_task(host_repository.get_problems_by_severity_pool(municipalityId, dispId_filter, subtype_id, db)),
@@ -767,23 +786,6 @@ async def get_host_filter_(municipalityId, dispId, subtype_id, db):
     results = await asyncio.gather(*tasks.values())
     dfs = dict(zip(tasks.keys(), results))
     print("get_host_filter_ func")
-
-    switch_config = dfs['switch_config_df']
-
-    switch_id = "12"
-    switch_troughtput = False
-    if not switch_config.empty:
-        switch_id = switch_config['value'].iloc[0]
-    metric_switch_val = "Interface Bridge-Aggregation_: Bits"
-    metric_switch = dfs['metric_switch_df']
-
-    if not metric_switch.empty:
-        metric_switch_val = metric_switch['value'].iloc[0]
-    if subtype_id == metric_switch_val:
-        subtype_id = ""
-
-        if dispId == switch_id:
-            switch_troughtput = True
 
     rfid_config = dfs['rfid_id_df']
 
