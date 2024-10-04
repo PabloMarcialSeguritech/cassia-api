@@ -187,9 +187,10 @@ async def register_ack(eventid, message, current_session, close, is_zabbix_event
                     }
                     print(ticket_data)
                     created_ticket_comment = await cassia_gs_tickets_repository.create_ticket_comment_avance_solucion(ticket_data)
-                    print(created_ticket_comment)
-                    save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_avance_solucion(ticket_data, created_ticket_comment, current_session.mail, active_tickets['cassia_gs_tickets_id'][0])
-                    print(save_ticket_data)
+                    if created_ticket_comment is not False:
+                        print(created_ticket_comment)
+                        save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_avance_solucion(ticket_data, created_ticket_comment, current_session.mail, active_tickets['cassia_gs_tickets_id'][0])
+                        print(save_ticket_data)
         return success_response(message=message)
     else:
 
@@ -225,9 +226,10 @@ async def register_ack_cassia(eventid, message, current_session, close):
                 }
                 print(ticket_data)
                 created_ticket_comment = await cassia_gs_tickets_repository.create_ticket_comment_avance_solucion(ticket_data)
-                print(created_ticket_comment)
-                save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_avance_solucion(ticket_data, created_ticket_comment, current_session.mail, active_tickets['cassia_gs_tickets_id'][0])
-                print(save_ticket_data)
+                if created_ticket_comment is not False:
+                    print(created_ticket_comment)
+                    save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_avance_solucion(ticket_data, created_ticket_comment, current_session.mail, active_tickets['cassia_gs_tickets_id'][0])
+                    print(save_ticket_data)
 
     message = "Acknowledge de CASSIA creado correctamente" if created_acknowledge else "Error al crear Acknowledge de CASSIA"
     return success_response(message=message)

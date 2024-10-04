@@ -235,6 +235,21 @@ async def get_host_downs_dependientes_filtro(municipality_id, dispId) -> pd.Data
         await db_model.close_connection()
 
 
+async def get_rfid_readings_by_municipality_pool(municipality_name, db) -> pd.DataFrame:
+    try:
+        query_get_rfid_readings_by_municipality = DBQueries(
+        ).builder_query_statement_get_rfid_readings_by_municipality_name(municipality_name)
+
+        rfid_readings_data = await db.run_query(query_get_rfid_readings_by_municipality)
+        rfid_readings_df = pd.DataFrame(
+            rfid_readings_data).replace(np.nan, None)
+        return rfid_readings_df
+    except Exception as e:
+        print(f"Excepcion en get_rfid_readings_by_municipality: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_rfid_readings_by_municipality: {e}")
+
+
 async def get_rfid_readings_by_municipality(municipality_name) -> pd.DataFrame:
     db_model = DB()
     try:
@@ -251,6 +266,20 @@ async def get_rfid_readings_by_municipality(municipality_name) -> pd.DataFrame:
                             detail=f"Excepcion en get_rfid_readings_by_municipality: {e}")
     finally:
         await db_model.close_connection()
+
+
+async def get_rfid_readings_global_pool(db) -> pd.DataFrame:
+    try:
+        query_get_rfid_readings_global = DBQueries(
+        ).query_statement_get_rfid_readings_global
+        rfid_readings_data = await db.run_query(query_get_rfid_readings_global)
+        rfid_readings_df = pd.DataFrame(
+            rfid_readings_data).replace(np.nan, None)
+        return rfid_readings_df
+    except Exception as e:
+        print(f"Excepcion en get_rfid_readings_global: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_rfid_readings_global: {e}")
 
 
 async def get_rfid_readings_global() -> pd.DataFrame:
@@ -271,6 +300,20 @@ async def get_rfid_readings_global() -> pd.DataFrame:
         await db_model.close_connection()
 
 
+async def get_rfid_host_active_pool(db) -> pd.DataFrame:
+    try:
+        query_get_rfid_host_active = DBQueries(
+        ).query_get_rfid_acitve
+        rfid_host_active_data = await db.run_query(query_get_rfid_host_active)
+        rfid_host_active_df = pd.DataFrame(
+            rfid_host_active_data).replace(np.nan, None)
+        return rfid_host_active_df
+    except Exception as e:
+        print(f"Excepcion en get_rfid_host_active: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_rfid_host_active: {e}")
+
+
 async def get_rfid_host_active() -> pd.DataFrame:
     db_model = DB()
     try:
@@ -287,6 +330,21 @@ async def get_rfid_host_active() -> pd.DataFrame:
                             detail=f"Excepcion en get_rfid_host_active: {e}")
     finally:
         await db_model.close_connection()
+
+
+async def get_max_serverities_by_tech_pool(tech_id, db) -> pd.DataFrame:
+    try:
+        query_get_max_severities_by_tech = DBQueries(
+        ).builder_query_statement_get_max_severities_by_tech(tech_id)
+
+        max_severities_data = await db.run_query(query_get_max_severities_by_tech)
+        max_severities_df = pd.DataFrame(
+            max_severities_data).replace(np.nan, None)
+        return max_severities_df
+    except Exception as e:
+        print(f"Excepcion en get_max_serverities_by_tech: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_max_serverities_by_tech: {e}")
 
 
 async def get_max_serverities_by_tech(tech_id) -> pd.DataFrame:
@@ -307,6 +365,22 @@ async def get_max_serverities_by_tech(tech_id) -> pd.DataFrame:
         await db_model.close_connection()
 
 
+async def get_lpr_readings_by_municipality_pool(municipality_name, db) -> pd.DataFrame:
+
+    try:
+        query_get_lpr_readings_by_municipality = DBQueries(
+        ).builder_query_statement_get_lpr_readings_by_municipality_name(municipality_name)
+
+        lpr_readings_data = await db.run_query(query_get_lpr_readings_by_municipality)
+        lpr_readings_df = pd.DataFrame(
+            lpr_readings_data).replace(np.nan, None)
+        return lpr_readings_df
+    except Exception as e:
+        print(f"Excepcion en get_lpr_readings_by_municipality: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_lpr_readings_by_municipality: {e}")
+
+
 async def get_lpr_readings_by_municipality(municipality_name) -> pd.DataFrame:
     db_model = DB()
     try:
@@ -325,6 +399,21 @@ async def get_lpr_readings_by_municipality(municipality_name) -> pd.DataFrame:
         await db_model.close_connection()
 
 
+async def get_lpr_readings_global_pool(db) -> pd.DataFrame:
+    try:
+        query_get_lpr_readings_global = DBQueries(
+        ).query_statement_get_lpr_readings_global
+
+        lpr_readings_data = await db.run_query(query_get_lpr_readings_global)
+        lpr_readings_df = pd.DataFrame(
+            lpr_readings_data).replace(np.nan, None)
+        return lpr_readings_df
+    except Exception as e:
+        print(f"Excepcion en get_lpr_readings_global: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_lpr_readings_global: {e}")
+
+
 async def get_lpr_readings_global() -> pd.DataFrame:
     db_model = DB()
     try:
@@ -341,6 +430,21 @@ async def get_lpr_readings_global() -> pd.DataFrame:
                             detail=f"Excepcion en get_lpr_readings_global: {e}")
     finally:
         await db_model.close_connection()
+
+
+async def get_lpr_host_active_pool(db) -> pd.DataFrame:
+    try:
+        query_get_lpr_host_active = DBQueries(
+        ).query_get_lpr_acitve
+
+        lpr_host_active_data = await db.run_query(query_get_lpr_host_active)
+        lpr_host_active_df = pd.DataFrame(
+            lpr_host_active_data).replace(np.nan, None)
+        return lpr_host_active_df
+    except Exception as e:
+        print(f"Excepcion en get_lpr_host_active: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_lpr_host_active: {e}")
 
 
 async def get_lpr_host_active() -> pd.DataFrame:
