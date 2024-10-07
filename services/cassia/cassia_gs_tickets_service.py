@@ -76,3 +76,14 @@ async def create_ticket_comment(ticket_data: cassia_gs_ticket_schema.CassiaGSTic
     created_ticket_comment = await cassia_gs_tickets_repository.create_ticket_comment(ticket_data, current_session.mail)
     save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_data(ticket_data, created_ticket_comment, current_session.mail, created_ticket_gs_id)
     return success_response(message="Comentario de ticket solicitado correctamente")
+
+
+async def cancel_ticket(ticket_data: cassia_gs_ticket_schema.CassiaGSTicketCancelSchema, current_session):
+    created_ticket = await cassia_gs_tickets_repository.get_ticket_by_ticket_id(ticket_data.ticket_id)
+    if created_ticket.empty:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="No existe el ticket con el id proporcionado")
+    created_ticket_gs_id = created_ticket['cassia_gs_tickets_id'][0]
+    created_ticket_comment = await cassia_gs_tickets_repository.create_ticket_comment(ticket_data, current_session.mail)
+    save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_data(ticket_data, created_ticket_comment, current_session.mail, created_ticket_gs_id)
+    return success_response(message="Comentario de ticket solicitado correctamente")
