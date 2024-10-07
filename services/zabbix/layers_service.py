@@ -33,6 +33,7 @@ async def get_aps_layer():
 
 async def get_aps_layer_async(db):
     aps = await layers_repository.get_towers_pool(db)
+    ""
     return success_response(data=aps.to_dict(
         orient="records"))
 
