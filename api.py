@@ -10,9 +10,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from infraestructure.database import DB
 from contextlib import asynccontextmanager
+from routers.ws import WS_router
 
-app = FastAPI(
-)
 
 
 @asynccontextmanager
@@ -23,8 +22,8 @@ async def lifespan(app: FastAPI):
     yield
     await db.close_pool()  # Cerrar el pool de conexiones
 
-app.router.lifespan_context = lifespan
-app.version = '3.2'
+# Crear la instancia de FastAPI, pasando la función lifespan
+app = FastAPI(lifespan=lifespan, version="3.2")
 origins = ["*"]
 
 app.add_middleware(
@@ -40,6 +39,7 @@ app.add_middleware(ErrorHandler)
 app.include_router(auth_router)
 app.include_router(zabbix_router, dependencies=[Depends(get_db)])
 app.include_router(cassia_router, dependencies=[Depends(get_db)])
+app.include_router(WS_router)
 """ app.mount("/uploads/criticality_icons",
           StaticFiles(directory="uploads/criticality_icons"), name="criticality_icons")
  """
