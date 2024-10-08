@@ -83,7 +83,11 @@ async def cancel_ticket(ticket_data: cassia_gs_ticket_schema.CassiaGSTicketCance
     if created_ticket.empty:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="No existe el ticket con el id proporcionado")
+    status_ticket = created_ticket['status'][0]
+    if status_ticket not in ['creado', 'solicitado', 'creado', 'Pendiente por Asignar']:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Ticket confirmado, no se puede cancelar.")
     created_ticket_gs_id = created_ticket['cassia_gs_tickets_id'][0]
-    created_ticket_comment = await cassia_gs_tickets_repository.create_ticket_comment(ticket_data, current_session.mail)
-    save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_data(ticket_data, created_ticket_comment, current_session.mail, created_ticket_gs_id)
-    return success_response(message="Comentario de ticket solicitado correctamente")
+    cancel_ticket = await cassia_gs_tickets_repository.cancel_ticket(ticket_data, current_session.mail)
+    save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_data(ticket_data, cancel_ticket, current_session.mail, created_ticket_gs_id)
+    return success_response(message="Cancelación de ticket solicitada correctamente")

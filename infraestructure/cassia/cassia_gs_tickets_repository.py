@@ -552,3 +552,33 @@ async def save_ticket_comment_avance_solucion(ticket_data, created_ticket_commen
                             detail=f"Excepcion en save_ticket_comment_avance_solucion: {e}")
     finally:
         await session.close()
+
+
+async def cancel_ticket(ticket_data: cassia_gs_ticket_schema.CassiaGSTicketCommentSchema, mail):
+    queue_name = 'cassia-gser'
+    message_data = {
+        "ticketId": ticket_data.ticket_id,
+        "comment": ticket_data.comment,
+        "engineer": mail,
+    }
+    """ message_data = {
+        "ticketId": ticket_data.ticket_id,
+        "comment": ticket_data.comment,
+        "engineer": "engineer.cassia@seguritech.com",
+    } """
+    message_content = json.dumps(message_data)
+    subject = "cancelticket"
+    try:
+        with ServiceBusClient.from_connection_string(conn_str=gs_connection_string, logging_enable=True) as servicebus_client:
+            sender = servicebus_client.get_queue_sender(queue_name=queue_name)
+            message = ServiceBusMessage(
+                message_content, subject=subject)
+            sender.send_messages(message)
+            print(f"Sent: {message_content} with subject: {subject}")
+            print(f"Message_id: {message.message_id}")
+            print(f"correlation_id: {message.correlation_id}")
+            message.subject = subject
+            return message
+    except:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Error al cancelar el ticket en SGS")

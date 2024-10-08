@@ -1225,6 +1225,7 @@ select * from cassia_gs_tickets cgt
 where cgt.afiliacion ='{afiliacion}'
 and status !='Cerrado'
 and status !='error'
+and status !='Cancelado'
 """
 
         return self.query_statement_get_active_tickets_by_afiliation
@@ -1236,6 +1237,7 @@ where cgt.afiliacion ='{afiliacion}'
 and status !='Cerrado'
 and status !='error'
 and status !='solicitado'
+and status !='Cancelado'
 and ticket_id is not null
 """
 
@@ -1257,6 +1259,7 @@ where cgt.ticket_id ={ticket_id}
 and status !='Cerrado'
 and status !='solicitado'
 and status !='error'
+
 """
         return self.query_statement_get_ticket_by_ticket_id
 
@@ -1278,6 +1281,7 @@ select * from cassia_gs_tickets_detail cgtd
 where cgtd.ticket_id ={ticket_id}
 and status !='solicitado'
 and status !='error'
+and status !='Cancelado'
 """
         return self.query_statement_get_ticket_detail_by_ticket_id
 
@@ -1399,6 +1403,7 @@ where cgt.host_id ={hostid}
 and status !='Cerrado'
 and status !='error'
 and status !='solicitado'
+and status !='Cancelado'
 and ticket_id is not null
 """
 

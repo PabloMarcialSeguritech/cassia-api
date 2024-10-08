@@ -7,6 +7,7 @@ from .host_management_router import host_management_router
 from .acknowledge_router import acknowledge_router
 zabbix_router = APIRouter(prefix="/api/v1/zabbix")
 
+
 zabbix_router.include_router(alerts_router)
 zabbix_router.include_router(groups_router)
 zabbix_router.include_router(hosts_router)
