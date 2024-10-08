@@ -1724,6 +1724,8 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
     problems['ticket_id'] = None
     problems['ticket_error'] = None
     problems['ticket_status'] = None
+    if not 'tech_id' in problems.columns and not problems.empty:
+        problems['tech_id'] = tech_host_type
     if not problems.empty:
         problems['tech_id'] = problems['tech_id'].astype(str)
         suscriptores_id_str = str(suscriptores_id)
