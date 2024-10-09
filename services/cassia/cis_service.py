@@ -5,7 +5,7 @@ from sqlalchemy import text
 from schemas import cassia_ci_history_schema
 from schemas import cassia_ci_element_schema
 import numpy as np
-from utils.traits import success_response
+from utils.traits import success_response, get_datetime_now_with_tz
 from utils.traits import failure_response
 from fastapi import HTTPException, status, UploadFile, File
 from models.cassia_ci_element import CassiaCIElement
@@ -777,11 +777,12 @@ async def create_authorization_request(ci_element_history_id, ci_authorization, 
     if ci_authorization_exist:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="La solicitud ya existe")
+    current_time = get_datetime_now_with_tz()
     ci_mail = CassiaMail(
         request_user_id=current_session.user_id,
         process_id=ci_authorization.process_id,
         comments=ci_authorization.comments,
-        request_date=datetime.now(),
+        request_date=current_time,
         cassia_conf_id=ci_element_history_id
     )
     ci_element_history.status = 'Pendiente de autorizacion'
