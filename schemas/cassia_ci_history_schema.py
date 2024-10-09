@@ -7,7 +7,7 @@ from utils.db import DB_Zabbix
 from sqlalchemy import text
 import numpy as np
 import pandas as pd
-
+from utils.traits import get_datetime_now_with_tz
 
 @as_form
 class CiHistoryBase(BaseModel):
@@ -33,9 +33,16 @@ class CiHistoryBase(BaseModel):
     """ auth_name: str = Field(..., max_length=120,
                            example="Daniel Pérez") """
     """ created_at: datetime """
-    closed_at: Optional[datetime]
+    closed_at: Optional[datetime] = Field(default_factory=get_datetime_now_with_tz)
     status: Optional[Literal['No iniciado', 'Cerrada', 'Cancelada']]
     ticket: Optional[str]
+
+    # Validador para manejar un valor vacío de closed_at
+    @validator('closed_at', pre=True, always=True)
+    def handle_empty_closed_at(cls, v):
+        if v in [None, '', 'null']:
+            return None
+        return v
 
 
 class CiHistory(CiHistoryBase):

@@ -5,7 +5,7 @@ from sqlalchemy import text
 from schemas import cassia_ci_history_schema
 from schemas import cassia_ci_element_schema
 import numpy as np
-from utils.traits import success_response
+from utils.traits import success_response, get_datetime_now_with_tz
 from utils.traits import failure_response
 from fastapi import HTTPException, status, UploadFile, File
 from models.cassia_ci_element import CassiaCIElement
@@ -625,7 +625,14 @@ async def update_ci_history_record(ci_element_history_id, ci_element_history_dat
     if not ci_element_history:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="La configuracion no existe")
+    ci_element_histories = session.query(CassiaCIHistory).filter(
+        CassiaCIHistory.element_id == ci_element_history_data.element_id,
+        CassiaCIHistory.deleted_at == None,
+        CassiaCIHistory.status == 'Iniciado',
+        CassiaCIHistory.conf_id != ci_element_history_id
+    ).first()
     match ci_element_history.status:
+
         case "No iniciado":
             ci_element_history.element_id = ci_element_history_data.element_id
             ci_element_history.change_type = ci_element_history_data.change_type
@@ -642,16 +649,17 @@ async def update_ci_history_record(ci_element_history_id, ci_element_history_dat
             """ ci_element_history.created_at = ci_element_history_data.created_at """
             """ ci_element_history.closed_at = ci_element_history_data.closed_at """
             ci_element_history.session_id = current_session.session_id.hex
+            ci_element_history.status = ci_element_history_data.status
+            if ci_element_history_data.status in ['Cerrada','Cancelada']:
+                ci_element_history.closed_at = ci_element_history_data.closed_at
+                if ci_element_histories:
+                    element.status_conf = 'Sin cerrar'
+                else:
+                    element.status_conf = 'Cerradas'
         case "Pendiente de autorizacion":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="No se puede actulizar un registro pendiente de autorización, para actualizar por favor cancele la solicitud")
         case "Iniciado":
-            ci_element_histories = session.query(CassiaCIHistory).filter(
-                CassiaCIHistory.element_id == ci_element_history_data.element_id,
-                CassiaCIHistory.deleted_at == None,
-                CassiaCIHistory.status == 'Iniciado',
-                CassiaCIHistory.conf_id != ci_element_history_id
-            ).first()
             if ci_element_history_data.status == "Cerrada":
                 ci_element_history.closed_at = ci_element_history_data.closed_at
                 print("si entra")
@@ -769,11 +777,12 @@ async def create_authorization_request(ci_element_history_id, ci_authorization, 
     if ci_authorization_exist:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="La solicitud ya existe")
+    current_time = get_datetime_now_with_tz()
     ci_mail = CassiaMail(
         request_user_id=current_session.user_id,
         process_id=ci_authorization.process_id,
         comments=ci_authorization.comments,
-        request_date=datetime.now(),
+        request_date=current_time,
         cassia_conf_id=ci_element_history_id
     )
     ci_element_history.status = 'Pendiente de autorizacion'
