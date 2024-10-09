@@ -100,6 +100,20 @@ async def create_exception_async(exception: exception_schema.CassiaExceptionsBas
 
 
 @exceptions_router.post(
+    '/exceptions2',
+    tags=["Zabbix - Problems(Alerts) - Exceptions 2"],
+    status_code=status.HTTP_200_OK,
+    summary="Create an Exception",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def create_exception_async(exception: exception_schema.CassiaExceptions2Base = Body(...),
+                                 current_user_session: CassiaUserSession = Depends(
+                                     auth_service2.get_current_user_session)):
+    return await exceptions_service.create_exception2_async(exception=exception,
+                                                            current_user_session=current_user_session)
+
+
+@exceptions_router.post(
     '/exceptions/close/{exception_id}',
     tags=["Zabbix - Problems(Alerts) - Exceptions"],
     status_code=status.HTTP_200_OK,

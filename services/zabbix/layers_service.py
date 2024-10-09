@@ -9,6 +9,7 @@ from fastapi import status
 from utils.traits import success_response
 from utils.traits import success_response_with_alert
 from models.cassia_config import CassiaConfig
+from infraestructure.cassia import CassiaConfigRepository
 from infraestructure.zabbix import layers_repository
 from infraestructure.cassia import CassiaConfigRepository
 from infraestructure.cassia import CassiaDiagnostaRepository
@@ -33,14 +34,25 @@ async def get_aps_layer():
 
 async def get_aps_layer_async(db):
     aps = await layers_repository.get_towers_pool(db)
-    return success_response(data=aps.to_dict(
-        orient="records"))
+
+    return success_response(data=aps)
 
 
 async def get_aps_layer_async_backup():
     aps = await layers_repository.get_towers()
-    return success_response(data=aps.to_dict(
-        orient="records"))
+    is_licencias_df = await CassiaConfigRepository.get_config_value_by_name('is_licencias')
+    is_licenicas = False
+    response = aps.to_dict(orient='records')
+    if not is_licencias_df.empty:
+        is_licenicas = is_licencias_df['value'][0]
+    if is_licenicas:
+        aps_licencias = aps[aps['is_own'] == 1]
+        aps_siem = aps[aps['is_own'] == 0]
+        response = {
+            'aps_licencias': aps_licencias.to_dict(orient='records'),
+            'aps_siem': aps_siem.to_dict(orient='records')
+        }
+    return success_response(data=response)
 
 
 async def get_downs_layer(municipality_id, dispId, subtype_id):
