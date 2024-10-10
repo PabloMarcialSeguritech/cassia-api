@@ -15,9 +15,9 @@ class CassiaExceptions2Base(BaseModel):
         example="2"
     )
     description: Optional[str]
-    hostids: str = Field(..., example=[1, 2, 3, 4])
+    hostids: list = Field(..., example=[1, 2, 3, 4])
     init_date: datetime = Field(..., example="2024-01-31 18:08:47")
-    end_date: Optional[datetime] = Field(example="2024-01-31 18:08:47")
+    end_date: Optional[datetime] = Field(None, example="2024-01-31 18:08:47")
 
 
 class CassiaExceptionsBase(BaseModel):
