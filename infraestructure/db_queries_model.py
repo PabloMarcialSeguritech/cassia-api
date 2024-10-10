@@ -261,10 +261,14 @@ WHERE rn = 1;
                                     WHERE 
                                         h.status = 0; """
         self.query_statement_get_cassia_group_types = "SELECT * FROM cassia_group_types"
-        self.query_statement_get_cassia_host_groups= """SELECT h.groupid,h.name as group_name,cgt.id as group_type_id,cgt.name as group_type_name
-FROM cassia_host_groups_types chgt 
-inner join cassia_group_types cgt on cgt.id =chgt.cassia_group_type_id 
-inner join hstgrp h on h.groupid =chgt.groupid """
+        self.query_statement_get_cassia_host_groups = """SELECT h.groupid, h.name as group_name, cgt.id as group_type_id, 
+            cgt.name as group_type_name, 
+            COUNT(hg.hostid) as host_count
+            FROM cassia_host_groups_types chgt 
+            INNER JOIN cassia_group_types cgt ON cgt.id = chgt.cassia_group_type_id 
+            RIGHT JOIN hstgrp h ON h.groupid = chgt.groupid
+            LEFT JOIN hosts_groups hg ON hg.groupid = h.groupid
+            GROUP BY h.groupid, h.name, cgt.id, cgt.name;"""
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -1429,3 +1433,21 @@ and ticket_id is not null
 """
 
         return self.query_statement_get_active_tickets_by_hostid
+
+    def builder_query_statement_get_cassia_group_type_by_id(self, type_id):
+        self.query_statement_get_cassia_group_type_by_id = f"""
+select * from cassia_group_types
+where id={type_id}
+"""
+
+        return self.query_statement_get_cassia_group_type_by_id
+
+    def builder_query_statement_assign_type_to_groupid_cassia(self, groupid, type_id):
+        self.query_statement_assign_type_to_groupid_cassia = f"""
+INSERT INTO cassia_host_groups_types
+(groupid,cassia_group_type_id)
+VALUES
+({groupid},{type_id})
+"""
+
+        return self.query_statement_assign_type_to_groupid_cassia
