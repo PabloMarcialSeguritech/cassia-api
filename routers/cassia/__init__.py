@@ -21,6 +21,8 @@ from .cassia_tech_devices_router import cassia_techs_devices_router
 from .cassia_user_notification_types_router import cassia_user_notification_type_router
 from .cassia_gs_tickets_router import cassia_gs_tickets_router
 from .resets_router import resets_router
+from .cassia_group_type_router import cassia_group_type_router
+from .cassia_host_groups_router import cassia_host_groups_router
 from infraestructure.database import DB
 from dependencies import get_db
 cassia_router = APIRouter(prefix="/api/v1/cassia")
@@ -60,3 +62,5 @@ cassia_router.include_router(maintenance_router)
 cassia_router.include_router(cassia_user_notification_type_router)
 cassia_router.include_router(cassia_gs_tickets_router)
 cassia_router.include_router(resets_router)
+cassia_router.include_router(cassia_group_type_router)
+cassia_router.include_router(cassia_host_groups_router)
