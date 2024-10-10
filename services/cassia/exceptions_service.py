@@ -12,6 +12,7 @@ from fastapi import status
 import pandas as pd
 import pytz
 from datetime import datetime
+import asyncio
 from models.cassia_user_session import CassiaUserSession
 
 
@@ -144,7 +145,99 @@ async def create_exception_async(exception: exception_schema.CassiaExceptionsBas
                             status_code=status.HTTP_201_CREATED)
 
 
-async def create_exception2_async(exception: exception_schema.CassiaExceptions2Base, current_user_session):
+async def save_exception(exception, hostid, current_user_session, db):
+    exception_dict = exception.dict()
+    exception_dict.pop('hostids')
+    exception_dict['session_id'] = current_user_session.session_id.hex
+    exception_dict['created_at'] = get_datetime_now_with_tz()
+    exception_dict['updated_at'] = get_datetime_now_with_tz()
+    exception_dict['init_date'] = exception.init_date
+    exception_dict['end_date'] = exception.end_date
+    exception_dict['hostid'] = hostid
+
+    exception = await cassia_exceptions_repository.create_cassia_exception2(exception_dict, db)
+    """ TICKETS_PROGRESS_SOLUTION """
+    if exception is not None:
+        is_gs_tickets_active = await CassiaConfigRepository.get_config_value_by_name(
+            'gs_tickets')
+        if is_gs_tickets_active.empty:
+            is_gs_tickets_active = 0
+        else:
+            is_gs_tickets_active = is_gs_tickets_active['value'][0]
+        if is_gs_tickets_active:
+            active_tickets = await cassia_gs_tickets_repository.get_active_tickets_by_hostid(exception.hostid)
+            if not active_tickets.empty:
+                ticket_data = {
+                    "ticketId": int(active_tickets['ticket_id'][0]),
+                    "comment": exception.description,
+                    "engineer": current_user_session.mail,
+                }
+                print(ticket_data)
+                created_ticket_comment = await cassia_gs_tickets_repository.create_ticket_comment_avance_solucion(ticket_data)
+                if created_ticket_comment is not False:
+                    print(created_ticket_comment)
+                    save_ticket_data = await cassia_gs_tickets_repository.save_ticket_comment_avance_solucion(ticket_data, created_ticket_comment, current_user_session.mail, active_tickets['cassia_gs_tickets_id'][0])
+                    print(save_ticket_data)
+    else:
+        return {'hostid': hostid,
+                'result': False}
+    return {'hostid': hostid,
+            'result': True}
+
+
+async def create_exception2_async(exception: exception_schema.CassiaExceptions2Base, current_user_session, db):
+    hostids_list_str = ",".join(list(map(str, exception.hostids)))
+    hosts = await cassia_exceptions_repository.get_hosts_by_ids(hostids_list_str, db)
+    if hosts.empty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No existe ningun host con los ids proporcionados"
+        )
+    hosts_existentes = hosts['hostid'].to_list()
+    host_no_existentes = list(set(exception.hostids)-set(hosts_existentes))
+    if len(host_no_existentes) > 0:
+        hosts_no_existentes_str = ", ".join(list(map(str, host_no_existentes)))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Los siguientes hosts no existen: {hosts_no_existentes_str}"
+        )
+    existen_excepciones = await cassia_exceptions_repository.get_active_exceptions_by_hostids(hostids_list_str,  db)
+    if not existen_excepciones.empty:
+        hosts_con_excepcion_activa_str = ", ".join(
+            list(map(str, existen_excepciones['hostid'])))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Los siguientes hosts ya se encuentran en una excepcion: {hosts_con_excepcion_activa_str}"
+        )
+
+    existen_mantenimientos = await cassia_exceptions_repository.get_active_mantenimientos_by_hostids_and_dates(hostids_list_str, exception.init_date, exception.end_date, db)
+    if not existen_mantenimientos.empty:
+        hosts_con_mantenimiento_activo_str = ", ".join(
+            list(map(str, existen_mantenimientos['hostid'])))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Los siguientes hosts ya se encuentran en un mantenimiento entre las fechas seleccionadas: {hosts_con_mantenimiento_activo_str}"
+        )
+    tasks = [save_exception(exception, hostid, current_user_session, db)
+             for hostid in hosts_existentes]
+    lote_len = 5
+    results = []
+    for i in range(0, len(tasks), lote_len):
+        lote = tasks[i:i + lote_len]
+        # Ejecutar las corutinas de forma concurrente
+        resultados = await asyncio.gather(*lote)
+        for resultado in resultados:
+            results.append(resultado)
+    print(results)
+    if all(result['result'] for result in results):
+        return success_response(message="Excepciones creadas correctamente",
+                                data=exception,
+                                status_code=status.HTTP_201_CREATED)
+    errors = [result['hostid'] for result in results if not result['result']]
+    errors_str = ", ".join(list(map(str, errors)))
+    return success_response(message=f"Se crearon algunas excepciones, las siguientes excepciones no fueron creadas correctamente {errors_str}",
+                            data=exception,
+                            status_code=status.HTTP_201_CREATED)
     hosts = await cassia_exceptions_repository.get_hosts_by_ids(exception.hostids)
 
     host = await cassia_exceptions_repository.get_host_by_id(exception.hostids)

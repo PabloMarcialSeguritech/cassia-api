@@ -7,6 +7,7 @@ from infraestructure.database_model import DB
 from infraestructure.db_queries_model import DBQueries
 from models.cassia_exceptions_async import CassiaExceptionsAsync
 from models.cassia_exceptions_async_test import CassiaExceptionsAsyncTest
+from models.cassia_exceptions_async_test2 import CassiaExceptionsAsyncTest2
 from fastapi import status, HTTPException
 
 
@@ -88,6 +89,58 @@ async def get_cassia_exceptions(municipalityId, dispId) -> pd.DataFrame:
         await db_model.close_connection()
 
 
+async def get_active_mantenimientos_by_hostids_and_dates(hostids, init_date, end_date, db) -> pd.DataFrame:
+    try:
+        query_get_host = DBQueries(
+        ).builder_query_statement_get_active_mantenimientos_by_hostids_and_dates(hostids, init_date, end_date)
+
+        host_data = await db.run_query(query_get_host)
+        host_df = pd.DataFrame(
+            host_data).replace(np.nan, None)
+        return host_df
+    except Exception as e:
+        print(
+            f"Excepcion generada en get_active_mantenimientos_by_hostids_and_dates: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion generada en get_active_mantenimientos_by_hostids_and_dates {e}"
+        )
+
+
+async def get_active_exceptions_by_hostids(hostids, db) -> pd.DataFrame:
+    try:
+        query_get_host = DBQueries(
+        ).builder_query_statement_get_active_exceptions_by_hostids(hostids)
+
+        host_data = await db.run_query(query_get_host)
+        host_df = pd.DataFrame(
+            host_data).replace(np.nan, None)
+        return host_df
+    except Exception as e:
+        print(f"Excepcion generada en get_active_exceptions_by_hostids: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion generada en get_active_exceptions_by_hostids {e}"
+        )
+
+
+async def get_hosts_by_ids(hostids, db) -> pd.DataFrame:
+    try:
+        query_get_host = DBQueries(
+        ).builder_query_statement_get_hosts_by_ids(hostids)
+
+        host_data = await db.run_query(query_get_host)
+        host_df = pd.DataFrame(
+            host_data).replace(np.nan, None)
+        return host_df
+    except Exception as e:
+        print(f"Excepcion generada en get_hosts_by_ids: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion generada en get_hosts_by_ids {e}"
+        )
+
+
 async def get_host_by_id(hostid) -> pd.DataFrame:
     db_model = DB()
     try:
@@ -106,6 +159,26 @@ async def get_host_by_id(hostid) -> pd.DataFrame:
         )
     finally:
         await db_model.close_connection()
+
+
+async def create_cassia_exception2(exception_data: dict, db):
+
+    try:
+        session = await db.get_session()
+        # PINK
+        exception = CassiaExceptionsAsyncTest2(**exception_data)
+        session.add(exception)
+        await session.commit()
+        await session.refresh(exception)
+        return exception
+    except Exception as e:
+        print(f"Excepcion generada en create_cassia_exception: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Excepcion generada en create_cassia_exception {e}"
+        )
+    finally:
+        await session.close()
 
 
 async def create_cassia_exception(exception_data: dict):

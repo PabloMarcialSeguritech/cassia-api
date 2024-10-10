@@ -260,6 +260,11 @@ WHERE rn = 1;
                                         interface hi ON h.hostid = hi.hostid
                                     WHERE 
                                         h.status = 0; """
+        self.query_statement_get_cassia_group_types = "SELECT * FROM cassia_group_types"
+        self.query_statement_get_cassia_host_groups= """SELECT h.groupid,h.name as group_name,cgt.id as group_type_id,cgt.name as group_type_name
+FROM cassia_host_groups_types chgt 
+inner join cassia_group_types cgt on cgt.id =chgt.cassia_group_type_id 
+inner join hstgrp h on h.groupid =chgt.groupid """
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -636,6 +641,22 @@ group by c.latitude, c.longitude """
     def builder_query_statement_get_host_by_id(self, hostid):
         self.query_statement_get_host_by_id = f"""select * from hosts where hostid={hostid}"""
         return self.query_statement_get_host_by_id
+
+    def builder_query_statement_get_hosts_by_ids(self, hostids):
+        self.query_statement_get_hosts_by_ids = f"""select * from hosts where hostid in ({hostids})"""
+        return self.query_statement_get_hosts_by_ids
+
+    def builder_query_statement_get_active_exceptions_by_hostids(self, hostids):
+        self.query_statement_get_active_exceptions_by_hostids = f"""SELECT * FROM cassia_exceptions_test_2 cet 
+where end_date is null and deleted_at is null
+and hostid  in ({hostids})"""
+        return self.query_statement_get_active_exceptions_by_hostids
+
+    def builder_query_statement_get_active_mantenimientos_by_hostids_and_dates(self, hostids, init_date, end_date):
+        self.query_statement_get_active_mantenimientos_by_hostids_and_dates = f"""SELECT * FROM cassia_exceptions_test_2 cet 
+where init_date>='{init_date}' and end_date <='{end_date}' and deleted_at is null
+and hostid  in ({hostids})"""
+        return self.query_statement_get_active_mantenimientos_by_hostids_and_dates
 
     def builder_query_statement_get_exception_by_id(self, exception_id):
         self.query_statement_get_exception_by_id = f"""select * from cassia_exceptions where exception_id={exception_id}"""
