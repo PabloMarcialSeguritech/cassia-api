@@ -33,7 +33,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 # ACTUALIZAR NOMBRE
-app.add_middleware(ErrorHandler)
+""" app.add_middleware(ErrorHandler) """
 
 app.include_router(auth_router)
 app.include_router(zabbix_router, dependencies=[Depends(get_db)])

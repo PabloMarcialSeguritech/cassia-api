@@ -1452,3 +1452,17 @@ VALUES
 """
 
         return self.query_statement_assign_type_to_groupid_cassia
+
+    def builder_query_statement_get_groupid_relations_by_groupid(self, groupid):
+        self.query_statement_get_groupid_relations_by_groupid = f"""
+SELECT * FROM hosts_groups hg 
+where hg.groupid ={groupid}
+"""
+        return self.query_statement_get_groupid_relations_by_groupid
+
+    def builder_query_statement_get_host_group_by_groupid(self, groupid):
+        self.query_statement_get_host_group_by_groupid = f"""
+SELECT * FROM hstgrp hg 
+where hg.groupid ={groupid}
+"""
+        return self.query_statement_get_host_group_by_groupid
