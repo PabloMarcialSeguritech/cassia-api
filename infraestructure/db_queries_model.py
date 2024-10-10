@@ -261,10 +261,14 @@ WHERE rn = 1;
                                     WHERE 
                                         h.status = 0; """
         self.query_statement_get_cassia_group_types = "SELECT * FROM cassia_group_types"
-        self.query_statement_get_cassia_host_groups= """SELECT h.groupid,h.name as group_name,cgt.id as group_type_id,cgt.name as group_type_name
-FROM cassia_host_groups_types chgt 
-inner join cassia_group_types cgt on cgt.id =chgt.cassia_group_type_id 
-inner join hstgrp h on h.groupid =chgt.groupid """
+        self.query_statement_get_cassia_host_groups= """SELECT h.groupid, h.name as group_name, cgt.id as group_type_id, 
+            cgt.name as group_type_name, 
+            COUNT(hg.hostid) as host_count
+            FROM cassia_host_groups_types chgt 
+            INNER JOIN cassia_group_types cgt ON cgt.id = chgt.cassia_group_type_id 
+            RIGHT JOIN hstgrp h ON h.groupid = chgt.groupid
+            LEFT JOIN hosts_groups hg ON hg.groupid = h.groupid
+            GROUP BY h.groupid, h.name, cgt.id, cgt.name;"""
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
