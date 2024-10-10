@@ -8,10 +8,15 @@ SETTINGS = Settings()
 class ZabbixApi:
 
     def __init__(self) -> None:
+        print("A")
         self.ZABBIX_URL = SETTINGS.zabbix_server_url
+        print("B")
         self.ZABBIX_USER = SETTINGS.zabbix_user
+        print("C")
         self.ZABBIX_PASSWORD = SETTINGS.zabbix_password
+        print("D")
         self.ZABBIX_VERSION_6 = "6.0"
+        print("E")
 
     async def get_zabbix_version(self) -> str:
         async with httpx.AsyncClient() as client:

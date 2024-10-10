@@ -261,6 +261,7 @@ WHERE rn = 1;
                                     WHERE 
                                         h.status = 0; """
         self.query_statement_get_cassia_group_types = "SELECT * FROM cassia_group_types"
+
         self.query_statement_get_cassia_host_groups= """SELECT h.groupid, h.name as group_name, cgt.id as group_type_id, 
             cgt.name as group_type_name, 
             COUNT(hg.hostid) as host_count
@@ -1433,3 +1434,21 @@ and ticket_id is not null
 """
 
         return self.query_statement_get_active_tickets_by_hostid
+
+    def builder_query_statement_get_cassia_group_type_by_id(self, type_id):
+        self.query_statement_get_cassia_group_type_by_id = f"""
+select * from cassia_group_types
+where id={type_id}
+"""
+
+        return self.query_statement_get_cassia_group_type_by_id
+
+    def builder_query_statement_assign_type_to_groupid_cassia(self, groupid, type_id):
+        self.query_statement_assign_type_to_groupid_cassia = f"""
+INSERT INTO cassia_host_groups_types
+(groupid,cassia_group_type_id)
+VALUES
+({groupid},{type_id})
+"""
+
+        return self.query_statement_assign_type_to_groupid_cassia
