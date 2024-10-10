@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile
 from fastapi import Depends, status, Form, Body, File
 from services import auth_service2
-from schemas import cassia_ci_history_schema
+from schemas import cassia_host_groups_schema
 from typing import List, Optional
 from services.cassia import cassia_host_groups_service
 from dependencies import get_db
@@ -19,3 +19,14 @@ cassia_host_groups_router = APIRouter(prefix="/host_groups")
 )
 async def get_host_groups(db: DB = Depends(get_db)):
     return await cassia_host_groups_service.get_host_groups(db)
+
+
+@cassia_host_groups_router.post(
+    "/",
+    tags=["Host Groups"],
+    status_code=status.HTTP_200_OK,
+    summary="Obtiene la los tipos de hosts de CASSIA",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def crate_host_group(group_data: cassia_host_groups_schema.CassiaHostGroupSchema, db: DB = Depends(get_db)):
+    return await cassia_host_groups_service.crate_host_group(db, group_data)

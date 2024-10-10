@@ -18,3 +18,18 @@ async def get_cassia_host_groups(db: DB) -> pd.DataFrame:
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Error en get_cassia_host_groups: {e}")
+
+
+async def asignar_group_type_cassia_groupid(db, groupid, type_id) -> bool:
+    is_type_assigned = False
+    try:
+        query_statement_assign_type_to_groupid_cassia = DBQueries(
+        ).builder_query_statement_assign_type_to_groupid_cassia(groupid, type_id)
+
+        is_type_assigned = await db.run_query(query_statement_assign_type_to_groupid_cassia)
+
+        return True
+    except Exception as e:
+        return False
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_cassia_host_groups: {e}")
