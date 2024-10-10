@@ -261,7 +261,8 @@ WHERE rn = 1;
                                     WHERE 
                                         h.status = 0; """
         self.query_statement_get_cassia_group_types = "SELECT * FROM cassia_group_types"
-        self.query_statement_get_cassia_host_groups = """SELECT h.groupid, h.name as group_name, cgt.id as group_type_id, 
+
+        self.query_statement_get_cassia_host_groups= """SELECT h.groupid, h.name as group_name, cgt.id as group_type_id, 
             cgt.name as group_type_name, 
             COUNT(hg.hostid) as host_count
             FROM cassia_host_groups_types chgt 
