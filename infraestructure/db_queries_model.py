@@ -637,6 +637,22 @@ group by c.latitude, c.longitude """
         self.query_statement_get_host_by_id = f"""select * from hosts where hostid={hostid}"""
         return self.query_statement_get_host_by_id
 
+    def builder_query_statement_get_hosts_by_ids(self, hostids):
+        self.query_statement_get_hosts_by_ids = f"""select * from hosts where hostid in ({hostids})"""
+        return self.query_statement_get_hosts_by_ids
+
+    def builder_query_statement_get_active_exceptions_by_hostids(self, hostids):
+        self.query_statement_get_active_exceptions_by_hostids = f"""SELECT * FROM cassia_exceptions_test_2 cet 
+where end_date is null and deleted_at is null
+and hostid  in ({hostids})"""
+        return self.query_statement_get_active_exceptions_by_hostids
+    
+    def builder_query_statement_get_active_mantenimientos_by_hostids_and_dates(self,hostids, init_date, end_date):
+        self.query_statement_get_active_mantenimientos_by_hostids_and_dates = f"""SELECT * FROM cassia_exceptions_test_2 cet 
+where init_date>='{init_date}' and end_date <='{end_date}' and deleted_at is null
+and hostid  in ({hostids})"""
+        return self.query_statement_get_active_mantenimientos_by_hostids_and_dates
+
     def builder_query_statement_get_exception_by_id(self, exception_id):
         self.query_statement_get_exception_by_id = f"""select * from cassia_exceptions where exception_id={exception_id}"""
         return self.query_statement_get_exception_by_id

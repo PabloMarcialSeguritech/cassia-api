@@ -1,6 +1,7 @@
 import aiomysql
 from sshtunnel import SSHTunnelForwarder
 import asyncio
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from dotenv import load_dotenv
 import os
 
@@ -31,6 +32,8 @@ class DB:
         self.remote_port = 3306  # Puerto remoto real de la base de datos
         self.pool = None
         self.ssh_tunnel = None
+        self.DATABASE_URL = f"mysql+aiomysql://{self.user}:{self.password}@{self.host}/{self.db}"
+        self.engine = create_async_engine(self.DATABASE_URL, echo=False)
 
     async def start_ssh_tunnel(self):
         if self.use_ssh:
@@ -127,3 +130,7 @@ class DB:
         if self.ssh_tunnel:
             self.ssh_tunnel.stop()
             print("SSH Tunnel closed.")
+
+    async def get_session(self):
+        async with AsyncSession(self.engine) as session:
+            return session
