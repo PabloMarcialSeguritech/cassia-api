@@ -12,6 +12,7 @@ from .settings import Settings
 
 settings = Settings()
 
+
 def success_response(message: str = "success", success: bool = True, data: any = "", status_code: int = 200):
     response = {
         'message': message,
@@ -79,3 +80,25 @@ def get_datetime_now_str_with_tz(tz=settings.time_zone, strf="%Y-%m-%d %H:%M:%S"
 
 def get_datetime_now_with_tz(tz=settings.time_zone):
     return datetime.now(pytz.timezone(tz))
+
+
+def timestamp_to_date_tz(timestamp, tz=settings.time_zone):
+    """
+    Convierte un timestamp UNIX a una fecha en formato 'd/m/Y H:M:s' en la zona horaria de Ciudad de México.
+
+    Args:
+        timestamp (int): El timestamp UNIX a convertir.
+
+    Returns:
+        str: La fecha formateada.
+    """
+    # Definir la zona horaria de Ciudad de México
+    tz_mexico = pytz.timezone(tz)
+
+    # Convertir el timestamp a un objeto datetime en UTC
+    fecha_utc = datetime.fromtimestamp(timestamp, tz=pytz.utc)
+
+    # Convertir a la zona horaria de Ciudad de México
+    fecha_tz = fecha_utc.astimezone(tz_mexico)
+
+    return fecha_tz.strftime('%d/%m/%Y %H:%M:%S')
