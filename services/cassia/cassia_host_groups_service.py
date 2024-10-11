@@ -39,7 +39,30 @@ async def crate_host_group(db: DB, group_data: cassia_host_groups_schema.CassiaH
         else:
             return success_response(success=False, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message="Error al asignar el grupo")
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Error en crate_host_group: {e}")
-    pass
-    """ return success_response(data=host_groups.to_dict(orient="records")) """
+
+
+async def delete_host_group(groupid: int, db: DB):
+    group = await cassia_host_groups_repository.get_host_group_by_groupid(groupid, db)
+    if group.empty:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="El host group no existe")
+    groupid_relations = await cassia_host_groups_repository.get_groupid_relations_by_groupid(db, groupid)
+    if not groupid_relations.empty:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="El grupo tiene host asignados por lo que no se puede eliminar")
+    try:
+        zabbix_api = ZabbixApi()
+
+        params = [groupid]
+
+        result = await zabbix_api.do_request(
+            method="hostgroup.delete", params=params)
+        if result:
+            return success_response(message='Grupo eliminado correctamente')
+        else:
+            return success_response(success=False, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message="Error al eliminar el grupo")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en delete_host_group: {e}")

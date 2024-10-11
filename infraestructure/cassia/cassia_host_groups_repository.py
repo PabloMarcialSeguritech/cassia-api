@@ -5,6 +5,21 @@ import pandas as pd
 import numpy as np
 
 
+async def get_host_group_by_groupid(groupid, db: DB) -> pd.DataFrame:
+    host_group_df = None
+    try:
+        query_statement_get_cassia_host_groups = DBQueries(
+        ).builder_query_statement_get_host_group_by_groupid(groupid)
+
+        host_group_data = await db.run_query(query_statement_get_cassia_host_groups)
+        host_group_df = pd.DataFrame(
+            host_group_data).replace(np.nan, None)
+        return host_group_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_host_group_by_groupid: {e}")
+
+
 async def get_cassia_host_groups(db: DB) -> pd.DataFrame:
     host_groups_df = None
     try:
@@ -31,5 +46,18 @@ async def asignar_group_type_cassia_groupid(db, groupid, type_id) -> bool:
         return True
     except Exception as e:
         return False
+
+
+async def get_groupid_relations_by_groupid(db, groupid) -> pd.DataFrame:
+    groupid_relations_df = pd.DataFrame()
+    try:
+        query_statement_get_groupid_relations_by_groupid = DBQueries(
+        ).builder_query_statement_get_groupid_relations_by_groupid(groupid)
+
+        groupid_relations_data = await db.run_query(query_statement_get_groupid_relations_by_groupid)
+        groupid_relations_df = pd.DataFrame(
+            groupid_relations_data).replace(np.nan, None)
+        return groupid_relations_df
+    except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Error en get_cassia_host_groups: {e}")
+                            detail=f"Error en get_groupid_relations_by_groupid: {e}")
