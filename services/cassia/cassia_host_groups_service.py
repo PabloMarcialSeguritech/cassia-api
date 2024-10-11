@@ -101,3 +101,8 @@ async def update_host_group(group_data, db):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No existe el host group con ID {hostgroup_id}."
         )
+
+
+async def get_host_devices(db):
+    host_devices = await cassia_host_groups_repository.get_host_devices(db)
+    return success_response(data=host_devices.to_dict(orient="records"))

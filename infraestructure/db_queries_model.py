@@ -298,6 +298,8 @@ GROUP BY h.hostid, h.host, hi.ip, h.status, hi.dns, hi.useip, hi.port, h.descrip
 
         self.query_statement_update_cassia_group_name_and_type_id = None
 
+        self.query_statement_get_cassia_host_devices = "SELECT * FROM host_device"
+
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
         return self.query_statement_get_metrics_template
