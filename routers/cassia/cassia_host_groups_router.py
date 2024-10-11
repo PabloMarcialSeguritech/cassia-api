@@ -41,3 +41,11 @@ async def crate_host_group(group_data: cassia_host_groups_schema.CassiaHostGroup
 )
 async def crate_host_group(groupid: int, db: DB = Depends(get_db)):
     return await cassia_host_groups_service.delete_host_group(groupid, db)
+
+@cassia_host_groups_router.put('/',
+    tags=["Host Groups"],
+    status_code=status.HTTP_200_OK,
+    summary="Actualiza el host group de CASSIA (nombre y tipo)",
+    dependencies=[Depends(auth_service2.get_current_user_session)])
+async def update_host_group(group_data: cassia_host_groups_schema.CassiaHostGroupSchema, db: DB = Depends(get_db)):
+    return await cassia_host_groups_service.update_host_group(group_data, db)

@@ -294,6 +294,10 @@ LEFT JOIN interface hi ON hi.hostid = h.hostid
 WHERE h.status IN (5, 6)
 GROUP BY h.hostid, h.host, hi.ip, h.status, hi.dns, hi.useip, hi.port, h.description"""
 
+        self.query_statement_get_cassia_group_by_id = None
+
+        self.query_statement_update_cassia_group_name_and_type_id = None
+
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
         return self.query_statement_get_metrics_template
@@ -1489,3 +1493,22 @@ SELECT * FROM hstgrp hg
 where hg.groupid ={groupid}
 """
         return self.query_statement_get_host_group_by_groupid
+
+    def builder_get_relation_cassia_host_groups_types_by_group_id(self, hostgroup_id):
+        self.query_statement_get_cassia_group_by_id = f"""
+        SELECT *
+        FROM hstgrp h
+        LEFT JOIN cassia_host_groups_types cgt ON h.groupid = cgt.groupid
+        WHERE h.groupid = {hostgroup_id}
+        """
+        return self.query_statement_get_cassia_group_by_id
+
+    def builder_update_host_group_name_and_id_type(self, hostgroup_id, hostgroup_name, hostgroup_type_id):
+        self.query_statement_update_cassia_group_name_and_type_id = f"""
+            UPDATE hstgrp h
+            INNER JOIN cassia_host_groups_types cgt ON h.groupid = cgt.groupid
+            SET h.name = '{hostgroup_name}', 
+                cgt.cassia_group_type_id = {hostgroup_type_id}
+            WHERE h.groupid = {hostgroup_id}
+        """
+        return self.query_statement_update_cassia_group_name_and_type_id
