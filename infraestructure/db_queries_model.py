@@ -269,6 +269,29 @@ WHERE rn = 1;
             RIGHT JOIN hstgrp h ON h.groupid = chgt.groupid
             LEFT JOIN hosts_groups hg ON hg.groupid = h.groupid
             GROUP BY h.groupid, h.name, cgt.id, cgt.name;"""
+        self.query_statement_get_proxies = """
+SELECT
+    h.hostid AS proxy_id,
+    h.host AS proxy_name,
+    hi.ip AS proxy_ip,
+    CASE h.status
+        WHEN 5 THEN 'Active'
+        WHEN 6 THEN 'Passive'
+        ELSE 'Unknown'
+    END AS proxy_mode,
+    hi.dns AS proxy_dns,
+    CASE hi.useip
+        WHEN 1 THEN 'IP'
+        WHEN 0 THEN 'DNS'
+        ELSE 'Unknown'
+    END AS connect_to,
+    hi.port AS proxy_port,
+    h.description AS proxy_description,
+    (SELECT COUNT(*) FROM hosts hh WHERE hh.proxy_hostid = h.hostid) AS hosts_count
+FROM hosts h
+LEFT JOIN interface hi ON hi.hostid = h.hostid
+WHERE h.status IN (5, 6)
+GROUP BY h.hostid, h.host, hi.ip, h.status, hi.dns, hi.useip, hi.port, h.description"""
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
