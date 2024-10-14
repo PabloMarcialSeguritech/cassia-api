@@ -81,6 +81,7 @@ async def delete_host_group(groupid: int, db: DB):
                             detail=f"Error en delete_host_group: {e}")
 
 
+
 async def export_groups_data(export_data: cassia_host_groups_schema.CassiaHostGroupExportSchema, db: DB):
     if len(export_data.groupids) <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
@@ -183,3 +184,45 @@ async def crate_host_group_by_import(db: DB, group_data):
     except Exception as e:
         response['detail'] = f"Error al crear el regitro {e} "
         return response
+
+      
+async def update_host_group(group_data, db):
+    group_dict = group_data.dict()
+    hostgroup_id = group_dict['groupid']
+    hostgroup_name = group_dict['name']
+    hostgroup_type_id = group_dict['type_id']
+
+    # Obtener el hostgroup existente
+    hostgroup = await cassia_host_groups_repository.get_relation_cassia_host_groups_types_by_group_id(hostgroup_id, db)
+
+    # Verificar si el hostgroup existe
+    if not hostgroup.empty:
+        # Comprobar si existe un tipo de grupo asociado
+        if hostgroup['cassia_group_type_id'].isnull().all():
+            is_type_assigned = await cassia_host_groups_repository.asignar_group_type_cassia_groupid(db, hostgroup_id, group_data.type_id)
+            if not is_type_assigned:
+                return success_response(success=False, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                        message="Error al asignar el grupo")
+        # Realizar la actualización
+        is_correct = await cassia_host_groups_repository.update_host_group_name_and_type_id(
+                    hostgroup_id, hostgroup_name, hostgroup_type_id, db)
+
+        if is_correct:
+            return success_response(
+                    message="HostGroup actualizado correctamente")
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error al actualizar el HostGroup")
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No existe el host group con ID {hostgroup_id}."
+        )
+
+
+async def get_host_devices(db):
+    host_devices = await cassia_host_groups_repository.get_host_devices(db)
+    return success_response(data=host_devices.to_dict(orient="records"))
+

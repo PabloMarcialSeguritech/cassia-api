@@ -13,3 +13,5 @@ class CassiaHostGroupSchema(BaseModel):
 class CassiaHostGroupExportSchema(BaseModel):
     file_type: Literal['csv', 'json', 'excel']
     groupids: list = Field(..., example=[1, 2, 3, 4])
+
+

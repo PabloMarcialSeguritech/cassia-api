@@ -43,6 +43,7 @@ async def crate_host_group(groupid: int, db: DB = Depends(get_db)):
     return await cassia_host_groups_service.delete_host_group(groupid, db)
 
 
+
 @cassia_host_groups_router.post(
     "/export",
     tags=["Host Groups", "CASSIA Exports"],
@@ -63,3 +64,23 @@ async def export_groups_data(export_data: cassia_host_groups_schema.CassiaHostGr
 )
 async def import_groups_data(file_import: UploadFile = File(...), db: DB = Depends(get_db)):
     return await cassia_host_groups_service.import_groups_data(file_import, db)
+
+@cassia_host_groups_router.put('/',
+    tags=["Host Groups"],
+    status_code=status.HTTP_200_OK,
+    summary="Actualiza el host group de CASSIA (nombre y tipo)",
+    dependencies=[Depends(auth_service2.get_current_user_session)])
+async def update_host_group(group_data: cassia_host_groups_schema.CassiaHostGroupSchema, db: DB = Depends(get_db)):
+    return await cassia_host_groups_service.update_host_group(group_data, db)
+
+
+@cassia_host_groups_router.get(
+    "/get_host_devices",
+    tags=["Host Groups"],
+    status_code=status.HTTP_200_OK,
+    summary="Obtiene los tipos de dispositivos de los host de CASSIA",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_host_devices(db: DB = Depends(get_db)):
+    return await cassia_host_groups_service.get_host_devices(db)
+
