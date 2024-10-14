@@ -5,6 +5,36 @@ import pandas as pd
 import numpy as np
 
 
+async def get_cassia_host_group_by_name(name, db: DB) -> pd.DataFrame:
+    host_groups_df = None
+    try:
+        query_statement_get_host_groups_by_ids = DBQueries(
+        ).builder_query_statement_get_host_group_by_name(name)
+
+        host_groups_data = await db.run_query(query_statement_get_host_groups_by_ids)
+        host_groups_df = pd.DataFrame(
+            host_groups_data).replace(np.nan, None)
+        return host_groups_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_cassia_host_group_by_name: {e}")
+
+
+async def get_cassia_host_groups_by_ids(groupids, db: DB) -> pd.DataFrame:
+    host_groups_df = None
+    try:
+        query_statement_get_host_groups_by_ids = DBQueries(
+        ).builder_query_statement_get_host_groups_by_ids(groupids)
+
+        host_groups_data = await db.run_query(query_statement_get_host_groups_by_ids)
+        host_groups_df = pd.DataFrame(
+            host_groups_data).replace(np.nan, None)
+        return host_groups_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_cassia_host_groups_by_ids: {e}")
+
+
 async def get_host_group_by_groupid(groupid, db: DB) -> pd.DataFrame:
     host_group_df = None
     try:

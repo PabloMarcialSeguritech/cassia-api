@@ -298,7 +298,9 @@ GROUP BY h.hostid, h.host, hi.ip, h.status, hi.dns, hi.useip, hi.port, h.descrip
 
         self.query_statement_update_cassia_group_name_and_type_id = None
 
-        self.query_statement_get_cassia_host_devices = "SELECT * FROM host_device"
+        self.query_statement_get_cassia_host_devices = """select hd.dispId, hd.name, hd.description, 
+            COUNT(hi.device_id) as host_count from host_device hd 
+            LEFT JOIN host_inventory hi ON hd.dispId = hi.device_id GROUP BY hd.dispId, hd.name"""
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -1496,6 +1498,39 @@ where hg.groupid ={groupid}
 """
         return self.query_statement_get_host_group_by_groupid
 
+
+    def builder_query_statement_get_interface_by_ip(self, ip):
+        self.query_statement_get_interface_by_ip = f"""
+SELECT * FROM interface
+where ip ='{ip}'
+"""
+        return self.query_statement_get_interface_by_ip
+
+    def builder_query_statement_get_host_by_hostname(self, name):
+        self.query_statement_get_host_by_hostname = f"""
+SELECT * FROM hosts
+where host ='{name}'
+"""
+        return self.query_statement_get_host_by_hostname
+
+    def builder_query_statement_get_host_groups_by_ids(self, groupids):
+        self.query_statement_get_host_groups_by_ids = f"""
+SELECT h.groupid, h.name as group_name, cgt.id as group_type_id
+            FROM cassia_host_groups_types chgt 
+            INNER JOIN cassia_group_types cgt ON cgt.id = chgt.cassia_group_type_id 
+            RIGHT JOIN hstgrp h ON h.groupid = chgt.groupid
+            LEFT JOIN hosts_groups hg ON hg.groupid = h.groupid
+            WHERE h.groupid in ({groupids})
+            GROUP BY h.groupid, h.name, cgt.id, cgt.name;
+"""
+        return self.query_statement_get_host_groups_by_ids
+
+    def builder_query_statement_get_host_group_by_name(self, name):
+        self.query_statement_get_host_group_by_name = f"""
+SELECT h.groupid, h.name as group_name from hstgrp h
+            WHERE h.name = '{name}'"""
+        return self.query_statement_get_host_group_by_name
+
     def builder_get_relation_cassia_host_groups_types_by_group_id(self, hostgroup_id):
         self.query_statement_get_cassia_group_by_id = f"""
         SELECT *
@@ -1514,3 +1549,4 @@ where hg.groupid ={groupid}
             WHERE h.groupid = {hostgroup_id}
         """
         return self.query_statement_update_cassia_group_name_and_type_id
+
