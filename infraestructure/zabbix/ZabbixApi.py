@@ -118,10 +118,9 @@ class ZabbixApi:
             }
             async with httpx.AsyncClient() as client:
                 respuesta = await client.post(self.ZABBIX_URL, json=request, timeout=120)
-
+                print(respuesta)
                 if respuesta.status_code == 200:
                     respuesta_json = respuesta.json()
-
                     if 'result' in respuesta_json:
                         result = respuesta_json['result']
                         return result
@@ -130,6 +129,54 @@ class ZabbixApi:
                     error = respuesta_json['error']
                     print(
                         f"Error al hacer peticion {method} en la api de zabbix, {error}")
+                    return error
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Error al hacer peticion {method} en la api de zabbix, {error}"
+                    )
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al hacer peticion {method}: {e}"
+            )
+
+    async def do_request_new(self, method: str, params: dict):
+        try:
+
+            token = await self.get_zabbix_token()
+            request = {
+                "jsonrpc": "2.0",
+                "method": method,
+                "params": params,
+                "auth": token,
+                "id": 1
+            }
+            async with httpx.AsyncClient() as client:
+                respuesta = await client.post(self.ZABBIX_URL, json=request, timeout=120)
+                print(respuesta)
+                response = {'success': False, 'result': None}
+                if respuesta.status_code == 200:
+                    respuesta_json = respuesta.json()
+                    if 'result' in respuesta_json:
+                        result = respuesta_json['result']
+                        response["result"] = result
+                        response["success"] = True
+                        return response
+                    else:
+                        if 'error' in respuesta_json:
+                            result = respuesta_json['error']
+                            response["result"] = result
+                            response["success"] = False
+                            return response
+                        else:
+                            return response
+                else:
+                    respuesta_json = respuesta_json()
+                    error = respuesta_json['error']
+                    print(
+                        f"Error al hacer peticion {method} en la api de zabbix, {error}")
+                    return error
                     raise HTTPException(
                         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                         detail=f"Error al hacer peticion {method} en la api de zabbix, {error}"
