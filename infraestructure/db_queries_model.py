@@ -1488,3 +1488,35 @@ SELECT * FROM hstgrp hg
 where hg.groupid ={groupid}
 """
         return self.query_statement_get_host_group_by_groupid
+
+    def builder_query_statement_get_interface_by_ip(self, ip):
+        self.query_statement_get_interface_by_ip = f"""
+SELECT * FROM interface
+where ip ='{ip}'
+"""
+        return self.query_statement_get_interface_by_ip
+
+    def builder_query_statement_get_host_by_hostname(self, name):
+        self.query_statement_get_host_by_hostname = f"""
+SELECT * FROM hosts
+where host ='{name}'
+"""
+        return self.query_statement_get_host_by_hostname
+
+    def builder_query_statement_get_host_groups_by_ids(self, groupids):
+        self.query_statement_get_host_groups_by_ids = f"""
+SELECT h.groupid, h.name as group_name, cgt.id as group_type_id
+            FROM cassia_host_groups_types chgt 
+            INNER JOIN cassia_group_types cgt ON cgt.id = chgt.cassia_group_type_id 
+            RIGHT JOIN hstgrp h ON h.groupid = chgt.groupid
+            LEFT JOIN hosts_groups hg ON hg.groupid = h.groupid
+            WHERE h.groupid in ({groupids})
+            GROUP BY h.groupid, h.name, cgt.id, cgt.name;
+"""
+        return self.query_statement_get_host_groups_by_ids
+
+    def builder_query_statement_get_host_group_by_name(self, name):
+        self.query_statement_get_host_group_by_name = f"""
+SELECT h.groupid, h.name as group_name from hstgrp h
+            WHERE h.name = '{name}'"""
+        return self.query_statement_get_host_group_by_name
