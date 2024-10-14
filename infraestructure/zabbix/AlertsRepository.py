@@ -1677,8 +1677,15 @@ async def get_problems_filter_pool(municipalityId, tech_host_type=0, subtype="",
         problems = pd.concat([problems_zabbix, problems_cassia]).sort_values(
             by='fecha', ascending=False)
         if 'message' in problems.columns:
+            problems['acknowledges_concatenados'] = problems['acknowledges_concatenados'].fillna(
+                '')
+            problems['message'] = problems['message'].fillna('')
+
             problems['acknowledges_concatenados'] = problems['acknowledges_concatenados'] + \
-                problems['message'].fillna('')
+                problems['message']
+
+            problems['message'] = problems['acknowledges_concatenados'].replace(
+                '', None)
     if 'acknowledges_concatenados' in problems.columns:
         problems['acknowledges_concatenados'] = problems['acknowledges_concatenados'].replace(
             '', None)
