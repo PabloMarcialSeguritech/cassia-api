@@ -81,7 +81,6 @@ async def delete_host_group(groupid: int, db: DB):
                             detail=f"Error en delete_host_group: {e}")
 
 
-
 async def export_groups_data(export_data: cassia_host_groups_schema.CassiaHostGroupExportSchema, db: DB):
     if len(export_data.groupids) <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
@@ -117,8 +116,8 @@ async def import_groups_data(file_import: File, db):
         db, df_import.iloc[group_data_ind].to_dict())) for group_data_ind in df_import.index]
     df_import_results = pd.DataFrame(
         columns=['groupid', 'name', 'type_id', 'result', 'detail'])
-    for i in range(0, len(tasks_create), 5):
-        lote = tasks_create[i:i + 5]
+    for i in range(0, len(tasks_create), 10):
+        lote = tasks_create[i:i + 10]
         # Ejecutar las corutinas de forma concurrente
         resultados = await asyncio.gather(*lote)
         for resultado in resultados:
@@ -185,7 +184,7 @@ async def crate_host_group_by_import(db: DB, group_data):
         response['detail'] = f"Error al crear el regitro {e} "
         return response
 
-      
+
 async def update_host_group(group_data, db):
     group_dict = group_data.dict()
     hostgroup_id = group_dict['groupid']
@@ -205,11 +204,11 @@ async def update_host_group(group_data, db):
                                         message="Error al asignar el grupo")
         # Realizar la actualización
         is_correct = await cassia_host_groups_repository.update_host_group_name_and_type_id(
-                    hostgroup_id, hostgroup_name, hostgroup_type_id, db)
+            hostgroup_id, hostgroup_name, hostgroup_type_id, db)
 
         if is_correct:
             return success_response(
-                    message="HostGroup actualizado correctamente")
+                message="HostGroup actualizado correctamente")
         else:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -225,4 +224,3 @@ async def update_host_group(group_data, db):
 async def get_host_devices(db):
     host_devices = await cassia_host_groups_repository.get_host_devices(db)
     return success_response(data=host_devices.to_dict(orient="records"))
-
