@@ -55,3 +55,14 @@ async def search_host_by_name(name, db: DB) -> pd.DataFrame:
         print(f"Excepcion en search_host_by_name: {e}")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Excepcion en search_host_by_name: {e}")
+
+async def get_proxy_by_id(proxyid: int, db: DB) -> pd.DataFrame:
+    try:
+        query_statement_get_proxy = DBQueries().builder_query_statement_get_proxy_by_id(proxyid)
+        proxy_data = await db.run_query(query_statement_get_proxy)
+        proxy_df = pd.DataFrame(proxy_data).replace(np.nan, None)
+        return proxy_df
+    except Exception as e:
+        print(f"Excepcion en get_proxy_by_id: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_proxy_by_id: {e}")

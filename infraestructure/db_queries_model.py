@@ -298,9 +298,17 @@ GROUP BY h.hostid, h.host, hi.ip, h.status, hi.dns, hi.useip, hi.port, h.descrip
 
         self.query_statement_update_cassia_group_name_and_type_id = None
 
-        self.query_statement_get_cassia_host_devices = """select hd.dispId, hd.name, hd.description, 
+        self.query_statement_get_cassia_host_devices = """select hd.dispId, hd.name, hd.visible_name, hd.description, 
             COUNT(hi.device_id) as host_count from host_device hd 
             LEFT JOIN host_inventory hi ON hd.dispId = hi.device_id GROUP BY hd.dispId, hd.name"""
+
+        self.query_statement_update_host_device = None
+
+        self.query_statement_get_host_device_by_id = None
+
+        self.query_statement_get_proxy_by_id = None
+
+        self.query_statement_get_technologies_devices_by_ids = None
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -1566,3 +1574,54 @@ SELECT
     WHERE h.status IN (5, 6) and h.hostid in ({proxy_ids})
     GROUP BY h.hostid, h.host, hi.ip, h.status, hi.dns, hi.useip, hi.port, h.description"""
         return self.query_statement_get_proxies_by_ids
+
+    def builder_update_host_tech_device(self, tech_disp_id, tech_visible_name):
+        self.query_statement_update_host_device = f"""
+                   UPDATE host_device
+                   SET visible_name = '{tech_visible_name}'
+                   WHERE dispId = {tech_disp_id}
+               """
+        return self.query_statement_update_host_device
+
+    def builder_get_host_device_by_id(self, tech_disp_id):
+        self.query_statement_get_host_device_by_id = f"""
+                SELECT dispId, name, description, visible_name
+                FROM host_device
+                WHERE  dispId= {tech_disp_id}
+                """
+        return self.query_statement_get_host_device_by_id
+
+    def builder_query_statement_get_proxy_by_id(self, proxyid):
+        self.query_statement_get_proxy_by_id = f"""
+        SELECT
+            h.hostid AS proxy_id,
+            h.host AS proxy_name,
+            hi.ip AS proxy_ip,
+            CASE h.status
+                WHEN 5 THEN 'Active'
+                WHEN 6 THEN 'Passive'
+                ELSE 'Unknown'
+            END AS proxy_mode,
+            hi.dns AS proxy_dns,
+            CASE hi.useip
+                WHEN 1 THEN 'IP'
+                WHEN 0 THEN 'DNS'
+                ELSE 'Unknown'
+            END AS connect_to,
+            hi.port AS proxy_port,
+            h.description AS proxy_description,
+            (SELECT COUNT(*) FROM hosts hh WHERE hh.proxy_hostid = h.hostid) AS hosts_count
+        FROM hosts h
+        LEFT JOIN interface hi ON hi.hostid = h.hostid
+        WHERE h.status IN (5, 6)
+        AND h.hostid = {proxyid}
+        GROUP BY h.hostid, h.host, hi.ip, h.status, hi.dns, hi.useip, hi.port, h.description
+        """
+        return self.query_statement_get_proxy_by_id
+
+    def builder_query_statement_get_technologies_devices_by_ids(self, dispIds):
+        self.query_statement_get_technologies_devices_by_ids = f"""
+        select hd.dispId, hd.name, hd.visible_name, hd.description, COUNT(hi.device_id) as host_count 
+        from host_device hd LEFT JOIN host_inventory hi ON hd.dispId = hi.device_id WHERE hd.dispId  
+        IN ({dispIds}) GROUP BY hd.dispId, hd.name"""
+        return self.query_statement_get_technologies_devices_by_ids

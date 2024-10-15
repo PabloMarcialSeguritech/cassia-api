@@ -41,6 +41,7 @@ async def export_proxies(proxy_data_export: cassia_proxies_schema.CassiaProxiesE
     return await proxies_service.export_proxies(proxy_data_export, db)
 
 
+
 @proxies_router.post(
     '/import',
     tags=["Zabbix - Proxies", "CASSIA Imports"],
@@ -50,3 +51,13 @@ async def export_proxies(proxy_data_export: cassia_proxies_schema.CassiaProxiesE
 )
 async def import_proxies(file_import: UploadFile = File(...), db: DB = Depends(get_db)):
     return await proxies_service.import_proxies(file_import, db)
+
+@proxies_router.delete(
+    "/{proxyid}",
+    tags=["Zabbix - Proxies"],
+    status_code=status.HTTP_200_OK,
+    summary="Eliminar un Proxy",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def delete_proxy(proxyid: int, db: DB = Depends(get_db)):
+    return await proxies_service.delete_proxy(proxyid, db)
