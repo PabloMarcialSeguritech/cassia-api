@@ -9,4 +9,12 @@ class CassiaProxiesSchema(BaseModel):
     description: str = Field(..., max_length=255,
                              example="CELAYA")
     ip: str = Field(...,  example="127.0.0.1")
-    mode: Literal['active']
+    mode: Literal['Active']
+
+
+class CassiaProxiesExportSchema(BaseModel):
+    proxy_ids: list = Field(..., example=[10436,
+                                          10445,
+                                          10448,
+                                          10458])
+    file_type: Literal['csv', 'json', 'excel']
