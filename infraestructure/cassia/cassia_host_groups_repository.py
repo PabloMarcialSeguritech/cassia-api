@@ -116,16 +116,3 @@ async def update_host_group_name_and_type_id(hostgroup_id, hostgroup_name, hostg
         )
 
 
-async def get_host_devices(db):
-    host_devices_df = None
-    try:
-        query_statement_get_cassia_host_groups = DBQueries(
-        ).query_statement_get_cassia_host_devices
-
-        host_devices_data = await db.run_query(query_statement_get_cassia_host_groups)
-        host_devices_df = pd.DataFrame(
-            host_devices_data).replace(np.nan, None)
-        return host_devices_df
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Error en get_host_devices: {e}")
