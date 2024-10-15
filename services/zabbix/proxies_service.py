@@ -1,8 +1,10 @@
 from fastapi import status, HTTPException
-from utils.traits import success_response, timestamp_to_date_tz
+from utils.traits import success_response, timestamp_to_date_tz, get_datetime_now_str_with_tz
+from utils.exports_imports_functions import generate_file_export
 from infraestructure.zabbix.ZabbixApi import ZabbixApi
 from infraestructure.zabbix import proxies_repository
 from schemas import cassia_proxies_schema
+from infraestructure.database import DB
 import pandas as pd
 import asyncio
 from ipaddress import IPv4Address
@@ -107,3 +109,20 @@ async def create_proxy(proxy_data: cassia_proxies_schema.CassiaProxiesSchema, db
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Error en create_proxies: {e}")
+
+
+async def export_proxies(proxy_data_export: cassia_proxies_schema.CassiaProxiesExportSchema, db: DB):
+    if len(proxy_data_export.proxy_ids) <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Selecciona al menos un proxy")
+    proxy_ids = ",".join([str(proxy_id)
+                         for proxy_id in proxy_data_export.proxy_ids])
+    proxies_data = await proxies_repository.get_proxies_by_ids(proxy_ids, db)
+
+    try:
+        now = get_datetime_now_str_with_tz()
+        export_file = await generate_file_export(proxies_data, page_name='proxies', filename=f"proxies - {now}", file_type=proxy_data_export.file_type)
+        return export_file
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en export_proxies {e}")
