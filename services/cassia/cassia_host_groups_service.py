@@ -129,7 +129,8 @@ async def import_groups_data(file_import: File, db):
     if not df_import_results.empty:
         df_import_results['type_id'] = df_import_results['type_id'].astype(
             'int64')
-    return await generate_file_export(data=df_import_results, page_name='Resultados', filename='Resultados importación', file_type='excel')
+    now = get_datetime_now_str_with_tz()
+    return await generate_file_export(data=df_import_results, page_name='Resultados', filename=f'Resultados importación host groups {now}', file_type='excel')
 
 
 async def crate_host_group_by_import(db: DB, group_data):
