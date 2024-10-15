@@ -154,10 +154,10 @@ class ZabbixApi:
             }
             async with httpx.AsyncClient() as client:
                 respuesta = await client.post(self.ZABBIX_URL, json=request, timeout=120)
-                print(respuesta)
                 response = {'success': False, 'result': None}
                 if respuesta.status_code == 200:
                     respuesta_json = respuesta.json()
+                    return respuesta_json
                     if 'result' in respuesta_json:
                         result = respuesta_json['result']
                         response["result"] = result
@@ -173,6 +173,7 @@ class ZabbixApi:
                             return response
                 else:
                     respuesta_json = respuesta_json()
+                    return respuesta_json
                     error = respuesta_json['error']
                     print(
                         f"Error al hacer peticion {method} en la api de zabbix, {error}")
