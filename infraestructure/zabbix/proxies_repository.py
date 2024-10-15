@@ -5,6 +5,19 @@ import pandas as pd
 import numpy as np
 
 
+async def get_proxies_by_ids(proxy_ids, db: DB) -> pd.DataFrame:
+    try:
+        query_statement_get_proxies_by_ids = DBQueries(
+        ).builder_query_statement_get_proxies_by_ids(proxy_ids)
+        proxies_data = await db.run_query(query_statement_get_proxies_by_ids)
+        proxies_df = pd.DataFrame(proxies_data).replace(np.nan, None)
+        return proxies_df
+    except Exception as e:
+        print(f"Excepcion en get_proxies_by_ids: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en get_proxies_by_ids: {e}")
+
+
 async def get_proxies(db: DB) -> pd.DataFrame:
     try:
         query_statement_get_proxies = DBQueries().query_statement_get_proxies

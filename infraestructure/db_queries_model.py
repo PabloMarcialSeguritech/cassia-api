@@ -262,7 +262,7 @@ WHERE rn = 1;
                                         h.status = 0; """
         self.query_statement_get_cassia_group_types = "SELECT * FROM cassia_group_types"
 
-        self.query_statement_get_cassia_host_groups= """SELECT h.groupid, h.name as group_name, cgt.id as group_type_id, 
+        self.query_statement_get_cassia_host_groups = """SELECT h.groupid, h.name as group_name, cgt.id as group_type_id, 
             cgt.name as group_type_name, 
             COUNT(hg.hostid) as host_count
             FROM cassia_host_groups_types chgt 
@@ -1498,7 +1498,6 @@ where hg.groupid ={groupid}
 """
         return self.query_statement_get_host_group_by_groupid
 
-
     def builder_query_statement_get_interface_by_ip(self, ip):
         self.query_statement_get_interface_by_ip = f"""
 SELECT * FROM interface
@@ -1550,3 +1549,20 @@ SELECT h.groupid, h.name as group_name from hstgrp h
         """
         return self.query_statement_update_cassia_group_name_and_type_id
 
+    def builder_query_statement_get_proxies_by_ids(self, proxy_ids):
+        self.query_statement_get_proxies_by_ids = f"""
+SELECT
+    h.hostid AS proxy_id,
+    h.host AS name,
+    hi.ip AS ip,
+    CASE h.status
+        WHEN 5 THEN 'Active'
+        WHEN 6 THEN 'Passive'
+        ELSE 'Unknown'
+    END AS proxy_mode,
+    h.description AS description
+    FROM hosts h
+    LEFT JOIN interface hi ON hi.hostid = h.hostid
+    WHERE h.status IN (5, 6) and h.hostid in ({proxy_ids})
+    GROUP BY h.hostid, h.host, hi.ip, h.status, hi.dns, hi.useip, hi.port, h.description"""
+        return self.query_statement_get_proxies_by_ids
