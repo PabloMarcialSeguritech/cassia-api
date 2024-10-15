@@ -8,6 +8,7 @@ from infraestructure.database import DB
 import pandas as pd
 import asyncio
 from ipaddress import IPv4Address
+from infraestructure.database import DB
 
 
 async def get_proxies(db):
@@ -126,3 +127,50 @@ async def export_proxies(proxy_data_export: cassia_proxies_schema.CassiaProxiesE
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Excepcion en export_proxies {e}")
+
+async def delete_proxy(proxyid: int, db: DB):
+    # Obtener proxy por su ID desde la base de datos
+    proxy = await proxies_repository.get_proxy_by_id(proxyid, db)
+
+    if proxy.empty:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="El proxy no existe")
+
+    # Asegúrate de obtener el valor único (primera fila)
+    proxy_id = proxy['proxy_id'].iloc[0]  # Obtener el primer valor de la columna 'proxy_id'
+
+    # Verificar que proxy_id no sea nulo
+    if pd.isna(proxy_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="El proxy ID es inválido o nulo")
+
+    try:
+        # Convertir el ID del proxy a entero
+        proxy_id = int(proxy_id)  # Convertir explícitamente a entero
+        print(f"proxy_id convertido a entero: {proxy_id}, tipo: {type(proxy_id)}")  # Verificación
+
+        # Crear instancia de la API de Zabbix
+        zabbix_api = ZabbixApi()
+
+        # Parámetros para eliminar el proxy (enviando como lista)
+        params = {"proxyids": proxy_id}
+        print(f"Parámetros enviados a Zabbix: {params}")
+
+        # Hacer la solicitud a la API de Zabbix
+        result = await zabbix_api.do_request(method="proxy.delete", params=params)
+
+        # Verificar si la respuesta tiene el campo 'result'
+        if result and 'result' in result:
+            deleted_proxies = result['result']['proxyids']  # Accede a los proxyids eliminados
+            print(f"Proxies eliminados: {deleted_proxies}")
+
+            if deleted_proxies:
+                deleted_proxy_id = deleted_proxies[0]  # El ID del proxy eliminado
+                return {"message": f"Proxy {deleted_proxy_id} eliminado con éxito"}
+
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="No se pudo eliminar el proxy en Zabbix")
+
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error al eliminar el proxy: {str(e)}")
