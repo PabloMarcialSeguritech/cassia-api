@@ -30,6 +30,21 @@ async def get_proxies(db: DB) -> pd.DataFrame:
                             detail=f"Excepcion en get_proxies: {e}")
 
 
+async def search_interface_by_hostid(hostid, db: DB) -> pd.DataFrame:
+    try:
+        query_statement_get_interface_by_hostid = DBQueries(
+        ).builder_query_statement_get_interface_by_hostid(hostid)
+        print(query_statement_get_interface_by_hostid)
+        proxy_interface_data = await db.run_query(query_statement_get_interface_by_hostid)
+        proxy_interface_df = pd.DataFrame(
+            proxy_interface_data).replace(np.nan, None)
+        return proxy_interface_df
+    except Exception as e:
+        print(f"Excepcion en search_interface_by_hostid: {e}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Excepcion en search_interface_by_hostid: {e}")
+
+
 async def search_interface_by_ip(ip, db: DB) -> pd.DataFrame:
     try:
         query_statement_get_interface_by_ip = DBQueries(
@@ -56,9 +71,11 @@ async def search_host_by_name(name, db: DB) -> pd.DataFrame:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Excepcion en search_host_by_name: {e}")
 
+
 async def get_proxy_by_id(proxyid: int, db: DB) -> pd.DataFrame:
     try:
-        query_statement_get_proxy = DBQueries().builder_query_statement_get_proxy_by_id(proxyid)
+        query_statement_get_proxy = DBQueries(
+        ).builder_query_statement_get_proxy_by_id(proxyid)
         proxy_data = await db.run_query(query_statement_get_proxy)
         proxy_df = pd.DataFrame(proxy_data).replace(np.nan, None)
         return proxy_df

@@ -310,6 +310,8 @@ GROUP BY h.hostid, h.host, hi.ip, h.status, hi.dns, hi.useip, hi.port, h.descrip
 
         self.query_statement_get_technologies_devices_by_ids = None
 
+        self.query_statement_get_brands_by_ids = None
+
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
         return self.query_statement_get_metrics_template
@@ -1513,6 +1515,13 @@ where ip ='{ip}'
 """
         return self.query_statement_get_interface_by_ip
 
+    def builder_query_statement_get_interface_by_hostid(self, hostid):
+        self.query_statement_get_interface_by_hostid = f"""
+SELECT * FROM interface
+where hostid ='{hostid}'
+"""
+        return self.query_statement_get_interface_by_hostid
+
     def builder_query_statement_get_host_by_hostname(self, name):
         self.query_statement_get_host_by_hostname = f"""
 SELECT * FROM hosts
@@ -1625,3 +1634,12 @@ SELECT
         from host_device hd LEFT JOIN host_inventory hi ON hd.dispId = hi.device_id WHERE hd.dispId  
         IN ({dispIds}) GROUP BY hd.dispId, hd.name"""
         return self.query_statement_get_technologies_devices_by_ids
+
+
+    def builder_query_statement_get_brands_by_ids(self, brand_ids):
+        self.query_statement_get_brands_by_ids = f"""
+                SELECT brand_id, name_brand, mac_address_brand_OUI, editable
+                FROM cassia_host_brand
+                WHERE brand_id IN ({brand_ids})"""
+        return self.query_statement_get_brands_by_ids
+
