@@ -300,3 +300,98 @@ async def delete_proxy(proxyid: int, db: DB):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Error al eliminar el proxy: {str(e)}")
+
+
+async def update_proxy(proxyid: int, proxy_data: cassia_proxies_schema.CassiaProxiesSchema, db):
+    # Verifica que exista el proxy
+    exist_proxy = await proxies_repository.get_proxy_by_id(proxyid, db)
+
+    if exist_proxy.empty:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="El proxy con el id proporcionado no existe")
+    try:  # Verificacion de IP valida
+        valid_ip = IPv4Address(proxy_data.ip)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="La IP no es una direccion valida")
+    # Obtencion de ip y nombre de bd
+    tasks = {
+        'exist_ip': asyncio.create_task(proxies_repository.search_interface_by_ip(proxy_data.ip, db)),
+        'exist_name': asyncio.create_task(proxies_repository.search_host_by_name(proxy_data.name, db))
+    }
+    results = await asyncio.gather(*tasks.values())
+    dfs = dict(zip(tasks.keys(), results))
+    exist_ip = dfs['exist_ip']
+    exist_name = dfs['exist_name']
+
+    # Verificacion de que no exista otro host con la misma ip y nombre
+    if not exist_ip.empty:
+        if exist_ip['hostid'].astype('int64')[0] != proxyid:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="La ip ya esta asignada a otro host")
+    if not exist_name.empty:
+        if exist_name['hostid'].astype('int64')[0] != proxyid:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="El nombre ya esta asignado a otro host")
+
+    try:
+
+        zabbix_api = ZabbixApi()
+        status_proxy = "5" if proxy_data.proxy_mode == "Active" else "6"
+        # Parametros para actualizar proxy en zabbix
+        params_proxy = {
+            "host": proxy_data.name,
+            "status": status_proxy,
+            "description": proxy_data.description,
+            "proxyid": str(proxyid)
+        }
+        # Peticion de actualizacion a api de zabbix
+        result = await zabbix_api.do_request_new(
+            method="proxy.update", params=params_proxy)
+        # Verifica si se realizo correctamente la peticion
+        if 'result' in result:
+            # Obtiene la interface del host
+            proxy_interface = await proxies_repository.search_interface_by_hostid(proxyid, db)
+
+            if not proxy_interface.empty:  # Si tiene una interfaz activa actualiza esa interfaz
+                interfaceid = proxy_interface['interfaceid'].astype(str)[
+                    0]
+                params_proxy_interface = {
+                    "interfaceid": interfaceid,
+                    "ip": proxy_data.ip,  # La IP que deseas asignar al proxy
+                    "useip": 1,  # Usar la IP en lugar de DNS
+                    "dns": "",  # Dejar DNS vacío si se usa la IP
+                    "port": "10051",
+                }
+
+                result_update_ip = await zabbix_api.do_request_new("hostinterface.update", params_proxy_interface)
+
+                if 'result' in result_update_ip:
+                    return success_response(message="Proxy actualizado correctamente")
+                else:
+                    return success_response(message="La informacion del proxy se actulizo correctamente, pero la IP no se logro actualizar.")
+
+            else:  # Si no tiene una interfaz activa le crea una interfaz
+                params_proxy_interface = {
+                    "ip": proxy_data.ip,  # La IP que deseas asignar al proxy
+                    "useip": 1,  # Usar la IP en lugar de DNS
+                    "dns": "",  # Dejar DNS vacío si se usa la IP
+                    "port": "10051",
+                    "main": 1,
+                    "type": 1,  # Puerto por defecto del proxy de Zabbix
+                }
+                params_proxy_interface['hostid'] = str(proxyid)
+
+                result_assign_ip = await zabbix_api.do_request_new("hostinterface.create", params_proxy_interface)
+                if 'result' in result_assign_ip:
+                    return success_response(message="Proxy actualizado correctamente")
+                else:
+                    return success_response(message="La informacion del proxy se actulizo correctamente, pero la IP no se logro actualizar.")
+        else:
+            error = result['error']
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                detail=f"Error al crear proxy en zabbix: {error}")
+
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en create_proxies: {e}")
