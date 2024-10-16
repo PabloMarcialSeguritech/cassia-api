@@ -9,7 +9,7 @@ class CassiaProxiesSchema(BaseModel):
     description: str = Field(..., max_length=255,
                              example="CELAYA")
     ip: str = Field(...,  example="127.0.0.1")
-    mode: Literal['Active']
+    proxy_mode: Literal['Active']
 
 
 class CassiaProxiesExportSchema(BaseModel):
