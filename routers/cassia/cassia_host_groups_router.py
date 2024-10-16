@@ -73,14 +73,3 @@ async def import_groups_data(file_import: UploadFile = File(...), db: DB = Depen
                                dependencies=[Depends(auth_service2.get_current_user_session)])
 async def update_host_group(group_data: cassia_host_groups_schema.CassiaHostGroupSchema, db: DB = Depends(get_db)):
     return await cassia_host_groups_service.update_host_group(group_data, db)
-
-
-@cassia_host_groups_router.get(
-    "/get_host_devices",
-    tags=["Host Groups"],
-    status_code=status.HTTP_200_OK,
-    summary="Obtiene los tipos de dispositivos de los host de CASSIA",
-    dependencies=[Depends(auth_service2.get_current_user_session)]
-)
-async def get_host_devices(db: DB = Depends(get_db)):
-    return await cassia_host_groups_service.get_host_devices(db)
