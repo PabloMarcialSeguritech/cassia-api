@@ -10,6 +10,7 @@ import asyncio
 from fastapi import File
 from ipaddress import IPv4Address
 from types import SimpleNamespace
+import numpy as np
 
 
 async def get_proxies(db):
@@ -141,10 +142,10 @@ async def import_proxies(file_import: File, db):
             status_code=400,
             detail="El archivo debe ser un CSV, JSON, XLS o XLSX"
         )
-    processed_data = await get_df_by_filetype(file_import)
+    processed_data = await get_df_by_filetype(file_import, ['proxy_id', 'name', 'ip', 'proxy_mode', 'description'])
     result = processed_data['result']
     if not result:
-        exception = result['exception']
+        exception = processed_data['exception']
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Error al procesar el archivo: {exception}")
 
@@ -165,6 +166,9 @@ async def import_proxies(file_import: File, db):
             # Concatenar el nuevo registro al DataFrame original
             df_import_results = pd.concat(
                 [df_import_results, new_row], ignore_index=True)
+    if not df_import_results.empty:
+        df_import_results = df_import_results.replace(np.nan, None)
+    return success_response(data=df_import_results.to_dict(orient='records'))
     now = get_datetime_now_str_with_tz()
     return await generate_file_export(data=df_import_results, page_name='Resultados', filename=f'Resultados importación proxies {now}', file_type='excel')
 

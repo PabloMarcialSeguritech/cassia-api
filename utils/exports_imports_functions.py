@@ -40,7 +40,7 @@ async def generate_file_export(data: pd.DataFrame, page_name, filename, file_typ
                 )
 
 
-async def get_df_by_filetype(file) -> pd.DataFrame:
+async def get_df_by_filetype(file, expected_columns: list) -> pd.DataFrame:
     mime_type, _ = mimetypes.guess_type(file.filename)
     df = pd.DataFrame()
     result = True
@@ -89,4 +89,8 @@ async def get_df_by_filetype(file) -> pd.DataFrame:
             except Exception as e:
                 exception = e
                 result = False
+    columnas_esperadas = all(elem in df.columns for elem in expected_columns)
+    if not columnas_esperadas:
+        exception = "El archivo no tiene el formato correcto para importa(Revisa que las columnas sean correctas)"
+        result = False
     return {'df': df, 'result': result, 'exception': exception}
