@@ -1513,6 +1513,13 @@ where ip ='{ip}'
 """
         return self.query_statement_get_interface_by_ip
 
+    def builder_query_statement_get_interface_by_hostid(self, hostid):
+        self.query_statement_get_interface_by_hostid = f"""
+SELECT * FROM interface
+where hostid ='{hostid}'
+"""
+        return self.query_statement_get_interface_by_hostid
+
     def builder_query_statement_get_host_by_hostname(self, name):
         self.query_statement_get_host_by_hostname = f"""
 SELECT * FROM hosts
