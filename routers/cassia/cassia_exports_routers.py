@@ -13,7 +13,7 @@ cassia_exports_router = APIRouter(prefix="/exports")
 
 @cassia_exports_router.get(
     "/file_types",
-    tags=["Group Types", "CASSIA Exports"],
+    tags=["CASSIA Exports"],
     status_code=status.HTTP_200_OK,
     summary="Obtiene los tipos de archivo que acepta como parametro las funciones de export",
     dependencies=[Depends(auth_service2.get_current_user_session)]

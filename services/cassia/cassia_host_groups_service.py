@@ -132,9 +132,6 @@ async def import_groups_data(file_import: File, db):
             'int64')
         df_import_results = df_import_results.replace(np.nan, None)
     return success_response(data=df_import_results.to_dict(orient='records'))
-    now = get_datetime_now_str_with_tz()
-
-    return await generate_file_export(data=df_import_results, page_name='Resultados', filename=f'Resultados importación host groups {now}', file_type='excel')
 
 
 async def crate_host_group_by_import(db: DB, group_data):
