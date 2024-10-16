@@ -10,6 +10,7 @@ from schemas import cassia_host_groups_schema
 from infraestructure.database import DB
 import asyncio
 import pandas as pd
+import numpy as np
 
 
 async def get_host_groups(db: DB):
@@ -36,7 +37,7 @@ async def crate_host_group(db: DB, group_data: cassia_host_groups_schema.CassiaH
         }
         zabbix_result = await zabbix_api.do_request_new(
             method="hostgroup.create", params=params)
-        if not zabbix_result['success']:
+        if 'error' in zabbix_result:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="Error al crear grupo en Zabbix")
         zabbix_result = zabbix_result['result']
@@ -103,10 +104,10 @@ async def import_groups_data(file_import: File, db):
             status_code=400,
             detail="El archivo debe ser un CSV, JSON, XLS o XLSX"
         )
-    processed_data = await get_df_by_filetype(file_import)
+    processed_data = await get_df_by_filetype(file_import, ['groupid', 'group_name', 'group_type_id'])
     result = processed_data['result']
     if not result:
-        exception = result['exception']
+        exception = processed_data['exception']
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Error al procesar el archivo: {exception}")
     df_import = processed_data['df']
@@ -115,7 +116,7 @@ async def import_groups_data(file_import: File, db):
     tasks_create = [asyncio.create_task(crate_host_group_by_import(
         db, df_import.iloc[group_data_ind].to_dict())) for group_data_ind in df_import.index]
     df_import_results = pd.DataFrame(
-        columns=['groupid', 'name', 'type_id', 'result', 'detail'])
+        columns=['groupid', 'name', 'type_id', 'result', 'detail', 'groupid_creado'])
     for i in range(0, len(tasks_create), 10):
         lote = tasks_create[i:i + 10]
         # Ejecutar las corutinas de forma concurrente
@@ -129,14 +130,15 @@ async def import_groups_data(file_import: File, db):
     if not df_import_results.empty:
         df_import_results['type_id'] = df_import_results['type_id'].astype(
             'int64')
-    now = get_datetime_now_str_with_tz()
-    return await generate_file_export(data=df_import_results, page_name='Resultados', filename=f'Resultados importación host groups {now}', file_type='excel')
+        df_import_results = df_import_results.replace(np.nan, None)
+    return success_response(data=df_import_results.to_dict(orient='records'))
 
 
 async def crate_host_group_by_import(db: DB, group_data):
     response = group_data
     response['result'] = 'No se creo correctamente el registro'
     response['detail'] = ''
+    response['groupid_creado'] = ''
     host_group_name_exist = await cassia_host_groups_repository.get_cassia_host_group_by_name(
         group_data['name'], db)
     if not host_group_name_exist.empty:
@@ -160,7 +162,7 @@ async def crate_host_group_by_import(db: DB, group_data):
         zabbix_result = await zabbix_api.do_request_new(
             method="hostgroup.create", params=params)
 
-        if not zabbix_result['success']:
+        if 'error' in zabbix_result:
             response['detail'] = f"Error al crear grupo en Zabbix"
             return response
         zabbix_result = zabbix_result['result']
@@ -168,7 +170,6 @@ async def crate_host_group_by_import(db: DB, group_data):
         # PASO 2: ASIGNACION DE TIPADO CASSIA A GRUPO NATIVO CREADO
         if len(groupids) < 1:
             response['detail'] = "Error al crear grupo en Zabbix"
-
             return response
         groupid = groupids[0]
 
@@ -176,9 +177,11 @@ async def crate_host_group_by_import(db: DB, group_data):
 
         if is_type_assigned:
             response['result'] = 'Se creo el registro'
+            response['groupid_creado'] = groupid
         else:
             response['result'] = 'Se creo el registro'
             response['detail'] = "El grupo se creo correctamente pero el tipo no se pudo asignar "
+            response['groupid_creado'] = groupid
 
         return response
     except Exception as e:
