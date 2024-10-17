@@ -32,15 +32,15 @@ async def get_aps_layer():
             orient="records"))
 
 
-async def get_aps_layer_async(db):
+async def get_aps_layer_async_backup(db):
     aps = await layers_repository.get_towers_pool(db)
 
     return success_response(data=aps)
 
 
-async def get_aps_layer_async_backup():
-    aps = await layers_repository.get_towers()
-    is_licencias_df = await CassiaConfigRepository.get_config_value_by_name('is_licencias')
+async def get_aps_layer_async(db):
+    aps = await layers_repository.get_towers_pool(db)
+    is_licencias_df = await CassiaConfigRepository.get_config_value_by_name_pool('is_licencias',db)
     is_licenicas = False
     response = aps.to_dict(orient='records')
     if not is_licencias_df.empty:
