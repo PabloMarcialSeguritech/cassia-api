@@ -100,24 +100,24 @@ class DB:
         async with self.pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cursor:
                 result_sets = []
-                try:
-                    await cursor.execute(query, params)
-                    if display_results:
-                        if cursor.description:
-                            results = await cursor.fetchall()
-                            for row in results:
-                                print(row)
-                            result_sets.extend(results)
-                        else:
-                            print(
-                                f"Query executed successfully. Rows affected: {cursor.rowcount}")
+                # try:
+                await cursor.execute(query, params)
+                if display_results:
+                    if cursor.description:
+                        results = await cursor.fetchall()
+                        for row in results:
+                            print(row)
+                        result_sets.extend(results)
                     else:
-                        if cursor.description:
-                            results = await cursor.fetchall()
-                            result_sets.extend(results)
-                except aiomysql.Error as error:
-                    print(f"Error while executing query: {error}")
-                    return []
+                        print(
+                            f"Query executed successfully. Rows affected: {cursor.rowcount}")
+                else:
+                    if cursor.description:
+                        results = await cursor.fetchall()
+                        result_sets.extend(results)
+                # except aiomysql.Error as error:
+                """ print(f"Error while executing query: {error}")
+                    return [] """
 
                 return result_sets
 

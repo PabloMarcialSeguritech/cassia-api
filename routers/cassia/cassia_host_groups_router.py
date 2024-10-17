@@ -40,7 +40,7 @@ async def crate_host_group(group_data: cassia_host_groups_schema.CassiaHostGroup
     summary="Eliminar un host group de Zabbix",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def crate_host_group(groupid: int, db: DB = Depends(get_db)):
+async def delete_host_group(groupid: int, db: DB = Depends(get_db)):
     return await cassia_host_groups_service.delete_host_group(groupid, db)
 
 
