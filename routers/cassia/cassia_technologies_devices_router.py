@@ -10,7 +10,7 @@ from infraestructure.database import DB
 cassia_tech_devices_router = APIRouter(prefix="/tech_devices")
 
 @cassia_tech_devices_router.get(
-    "/get_technologies",
+    "/",
     tags=["Cassia - Technologies Devices"],
     status_code=status.HTTP_200_OK,
     summary="Obtiene los tipos de dispositivos de los host de CASSIA",
@@ -19,7 +19,7 @@ cassia_tech_devices_router = APIRouter(prefix="/tech_devices")
 async def get_tech_devices_cat(db: DB = Depends(get_db)):
     return await cassia_host_tech_devices_service.get_technologies(db)
 
-@cassia_tech_devices_router.put('/update_technology',
+@cassia_tech_devices_router.put('/',
     tags=["Cassia - Technologies Devices"],
     status_code=status.HTTP_200_OK,
     summary="Actualiza la tecnología de CASSIA",
