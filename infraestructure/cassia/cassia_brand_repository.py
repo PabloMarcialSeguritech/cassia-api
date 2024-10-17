@@ -6,12 +6,13 @@ import numpy as np
 
 # Obtener todos los brands
 async def get_all_brands(db: DB):
-    query = """
-        SELECT brand_id, name_brand, mac_address_brand_OUI, editable
-        FROM cassia_host_brand;
-    """
+    brands_df = None
     try:
-        return await db.run_query(query)
+        query_statement_get_brands = DBQueries().query_statement_get_brands
+        brands_data = await db.run_query(query_statement_get_brands)
+        brands_df = pd.DataFrame(
+            brands_data).replace(np.nan, None)
+        return brands_df
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener los brands: {e}")
 

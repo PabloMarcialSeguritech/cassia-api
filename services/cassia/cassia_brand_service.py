@@ -11,7 +11,8 @@ from schemas import cassia_brand_schema
 
 async def fetch_all_brands(db: DB):
     try:
-        return await cassia_brand_repository.get_all_brands(db)
+        brands_df = await cassia_brand_repository.get_all_brands(db)
+        return success_response(data=brands_df.to_dict(orient="records"))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener todos los brands: {e}")
 
@@ -34,9 +35,24 @@ async def export_brands_data(export_data, db):
 # Servicio para crear un nuevo brand (editable = 0)
 async def create_new_brand(brand_data: cassia_brand_schema.CassiaBrandSchema, db: DB):
     brand_data_dict = brand_data.dict()
-    brand_name = brand_data_dict['name_brand']
-    brand_mac_address = brand_data_dict['mac_address_brand_OUI']
+    brand_name = brand_data_dict['name_brand'].strip()
+    brand_mac_address = brand_data_dict['mac_address_brand_OUI'].strip()
+
     try:
+        brands_df = cassia_brand_repository.get_all_brands(db)
+
+        # Verificar si el nombre de la marca ya existe en el DataFrame
+        if brand_name in brands_df['name_brand'].values:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"La marca '{brand_name}' ya existe")
+
+            # Verificar si la dirección MAC ya existe en el DataFrame
+        if brand_mac_address in brands_df['mac_address_brand_OUI'].values:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"La dirección MAC '{brand_mac_address}' ya está registrada")
+
         is_correct = await cassia_brand_repository.create_brand(brand_name, brand_mac_address, db)
         if is_correct:
             return success_response(
@@ -48,10 +64,6 @@ async def create_new_brand(brand_data: cassia_brand_schema.CassiaBrandSchema, db
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al crear el brand: {e}")
-
-
-from fastapi import HTTPException, status
-
 
 async def modify_brand(db, brand_id, brand_data):
     brand_data_dict = brand_data.dict()

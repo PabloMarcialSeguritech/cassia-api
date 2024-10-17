@@ -324,6 +324,9 @@ GROUP BY h.hostid, h.host, hi.ip, h.status, hi.dns, hi.useip, hi.port, h.descrip
 
         self.query_statement_delete_brand_by_id = None
 
+        self.query_statement_get_brands = """SELECT brand_id, brand_id as id, name_brand, mac_address_brand_OUI, editable
+                                            FROM cassia_host_brand"""
+
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
         return self.query_statement_get_metrics_template
