@@ -92,6 +92,7 @@ async def get_groupid_relations_by_groupid(db, groupid) -> pd.DataFrame:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Error en get_groupid_relations_by_groupid: {e}")
 
+
 async def get_relation_cassia_host_groups_types_by_group_id(hostgroup_id, db):
     try:
         query = DBQueries().builder_get_relation_cassia_host_groups_types_by_group_id(hostgroup_id)
@@ -105,7 +106,8 @@ async def get_relation_cassia_host_groups_types_by_group_id(hostgroup_id, db):
 
 async def update_host_group_name_and_type_id(hostgroup_id, hostgroup_name, hostgroup_type_id, db):
     try:
-        query = DBQueries().builder_update_host_group_name_and_id_type(hostgroup_id, hostgroup_name, hostgroup_type_id)
+        query = DBQueries().builder_update_host_group_name_and_id_type(
+            hostgroup_id, hostgroup_name, hostgroup_type_id)
         await db.run_query(query)
         return True
     except Exception as e:
@@ -114,5 +116,3 @@ async def update_host_group_name_and_type_id(hostgroup_id, hostgroup_name, hostg
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Excepcion generada en update_cassia_maintenance {e}"
         )
-
-

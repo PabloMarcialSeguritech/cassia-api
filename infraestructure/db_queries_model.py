@@ -3,6 +3,7 @@ from schemas import cassia_auto_action_condition_schema
 from schemas import cassia_auto_action_schema
 from schemas import cassia_technologies_schema
 from schemas import cassia_tech_device_schema
+from schemas import cassia_host_models_schema
 from utils import traits
 
 
@@ -270,6 +271,9 @@ WHERE rn = 1;
             RIGHT JOIN hstgrp h ON h.groupid = chgt.groupid
             LEFT JOIN hosts_groups hg ON hg.groupid = h.groupid
             GROUP BY h.groupid, h.name, cgt.id, cgt.name;"""
+        self.query_statement_get_cassia_host_models = """SELECT chm.*,chb.name_brand FROM cassia_host_model chm
+inner join cassia_host_brand chb 
+on chb.brand_id =chm.brand_id """
         self.query_statement_get_proxies = """
 SELECT
     h.hostid AS proxy_id,
@@ -1635,7 +1639,6 @@ SELECT
         IN ({dispIds}) GROUP BY hd.dispId, hd.name"""
         return self.query_statement_get_technologies_devices_by_ids
 
-
     def builder_query_statement_get_brands_by_ids(self, brand_ids):
         self.query_statement_get_brands_by_ids = f"""
                 SELECT brand_id, name_brand, mac_address_brand_OUI, editable
@@ -1643,3 +1646,48 @@ SELECT
                 WHERE brand_id IN ({brand_ids})"""
         return self.query_statement_get_brands_by_ids
 
+    def builder_query_statement_get_brand_by_id(self, brand_id):
+        self.query_statement_get_brand_by_id = f"""
+                SELECT * FROM cassia_host_brand
+                WHERE brand_id = {brand_id}"""
+        return self.query_statement_get_brand_by_id
+
+    def builder_query_statement_create_cassia_host_model(self, host_model_data: cassia_host_models_schema.CassiaHostModelSchema):
+        self.query_statement_create_cassia_host_model = f"""
+                INSERT INTO cassia_host_model
+                (name_model,brand_id,editable) VALUES
+                ('{host_model_data.name}',{host_model_data.brand_id},1)"""
+        return self.query_statement_create_cassia_host_model
+
+    def builder_query_statement_get_cassia_host_model_by_id(self, model_id):
+        self.query_statement_get_cassia_host_model_by_id = f"""
+                SELECT * FROM cassia_host_model
+                where model_id={model_id}"""
+        return self.query_statement_get_cassia_host_model_by_id
+
+    def builder_query_statement_delete_cassia_host_model_by_id(self, model_id):
+        self.query_statement_delete_cassia_host_model_by_id = f"""
+                DELETE from cassia_host_model
+                where model_id = {model_id}"""
+        return self.query_statement_delete_cassia_host_model_by_id
+
+    def builder_query_statement_get_cassia_host_models_by_ids(self, model_ids):
+        self.query_statement_get_cassia_host_models_by_ids = f"""
+                SELECT * FROM cassia_host_model
+                where model_id IN ({model_ids})"""
+        return self.query_statement_get_cassia_host_models_by_ids
+
+    def builder_query_statement_get_cassia_host_models_by_name_and_brand_id(self, host_model_data: cassia_host_models_schema.CassiaHostModelSchema):
+        self.query_statement_get_cassia_host_models_by_name_and_brand_id = f"""
+                SELECT * FROM cassia_host_model
+                where name_model= '{host_model_data.name_model}' and brand_id={host_model_data.brand_id}"""
+        return self.query_statement_get_cassia_host_models_by_name_and_brand_id
+    
+    def builder_query_statement_update_host_model(self,model_id, host_model_data: cassia_host_models_schema.CassiaHostModelSchema):
+        self.query_statement_update_host_model = f"""
+                UPDATE cassia_host_model
+                set name_model= '{host_model_data.name_model}',
+                brand_id={host_model_data.brand_id}
+                WHERE model_id={model_id}
+"""
+        return self.query_statement_update_host_model
