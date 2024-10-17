@@ -7,13 +7,15 @@ from services import auth_service2
 from schemas import cassia_brand_schema
 
 
-
 cassia_brand_router = APIRouter(prefix="/brand")
 
 # Obtener todos los brands
+
+
 @cassia_brand_router.get("/get_brands", tags=["CASSIA Brand: Crud"])
 async def get_brands(db: DB = Depends(get_db)):
     return await cassia_brand_service.fetch_all_brands(db)
+
 
 @cassia_brand_router.post(
     "/export",
