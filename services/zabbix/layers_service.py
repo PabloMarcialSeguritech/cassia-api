@@ -32,26 +32,29 @@ async def get_aps_layer():
             orient="records"))
 
 
-async def get_aps_layer_async(db):
+async def get_aps_layer_async_backup(db):
     aps = await layers_repository.get_towers_pool(db)
 
     return success_response(data=aps)
 
 
-async def get_aps_layer_async_backup():
-    aps = await layers_repository.get_towers()
-    is_licencias_df = await CassiaConfigRepository.get_config_value_by_name('is_licencias')
-    is_licenicas = False
+async def get_aps_layer_async(db):
+    aps = await layers_repository.get_towers_pool(db)
+    is_licencias_df = await CassiaConfigRepository.get_config_value_by_name_pool('is_licencias', db)
+    is_licencias = False
     response = aps.to_dict(orient='records')
     if not is_licencias_df.empty:
-        is_licenicas = is_licencias_df['value'][0]
-    if is_licenicas:
+        is_licencias = is_licencias_df['value'].astype('int64')[0]
+    print(is_licencias)
+    print(type(is_licencias))
+    if is_licencias:
         aps_licencias = aps[aps['is_own'] == 1]
         aps_siem = aps[aps['is_own'] == 0]
         response = {
             'aps_licencias': aps_licencias.to_dict(orient='records'),
             'aps_siem': aps_siem.to_dict(orient='records')
         }
+    print(response)
     return success_response(data=response)
 
 

@@ -316,6 +316,53 @@ GROUP BY h.hostid, h.host, hi.ip, h.status, hi.dns, hi.useip, hi.port, h.descrip
 
         self.query_statement_get_brands_by_ids = None
 
+
+        self.query_statement_get_cassia_hosts = """
+SELECT 
+    h.hostid,
+	h.host,
+	h.name,
+	proxy.hostid as proxy_hostid,
+	proxy.host as proxy_name,
+	agent_inteface.ip as agent_ip,
+	agent_inteface.port as agent_port,
+	snmp_inteface.ip as snmp_ip,
+	snmp_inteface.port as snmp_port,
+	ch.brand_id,
+	chb.name_brand,
+	ch.model_id,
+	chm.name_model,
+	h.description,
+	h.status as status_value,
+	CASE 
+		WHEN h.status =0 THEN 'Habilitado'
+		ELSE 'Deshabilitado'
+	END
+	as status_description,
+	
+	hi.device_id as technology_id,
+	hd.name as technology_name,
+	hd.visible_name technology_visible_name,
+	hi.alias,
+	hi.location_lat ,
+	hi.location_lon,
+	hi.serialno_a,
+	hi.macaddress_a 
+FROM hosts h
+LEFT JOIN host_inventory hi ON h.hostid = hi.hostid
+LEFT JOIN interface agent_inteface ON h.hostid = agent_inteface.hostid  and agent_inteface.type = 1
+LEFT JOIN interface snmp_inteface ON h.hostid = snmp_inteface.hostid  and snmp_inteface.type = 2
+LEFT JOIN cassia_host ch ON h.hostid  = ch.host_id
+LEFT JOIN cassia_host_brand chb  ON ch.brand_id = chb.brand_id
+LEFT JOIN cassia_host_model chm  ON ch.model_id = chm.model_id 
+LEFT JOIN host_device hd ON hi.device_id = hd.dispId
+LEFT JOIN hosts proxy ON  h.proxy_hostid = proxy.hostid and proxy.status IN (5, 6)
+WHERE h.status in (0,1);
+"""
+        self.query_update_host_data="""UPDATE hosts 
+    SET host = %s, name = %s, description = %s, proxy_hostid = %s, status = %s
+    WHERE hostid = %s"""
+
         self.query_statement_insert_brand = None
 
         self.query_statement_get_brand_by_id = None
@@ -1693,8 +1740,8 @@ SELECT
                 SELECT * FROM cassia_host_model
                 where name_model= '{host_model_data.name_model}' and brand_id={host_model_data.brand_id}"""
         return self.query_statement_get_cassia_host_models_by_name_and_brand_id
-    
-    def builder_query_statement_update_host_model(self,model_id, host_model_data: cassia_host_models_schema.CassiaHostModelSchema):
+
+    def builder_query_statement_update_host_model(self, model_id, host_model_data: cassia_host_models_schema.CassiaHostModelSchema):
         self.query_statement_update_host_model = f"""
                 UPDATE cassia_host_model
                 set name_model= '{host_model_data.name_model}',
@@ -1702,6 +1749,52 @@ SELECT
                 WHERE model_id={model_id}
 """
         return self.query_statement_update_host_model
+
+
+    def builder_query_statement_get_cassia_hosts_by_ids(self, hostids):
+        self.query_statement_get_cassia_hosts_by_ids = f"""
+SELECT 
+    h.hostid,
+	h.host,
+	h.name,
+	proxy.hostid as proxy_hostid,
+	proxy.host as proxy_name,
+	agent_inteface.ip as agent_ip,
+	agent_inteface.port as agent_port,
+	snmp_inteface.ip as snmp_ip,
+	snmp_inteface.port as snmp_port,
+	ch.brand_id,
+	chb.name_brand,
+	ch.model_id,
+	chm.name_model,
+	h.description,
+	h.status as status_value,
+	CASE 
+		WHEN h.status =0 THEN 'Habilitado'
+		ELSE 'Deshabilitado'
+	END
+	as status_description,
+	
+	hi.device_id as technology_id,
+	hd.name as technology_name,
+	hd.visible_name technology_visible_name,
+	hi.alias,
+	hi.location_lat ,
+	hi.location_lon,
+	hi.serialno_a,
+	hi.macaddress_a 
+FROM hosts h
+LEFT JOIN host_inventory hi ON h.hostid = hi.hostid
+LEFT JOIN interface agent_inteface ON h.hostid = agent_inteface.hostid  and agent_inteface.type = 1
+LEFT JOIN interface snmp_inteface ON h.hostid = snmp_inteface.hostid  and snmp_inteface.type = 2
+LEFT JOIN cassia_host ch ON h.hostid  = ch.host_id
+LEFT JOIN cassia_host_brand chb  ON ch.brand_id = chb.brand_id
+LEFT JOIN cassia_host_model chm  ON ch.model_id = chm.model_id 
+LEFT JOIN host_device hd ON hi.device_id = hd.dispId
+LEFT JOIN hosts proxy ON  h.proxy_hostid = proxy.hostid and proxy.status IN (5, 6)
+WHERE h.status in (0,1) and h.hostid in ({hostids})
+"""
+        return self.query_statement_get_cassia_hosts_by_ids
 
     def builder_query_statement_create_brand(self, name_brand, mac_address_brand):
         self.query_statement_insert_brand = f"""

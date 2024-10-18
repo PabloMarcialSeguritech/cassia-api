@@ -111,6 +111,7 @@ class DB:
                     else:
                         print(
                             f"Query executed successfully. Rows affected: {cursor.rowcount}")
+                        return cursor.rowcount
                 else:
                     if cursor.description:
                         results = await cursor.fetchall()

@@ -27,6 +27,7 @@ from .cassia_exports_routers import cassia_exports_router
 from .cassia_technologies_devices_router import cassia_tech_devices_router
 from .cassia_brand_router import cassia_brand_router
 from .cassia_host_models_router import cassia_host_models_router
+from .cassia_hosts_router import cassia_hosts_router
 from infraestructure.database import DB
 from dependencies import get_db
 cassia_router = APIRouter(prefix="/api/v1/cassia")
@@ -72,3 +73,4 @@ cassia_router.include_router(cassia_exports_router)
 cassia_router.include_router(cassia_tech_devices_router)
 cassia_router.include_router(cassia_brand_router)
 cassia_router.include_router(cassia_host_models_router)
+cassia_router.include_router(cassia_hosts_router)
