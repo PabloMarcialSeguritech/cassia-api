@@ -316,6 +316,7 @@ GROUP BY h.hostid, h.host, hi.ip, h.status, hi.dns, hi.useip, hi.port, h.descrip
 
         self.query_statement_get_brands_by_ids = None
 
+
         self.query_statement_get_cassia_hosts = """
 SELECT 
     h.hostid,
@@ -361,6 +362,17 @@ WHERE h.status in (0,1);
         self.query_update_host_data="""UPDATE hosts 
     SET host = %s, name = %s, description = %s, proxy_hostid = %s, status = %s
     WHERE hostid = %s"""
+
+        self.query_statement_insert_brand = None
+
+        self.query_statement_get_brand_by_id = None
+
+        self.query_statement_update_brand_by_id = None
+
+        self.query_statement_delete_brand_by_id = None
+
+        self.query_statement_get_brands = """SELECT brand_id, brand_id as id, name_brand, mac_address_brand_OUI, editable
+                                            FROM cassia_host_brand"""
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -1738,6 +1750,7 @@ SELECT
 """
         return self.query_statement_update_host_model
 
+
     def builder_query_statement_get_cassia_hosts_by_ids(self, hostids):
         self.query_statement_get_cassia_hosts_by_ids = f"""
 SELECT 
@@ -1782,3 +1795,27 @@ LEFT JOIN hosts proxy ON  h.proxy_hostid = proxy.hostid and proxy.status IN (5, 
 WHERE h.status in (0,1) and h.hostid in ({hostids})
 """
         return self.query_statement_get_cassia_hosts_by_ids
+
+    def builder_query_statement_create_brand(self, name_brand, mac_address_brand):
+        self.query_statement_insert_brand = f"""
+                INSERT INTO cassia_host_brand (name_brand, mac_address_brand_OUI, editable)
+                VALUES ('{name_brand}', '{mac_address_brand}', 1)
+            """
+        return self.query_statement_insert_brand
+
+    def builder_query_statement_get_brand_by(self, brand_id):
+        self.query_statement_get_brand_by_id = f"""
+                        SELECT editable FROM cassia_host_brand WHERE brand_id = {brand_id}"""
+        return self.query_statement_get_brand_by_id
+
+    def builder_update_brand(self, brand_id, name_brand, brand_mac_address):
+        self.query_statement_update_brand_by_id = f"""
+                                UPDATE cassia_host_brand
+                                SET name_brand = '{name_brand}', mac_address_brand_OUI = '{brand_mac_address}'
+                                WHERE brand_id = {brand_id} AND editable = 1"""
+        return self.query_statement_update_brand_by_id
+
+    def builder_delete_brand(self, brand_id):
+        self.query_statement_delete_brand_by_id = f"""
+                                       DELETE FROM cassia_host_brand WHERE brand_id = {brand_id} AND editable = 1"""
+        return self.query_statement_delete_brand_by_id
