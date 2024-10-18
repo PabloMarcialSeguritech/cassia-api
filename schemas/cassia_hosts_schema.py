@@ -28,7 +28,7 @@ class CassiaHostUpdateSchema(BaseModel):
     # HOST INVENTORY DATA
     device_id: int = Field(None, example=1)
     alias: str = Field("",
-                       max_length=128
+                       max_length=128,
                        example="GTO-SUB-ABAS-001")
     location_lat: str = Field("",
                               max_length=16,
