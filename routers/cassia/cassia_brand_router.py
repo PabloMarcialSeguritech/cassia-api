@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, Body
+from fastapi import APIRouter, Depends, status, Body, UploadFile, File
 from services.cassia import cassia_brand_service
 from infraestructure.database import DB
 from dependencies import get_db
@@ -60,3 +60,14 @@ async def delete_brand(brand_id: int, db: DB = Depends(get_db)):
 )
 async def export_groups_data(export_data: cassia_brand_schema.CassiaBrandExportSchema, db: DB = Depends(get_db)):
     return await cassia_brand_service.export_brands_data(export_data, db)
+
+
+@cassia_brand_router.post(
+    "/import",
+    tags=["Cassia - Brands", "CASSIA Imports"],
+    status_code=status.HTTP_200_OK,
+    summary="Importa las marcas de host de Cassia con un archivo proporcionado",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def import_groups_data(file_import: UploadFile = File(...), db: DB = Depends(get_db)):
+    return await cassia_brand_service.import_brands_data(file_import, db)
