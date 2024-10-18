@@ -39,7 +39,7 @@ async def create_new_brand(brand_data: cassia_brand_schema.CassiaBrandSchema, db
     brand_mac_address = brand_data_dict['mac_address_brand_OUI'].strip()
 
     try:
-        brands_df = cassia_brand_repository.get_all_brands(db)
+        brands_df = await cassia_brand_repository.get_all_brands(db)
 
         # Verificar si el nombre de la marca ya existe en el DataFrame
         if brand_name in brands_df['name_brand'].values:
