@@ -3,6 +3,8 @@ from infraestructure.database import DB
 from infraestructure.db_queries_model import DBQueries
 import pandas as pd
 import numpy as np
+from schemas import cassia_brand_schema
+from models.cassia_host_brands import CassiaHostBrandModel
 
 # Obtener todos los brands
 async def get_all_brands(db: DB):
@@ -89,3 +91,20 @@ async def delete_brand(db, brand_id):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Excepcion generada en delete_brand {e}")
+
+
+async def create_host_brand(model_data: cassia_brand_schema.CassiaBrandSchema, db: DB):
+    try:
+        session = await db.get_session()
+        model = CassiaHostBrandModel(
+                name_brand=model_data.name_brand,
+                mac_address_brand_OUI=model_data.mac_address_brand_OUI,
+                editable=1
+        )
+        session.add(model)
+        await session.commit()
+        await session.refresh(model)
+        return model
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                detail=f"Error en create_host_brand: {e}")

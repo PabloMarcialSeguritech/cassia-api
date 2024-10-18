@@ -13,3 +13,4 @@ class CassiaBrandSchema(BaseModel):
     mac_address_brand_OUI: str = Field(..., max_length=255, example="xx:xx:xx")
 
 
+

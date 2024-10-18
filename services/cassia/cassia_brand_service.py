@@ -8,6 +8,9 @@ import json
 import pandas as pd
 from io import StringIO, BytesIO
 from schemas import cassia_brand_schema
+from utils.exports_imports_functions import generate_file_export, get_df_by_filetype
+import asyncio
+import numpy as np
 
 async def fetch_all_brands(db: DB):
     try:
@@ -166,3 +169,68 @@ async def remove_brand(brand_id, db):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al eliminar el brand: {e}"
         )
+
+
+async def import_brands_data(file_import, db):
+    file_types = ('.csv', '.xlsx', '.xls', '.json')
+    if not file_import.filename.endswith(file_types):
+        raise HTTPException(
+            status_code=400,
+            detail="El archivo debe ser un CSV, JSON, XLS o XLSX"
+        )
+    processed_data = await get_df_by_filetype(file_import, ['name_brand', 'mac_address_brand_OUI'])
+    result = processed_data['result']
+    if not result:
+        exception = processed_data['exception']
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error al procesar el archivo: {exception}")
+    df_import = processed_data['df']
+    duplicados = df_import.duplicated(
+        subset=['name_brand', 'mac_address_brand_OUI'], keep=False).any()
+    if duplicados:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Existen registros duplicados en el archivo.")
+    brands_df = await cassia_brand_repository.get_all_brands(db)
+    tasks_create = [asyncio.create_task(create_host_brand_by_import(
+        db, df_import.iloc[group_data_ind].to_dict(), brands_df)) for group_data_ind in df_import.index]
+    df_import_results = pd.DataFrame(
+        columns=['brand_id', 'name_brand', 'mac_address_brand_OUI', 'result', 'detail', 'brand_id_creado'])
+    for i in range(0, len(tasks_create), 10):
+
+        lote = tasks_create[i:i + 10]
+        print(lote)
+        # Ejecutar las corutinas de forma concurrente
+        resultados = await asyncio.gather(*lote)
+        for resultado in resultados:
+            print(resultado)
+            new_row = pd.DataFrame(resultado, index=[0])
+            # Concatenar el nuevo registro al DataFrame original
+            df_import_results = pd.concat(
+                [df_import_results, new_row], ignore_index=True)
+    if not df_import_results.empty:
+        df_import_results['brand_id'] = df_import_results['brand_id'].astype(
+            'int64')
+        df_import_results = df_import_results.replace(np.nan, None)
+    return success_response(data=df_import_results.to_dict(orient='records'))
+
+async def create_host_brand_by_import(db: DB, model_data, brands_df):
+    response = model_data
+    response['result'] = 'No se creo correctamente el registro'
+    response['detail'] = ''
+    response['brand_id_creado'] = ''
+    model_data = cassia_brand_schema.CassiaBrandSchema(
+        name_brand=model_data['name_brand'], mac_address_brand_OUI=model_data['mac_address_brand_OUI'])
+    # Verificar si el nombre de la marca ya existe en el DataFrame
+    if model_data.name_brand in brands_df['name_brand'].values:
+        response['detail'] = f"La marca '{model_data.name_brand}' ya existe"
+        return response
+
+        # Verificar si la dirección MAC ya existe en el DataFrame
+    if model_data.mac_address_brand_OUI in brands_df['mac_address_brand_OUI'].values:
+        response['detail'] = f"La dirección MAC '{model_data.mac_address_brand_OUI}' ya está registrada"
+        return response
+    create_host_brand = await cassia_brand_repository.create_host_brand(model_data, db)
+    response['result'] = 'Se creo correctamente el registro'
+    response['brand_id_creado'] = create_host_brand.brand_id
+    return response
+
