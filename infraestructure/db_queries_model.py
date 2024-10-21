@@ -306,6 +306,9 @@ GROUP BY h.hostid, h.host, hi.ip, h.status, hi.dns, hi.useip, hi.port, h.descrip
             COUNT(hi.device_id) as host_count from host_device hd 
             LEFT JOIN host_inventory hi ON hd.dispId = hi.device_id GROUP BY hd.dispId, hd.name"""
 
+        self.query_statement_get_cassia_host_device_by_id = """select hd.dispId, hd.name, hd.visible_name, hd.description
+            from host_device hd where hd.dispId = %s"""
+
         self.query_statement_update_host_device = None
 
         self.query_statement_get_host_device_by_id = None
@@ -315,7 +318,6 @@ GROUP BY h.hostid, h.host, hi.ip, h.status, hi.dns, hi.useip, hi.port, h.descrip
         self.query_statement_get_technologies_devices_by_ids = None
 
         self.query_statement_get_brands_by_ids = None
-
 
         self.query_statement_get_cassia_hosts = """
 SELECT 
@@ -359,7 +361,7 @@ LEFT JOIN host_device hd ON hi.device_id = hd.dispId
 LEFT JOIN hosts proxy ON  h.proxy_hostid = proxy.hostid and proxy.status IN (5, 6)
 WHERE h.status in (0,1);
 """
-        self.query_update_host_data="""UPDATE hosts 
+        self.query_update_host_data = """UPDATE hosts 
     SET host = %s, name = %s, description = %s, proxy_hostid = %s, status = %s
     WHERE hostid = %s"""
 
@@ -373,6 +375,37 @@ WHERE h.status in (0,1);
 
         self.query_statement_get_brands = """SELECT brand_id, brand_id as id, name_brand, mac_address_brand_OUI, editable
                                             FROM cassia_host_brand"""
+        self.query_statement_get_host_inventory_by_id = """SELECT * FROM
+        host_inventory WHERE hostid = %s"""
+
+        self.query_statement_get_brand_by_id = """SELECT brand_id, brand_id as id, name_brand, mac_address_brand_OUI, editable
+                                            FROM cassia_host_brand WHERE brand_id = %s"""
+
+        self.query_statement_update_host_device_id_by_hostid = """
+        UPDATE host_inventory
+        SET device_id = %s
+        where hostid= %s"""
+
+        self.query_statement_insert_cassia_host = """
+        INSERT INTO cassia_host (host_id,afiliacion,brand_id,model_id)
+        VALUES(%s,%s,%s,%s)"""
+
+        self.query_statement_update_host_inventory_data_by_hostid = """
+        UPDATE host_inventory
+        SET device_id = %s ,
+        alias = %s ,
+        location_lat = %s ,
+        location_lon = %s ,
+        serialno_a = %s ,
+        macaddress_a = %s
+        where hostid= %s"""
+
+        self.query_statement_update_host_model_brand_by_hostid = """
+        UPDATE cassia_host
+        SET brand_id = %s ,
+        model_id = %s ,
+        afiliacion = %s 
+        where host_id= %s"""
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -1749,7 +1782,6 @@ SELECT
                 WHERE model_id={model_id}
 """
         return self.query_statement_update_host_model
-
 
     def builder_query_statement_get_cassia_hosts_by_ids(self, hostids):
         self.query_statement_get_cassia_hosts_by_ids = f"""

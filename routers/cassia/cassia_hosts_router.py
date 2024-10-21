@@ -21,6 +21,17 @@ async def get_hosts(db: DB = Depends(get_db)):
     return await cassia_hosts_service.get_hosts(db)
 
 
+@cassia_hosts_router.post(
+    "/",
+    tags=["Cassia Hosts", "CASSIA Exports"],
+    status_code=status.HTTP_200_OK,
+    summary="Crea un host de Zabbix",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def create_host(host_data: cassia_hosts_schema.CassiaHostUpdateSchema, db: DB = Depends(get_db)):
+    return await cassia_hosts_service.create_host(host_data, db)
+
+
 @cassia_hosts_router.put(
     "/{hostid}",
     tags=["Cassia Hosts", "CASSIA Exports"],

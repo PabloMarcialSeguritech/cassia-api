@@ -5,6 +5,21 @@ import pandas as pd
 import numpy as np
 
 
+async def get_host_tech_device_by_id(device_id, db):
+    host_devices_df = None
+    try:
+        query_statement_get_cassia_host_device_by_id = DBQueries(
+        ).query_statement_get_cassia_host_device_by_id
+
+        host_devices_data = await db.run_query(query_statement_get_cassia_host_device_by_id, (f"{device_id}"))
+        host_devices_df = pd.DataFrame(
+            host_devices_data).replace(np.nan, None)
+        return host_devices_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_host_tech_device_by_id: {e}")
+
+
 async def get_host_devices(db):
     host_devices_df = None
     try:
@@ -22,7 +37,8 @@ async def get_host_devices(db):
 
 async def update_host_device_tech(tech_disp_id, tech_visible_name, db):
     try:
-        query = DBQueries().builder_update_host_tech_device(tech_disp_id, tech_visible_name)
+        query = DBQueries().builder_update_host_tech_device(
+            tech_disp_id, tech_visible_name)
         print(query)
         await db.run_query(query)
         return True
