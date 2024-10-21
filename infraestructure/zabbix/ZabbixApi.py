@@ -152,6 +152,7 @@ class ZabbixApi:
                 "auth": token,
                 "id": 1
             }
+            print(request)
             async with httpx.AsyncClient() as client:
                 respuesta = await client.post(self.ZABBIX_URL, json=request, timeout=120)
                 response = {'success': False, 'result': None}
