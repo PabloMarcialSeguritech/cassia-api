@@ -1,0 +1,40 @@
+from datetime import date, timedelta
+from fastapi import APIRouter, Depends, status, Query
+from services.cassia import cassia_audit_service
+from infraestructure.database import DB
+from dependencies import get_db
+from services import auth_service2
+from typing import Optional
+from schemas import cassia_audit_schema
+
+cassia_audit_router = APIRouter(prefix="/audit")
+
+@cassia_audit_router.get(
+    "/",
+    tags=["Cassia - Audit"],
+    status_code=status.HTTP_200_OK,
+    summary="Obtiene los audit logs",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_audit_logs(
+    start_date: date = Query(..., description="Fecha de inicio en formato ISO (YYYY-MM-DD)", example="2024-01-01"),
+    end_date: date = Query(..., description="Fecha de fin en formato ISO (YYYY-MM-DD)", example="2024-12-31"),
+    user_email: Optional[str] = Query(None, description="Email del usuario"),
+    module_id: Optional[int] = Query(None, description="ID del módulo"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, le=4000),
+    db: DB = Depends(get_db)
+):
+
+    return await cassia_audit_service.get_audit_logs(start_date, end_date, user_email, module_id, page, page_size, db)
+
+
+@cassia_audit_router.post(
+    "/export",
+    tags=["Cassia - Audit", "CASSIA Exports"],
+    status_code=status.HTTP_200_OK,
+    summary="Exporta los registros de auditoria de CASSIA",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def export_audit_data(export_data: cassia_audit_schema.CassiaAuditExportSchema, db: DB = Depends(get_db)):
+    return await cassia_audit_service.export_audit_data(export_data, db)
