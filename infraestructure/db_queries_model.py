@@ -319,6 +319,10 @@ GROUP BY h.hostid, h.host, hi.ip, h.status, hi.dns, hi.useip, hi.port, h.descrip
 
         self.query_statement_get_brands_by_ids = None
 
+
+        self.query_statement_get_audits_by_ids = None
+
+
         self.query_statement_get_cassia_hosts = """
 SELECT 
     h.hostid,
@@ -1851,3 +1855,48 @@ WHERE h.status in (0,1) and h.hostid in ({hostids})
         self.query_statement_delete_brand_by_id = f"""
                                        DELETE FROM cassia_host_brand WHERE brand_id = {brand_id} AND editable = 1"""
         return self.query_statement_delete_brand_by_id
+
+    def builder_query_statement_get_audit_logs(self, start_date, end_date, user_email, module_id, page, page_size):
+        query_parts = [
+            "SELECT cal.user_name, cal.user_email, cal.summary, cal.timestamp,",
+            "caa.name as name_action, cam.name as name_module",
+            "FROM cassia_audit_log cal",
+            "LEFT JOIN cassia_audit_action caa ON cal.id_audit_action = caa.id",
+            "LEFT JOIN cassia_audit_module cam ON cal.id_audit_module = cam.id",
+            "WHERE 1=1"
+        ]
+
+        params = []
+
+        if start_date:
+            query_parts.append("AND cal.timestamp >= %s")
+            params.append(start_date)
+        if end_date:
+            query_parts.append("AND cal.timestamp <= %s")
+            params.append(end_date)
+        if user_email:
+            query_parts.append("AND cal.user_email = %s")
+            params.append(user_email)
+        if module_id:
+            query_parts.append("AND cal.id_audit_module = %s")
+            params.append(module_id)
+
+        query_parts.append("ORDER BY cal.timestamp DESC")
+        query_parts.append("LIMIT %s OFFSET %s")
+
+        params.append(int(page_size))
+        params.append(int(page))
+
+        query = " ".join(query_parts)
+
+        return query, params
+
+    def builder_query_statement_get_audits_by_ids(self, audit_ids):
+        self.query_statement_get_audits_by_ids = f"""
+                       SELECT cal.user_name, cal.user_email, cal.summary, cal.timestamp,
+                       caa.name as name_action, cam.name as name_module 
+                       FROM cassia_audit_log cal 
+                       LEFT JOIN cassia_audit_action caa ON cal.id_audit_action = caa.id 
+                       LEFT JOIN cassia_audit_module cam ON cal.id_audit_module = cam.id 
+                       WHERE cal.id IN ({audit_ids})"""
+        return self.query_statement_get_audits_by_ids
