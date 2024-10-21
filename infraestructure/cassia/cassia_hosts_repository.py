@@ -7,6 +7,64 @@ import numpy as np
 import time
 
 
+async def delete_host_brand_model_by_hostid(hostid, db: DB) -> pd.DataFrame:
+    response = {'success': False, 'detail': '', 'exception': False}
+    try:
+        query_statement_delete_host_brand_model_by_hostid = DBQueries(
+        ).query_statement_delete_host_brand_model_by_hostid
+        init = time.time()
+        hosts_brand_model_delete = await db.run_query(query_statement_delete_host_brand_model_by_hostid,
+                                                      (hostid,), True)
+        print(f"DURACION DB QUERY DELETE DEVICE ID: {time.time()-init}")
+        if hosts_brand_model_delete:
+            response['success'] = True
+            response['detail'] = "Se elimino correctamente la marca y el modelo. "
+        else:
+            response['detail'] = "No se elimino correctamente la marca y el modelo. "
+        return response
+
+    except Exception as e:
+        response['detail'] = e
+        response['exception'] = True
+        return response
+
+
+async def get_cassia_brand_model(hostid, db: DB) -> pd.DataFrame:
+    hosts_brand_model_df = None
+    try:
+        query_statement_get_host_brand_model_by_hostid = DBQueries(
+        ).query_statement_get_host_brand_model_by_hostid
+        init = time.time()
+        hosts_brand_model_data = await db.run_query(query_statement_get_host_brand_model_by_hostid, (hostid))
+        print(f"DURACION DB QUERY INTERFACE HOST: {time.time()-init}")
+        hosts_brand_model_df = pd.DataFrame(
+            hosts_brand_model_data).replace(np.nan, None)
+        return hosts_brand_model_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_cassia_brand_model: {e}")
+
+
+async def get_cassia_host_interfaces_by_hostid(hostid, db: DB) -> pd.DataFrame:
+    hosts_interfaces_df = None
+    try:
+        query_statement_get_host_interfaces_by_hostid = DBQueries(
+        ).query_statement_get_host_interfaces_by_hostid
+        init = time.time()
+
+        hosts_interfaces_data = await db.run_query(query_statement_get_host_interfaces_by_hostid, (hostid))
+        print(f"DURACION DB QUERY INTERFACE HOST: {time.time()-init}")
+        hosts_interfaces_df = pd.DataFrame(
+            hosts_interfaces_data).replace(np.nan, None)
+        if hosts_interfaces_df.empty:
+            hosts_interfaces_df = pd.DataFrame(
+                columns=['interface_id', 'type'])
+        return hosts_interfaces_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_cassia_host_interfaces_by_hostid: {e}")
+
+
 async def update_host_brand_model_data(hostid, new_host_brand_model_data_fields: dict, alias, db: DB) -> pd.DataFrame:
     response = {'success': False, 'detail': '', 'exception': False}
     try:
@@ -21,9 +79,9 @@ async def update_host_brand_model_data(hostid, new_host_brand_model_data_fields:
         print(f"DURACION DB QUERY UPDATE DEVICE ID: {time.time()-init}")
         if hosts_inventory_updated:
             response['success'] = True
-            response['detail'] = "Se actualizo correctamente el inventory data. "
+            response['detail'] = "Se actualizo correctamente la marca y el modelo. "
         else:
-            response['detail'] = "No se actualizo correctamente el inventory data. "
+            response['detail'] = "No se actualizo correctamente la marca y el modelo. "
         return response
 
     except Exception as e:
@@ -128,6 +186,22 @@ async def get_cassia_host_inventory_data_by_id(hostid, db: DB) -> pd.DataFrame:
                             detail=f"Error en get_cassia_hosts: {e}")
 
 
+async def get_cassia_host(hostid, db: DB) -> pd.DataFrame:
+    hosts_df = None
+    try:
+        query_statement_get_cassia_hosts = DBQueries(
+        ).query_statement_get_cassia_host
+        init = time.time()
+        hosts_data = await db.run_query(query_statement_get_cassia_hosts, (hostid))
+        print(f"DURACION DB QUERY HOST: {time.time()-init}")
+        hosts_df = pd.DataFrame(
+            hosts_data).replace(np.nan, None)
+        return hosts_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_cassia_host: {e}")
+
+
 async def get_cassia_hosts(db: DB) -> pd.DataFrame:
     hosts_df = None
     try:
@@ -144,7 +218,7 @@ async def get_cassia_hosts(db: DB) -> pd.DataFrame:
                             detail=f"Error en get_cassia_hosts: {e}")
 
 
-async def get_cassia_hosts_by_ids(hostids: list, db: DB) -> pd.DataFrame:
+async def get_cassia_hosts_by_ids(hostids, db: DB) -> pd.DataFrame:
     hosts_df = None
     try:
         query_statement_get_cassia_hosts_by_ids = DBQueries(
@@ -165,14 +239,20 @@ async def update_host_data(hostid, host_new_data, db: DB):
     try:
         query_statement_update_host_data = DBQueries(
         ).query_update_host_data
-        result = db.run_query(query_statement_update_host_data, (
-            host_new_data.get('host', ''),
-            host_new_data.get('name', ''),
-            host_new_data.get('description', ''),
-            host_new_data.get('proxy_id', None),
-            host_new_data.get('status', 0),
+        host_data = host_new_data.dict()
+        """ if host_data['proxy_id'] is None or "":
+            host_data['proxy_id'] = "NULL" """
+        print(query_statement_update_host_data)
+        print(host_data)
+        result = await db.run_query(query_statement_update_host_data, (
+            host_data.get('host', ''),
+            host_data.get('name', ''),
+            host_data.get('description', ''),
+            host_data.get('proxy_id', None),
+            host_data.get('status', 0),
             hostid
         ), True)
+        print(result)
         if result:
             response['success'] = True
             response['detail'] = "Se actualizo correctamente el registro"

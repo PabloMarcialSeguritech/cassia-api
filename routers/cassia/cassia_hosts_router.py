@@ -11,6 +11,17 @@ cassia_hosts_router = APIRouter(prefix="/hosts")
 
 
 @cassia_hosts_router.get(
+    "/{hostid}",
+    tags=["Cassia Hosts"],
+    status_code=status.HTTP_200_OK,
+    summary="Obtiene un host de CASSIA",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_host(hostid, db: DB = Depends(get_db)):
+    return await cassia_hosts_service.get_host(hostid, db)
+
+
+@cassia_hosts_router.get(
     "/",
     tags=["Cassia Hosts"],
     status_code=status.HTTP_200_OK,
@@ -54,46 +65,12 @@ async def export_hosts_data(export_data: cassia_hosts_schema.CassiaHostExportSch
     return await cassia_hosts_service.export_hosts_data(export_data, db)
 
 
-""" 
-@cassia_host_groups_router.post(
-    "/",
-    tags=["Host Groups"],
+@cassia_hosts_router.delete(
+    "/{hostid}",
+    tags=["Cassia Hosts", "CASSIA Exports"],
     status_code=status.HTTP_200_OK,
-    summary="Crea un host group de Zabbix con tipado de CASSIA",
+    summary="Elimina un host de Zabbix",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def crate_host_group(group_data: cassia_host_groups_schema.CassiaHostGroupSchema = Body(..., exclude={"groupid"}), db: DB = Depends(get_db)):
-    print(group_data)
-    return await cassia_host_groups_service.crate_host_group(db, group_data)
-
-
-@cassia_host_groups_router.delete(
-    "/{groupid}",
-    tags=["Host Groups"],
-    status_code=status.HTTP_200_OK,
-    summary="Eliminar un host group de Zabbix",
-    dependencies=[Depends(auth_service2.get_current_user_session)]
-)
-async def delete_host_group(groupid: int, db: DB = Depends(get_db)):
-    return await cassia_host_groups_service.delete_host_group(groupid, db)
-
-
-@cassia_host_groups_router.post(
-    "/import",
-    tags=["Host Groups", "CASSIA Imports"],
-    status_code=status.HTTP_200_OK,
-    summary="Importa los grupos de host de Zabbix con un archivo proporcionado",
-    dependencies=[Depends(auth_service2.get_current_user_session)]
-)
-async def import_groups_data(file_import: UploadFile = File(...), db: DB = Depends(get_db)):
-    return await cassia_host_groups_service.import_groups_data(file_import, db)
-
-
-@cassia_host_groups_router.put('/',
-                               tags=["Host Groups"],
-                               status_code=status.HTTP_200_OK,
-                               summary="Actualiza el host group de CASSIA (nombre y tipo)",
-                               dependencies=[Depends(auth_service2.get_current_user_session)])
-async def update_host_group(group_data: cassia_host_groups_schema.CassiaHostGroupSchema, db: DB = Depends(get_db)):
-    return await cassia_host_groups_service.update_host_group(group_data, db)
- """
+async def delete_host(hostid: int, db: DB = Depends(get_db)):
+    return await cassia_hosts_service.delete_host(hostid, db)
