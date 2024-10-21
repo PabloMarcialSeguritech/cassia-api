@@ -56,14 +56,20 @@ async def create_new_brand(brand_data: cassia_brand_schema.CassiaBrandSchema, db
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"La dirección MAC '{brand_mac_address}' ya está registrada")
 
-        is_correct = await cassia_brand_repository.create_brand(brand_name, brand_mac_address, db)
-        if is_correct:
+        # Crear la marca usando el repositorio
+        new_brand = await cassia_brand_repository.create_host_brand(brand_data, db)
+
+        # Verificar si la marca tiene un ID (lo que indicaría que fue creada con éxito)
+        if new_brand.brand_id:
             return success_response(
-                message="Marca creada correctamente")
+                message="Marca creada correctamente",
+                data=new_brand
+            )
         else:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error al crear la marca")
+                detail="Error al crear la marca. No se generó un ID."
+            )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al crear el brand: {e}")
