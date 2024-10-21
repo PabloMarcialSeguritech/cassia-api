@@ -18,6 +18,26 @@ from types import SimpleNamespace
 from ipaddress import IPv4Address
 
 
+async def get_host(hostid, db: DB):
+    host = await cassia_hosts_repository.get_cassia_host(hostid, db)
+    if not host.empty:
+        host['proxy_hostid'] = host['proxy_hostid'].replace(np.nan, 0)
+        host['proxy_hostid'] = host['proxy_hostid'].astype('int64')
+        host['proxy_hostid'] = host['proxy_hostid'].replace(0, None)
+
+        host['brand_id'] = host['brand_id'].replace(np.nan, 0)
+        host['brand_id'] = host['brand_id'].astype('int64')
+        host['brand_id'] = host['brand_id'].replace(0, None)
+
+        host['technology_id'] = host['technology_id'].replace(np.nan, 0)
+        host['technology_id'] = host['technology_id'].astype('int64')
+        host['technology_id'] = host['technology_id'].replace(0, None)
+    response = {}
+    if not host.empty:
+        response = host.to_dict(orient="records")[0]
+    return success_response(data=response)
+
+
 async def get_hosts(db: DB):
     hosts = await cassia_hosts_repository.get_cassia_hosts(db)
     if not hosts.empty:
@@ -67,7 +87,7 @@ async def update_hosts_data(hostid, host_new_data: cassia_hosts_schema.CassiaHos
     is_valid_info = await validate_info_schema(host_new_data, db, True, hostid)
     # 1 Obtener host de la base de datos
     response = {'exception': None, 'result': '', 'success': False}
-    host_current_data = await cassia_hosts_repository.get_cassia_hosts_by_ids([hostid], db)
+    host_current_data = await cassia_hosts_repository.get_cassia_hosts_by_ids(hostid, db)
     if host_current_data.empty:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"El host no existe")
@@ -76,34 +96,183 @@ async def update_hosts_data(hostid, host_new_data: cassia_hosts_schema.CassiaHos
     if not update_host_data_result['success']:
         message = update_host_data_result['result']
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Error al actualizar hoss {message}")
+                            detail=f"Error al actualizar host {message}")
     response['result'] = update_host_data_result['result']
     # 3 Actualizar el inventory data
     host_inventory_current_data = await cassia_hosts_repository.get_cassia_host_inventory_data_by_id(hostid, db)
-    update_host_inventory_result = await update_host_inventory(hostid, host_inventory_current_data[0].to_dict() if not host_inventory_current_data.empty else None, host_new_data, db)
+    update_host_inventory_result = await update_host_inventory(hostid, host_inventory_current_data.iloc[0].to_dict() if not host_inventory_current_data.empty else None, host_new_data, db)
     response['result'] += update_host_inventory_result['result']
     host_brand_model_current_data = await cassia_hosts_repository.get_cassia_brand_model(hostid, db)
-    update_host_brand_model_result = await update_host_brand_model(hostid, host_brand_model_current_data[0].to_dict() if not host_brand_model_current_data.empty else None, host_new_data, db)
+    update_host_brand_model_result = await update_host_brand_model(hostid, host_brand_model_current_data.iloc[0].to_dict() if not host_brand_model_current_data.empty else None, host_new_data, db)
     response['result'] += update_host_brand_model_result['result']
     # 5 Actualizar interface data
     update_interface_data_result = await update_host_interface_data(hostid, host_new_data, db)
+    response['result'] += update_interface_data_result['result']
     # 6 Actualizar groups data
-
-    return response
+    return success_response(message="Host actualizado correctamente", data=response['result'])
 
 
 async def update_host_interface_data(hostid, host_new_data, db):
-    response = {'result': None, 'success': True}
+    response = {'result': '', 'success': True}
     # Verificar interface agente
-    current_host_interfaces = await cassia_hosts_repository.get_cassia_host_interfaces()
-    current_agent_host_interface = response
-    pass
+    current_host_interfaces = await cassia_hosts_repository.get_cassia_host_interfaces_by_hostid(hostid, db)
+
+    current_agent_host_interface = current_host_interfaces.loc[current_host_interfaces['type'].astype(
+        'str') == '1']
+    current_snmp_host_interface = current_host_interfaces.loc[current_host_interfaces['type'].astype(
+        'str') == '2']
+
+    if current_agent_host_interface.empty:
+        if host_new_data.agent_ip != "":
+            # crear una interfaz
+            # response = {'success': False, 'detail': '', 'exception': False}
+            create_agent_interface_result = await create_interface(hostid, 1, host_new_data.agent_ip, host_new_data.agent_port, None, None)
+            response['result'] += create_agent_interface_result['detail']
+
+        else:  # No se hace nada
+            response['result'] += 'No fue necesario realizar ninguna accion en la interface agent.'
+    else:
+        current_agent_host_interface_fields = current_agent_host_interface.iloc[0].to_dict(
+        )
+        print(current_agent_host_interface_fields)
+        if host_new_data.agent_ip == "":  # Eliminar interfaz agent
+            print("SE ELIMINARA")
+            delete_interface_host_result = await delete_interface_host(current_agent_host_interface_fields['interfaceid'], 1)
+            response['result'] += delete_interface_host_result['detail']
+        else:  # Actualizar interfaz agent
+            # Son nuevos datos y hay que actualizar
+            # response = {'success': False, 'detail': '', 'exception': False}
+            print("SE ACTULIZARA LA INTERFACE")
+            if current_agent_host_interface_fields['ip'] != host_new_data.agent_ip or current_agent_host_interface_fields['port'] != host_new_data.agent_port:
+                update_interface_agent_result = await update_host_interface_zabbix(current_agent_host_interface.iloc[0]['interfaceid'], 1, host_new_data.agent_ip, host_new_data.agent_port, None, None)
+                response['result'] += update_interface_agent_result['detail']
+
+            else:  # No es necesario actualizar la interfaz
+                response['result'] += "No fue necesario actualizar la interface agent del host."
+    if current_snmp_host_interface.empty:
+        if host_new_data.snmp_ip != "":
+            # crear una interfaz
+            # response = {'success': False, 'detail': '', 'exception': False}
+            create_snmp_interface_result = await create_interface(hostid, 2, host_new_data.snmp_ip, host_new_data.snmp_port, host_new_data.snmp_version, host_new_data.snmp_community)
+            response['result'] += create_snmp_interface_result['detail']
+
+        else:  # No se hace nada
+            response['result'] += 'No fue necesario realizar ninguna accion en la interface snmp.'
+    else:
+        current_snmp_host_interface_fields = current_snmp_host_interface.iloc[0].to_dict(
+        )
+        if host_new_data.snmp_ip == "":  # Eliminar interfaz agent
+            delete_interface_host_result = await delete_interface_host(current_snmp_host_interface_fields['interfaceid'], 2)
+            response['result'] += delete_interface_host_result['detail']
+        else:  # Actualizar interfaz agent
+            # Son nuevos datos y hay que actualizar
+            print(current_snmp_host_interface_fields)
+            if current_snmp_host_interface_fields['ip'] != host_new_data.snmp_ip or current_snmp_host_interface_fields['port'] != host_new_data.snmp_port or current_snmp_host_interface_fields['version'] != host_new_data.snmp_version or current_snmp_host_interface_fields['community'] != host_new_data.snmp_community:
+                update_interface_agent_result = await update_host_interface_zabbix(current_snmp_host_interface_fields['interfaceid'], 2, host_new_data.agent_ip, host_new_data.agent_port, host_new_data.snmp_version, host_new_data.snmp_community)
+                response['result'] += update_interface_agent_result['detail']
+
+            else:  # No es necesario actualizar la interfaz
+                response['result'] += "No fue necesario actualizar la interface snmp del host."
+    print("SE EJECUTA TODO")
+    return response
+
+
+async def update_host_interface_zabbix(interface_id, type, ip, port, snmp_version, snmp_community):
+    response = {'success': False, 'detail': '', 'exception': False}
+    try:
+        tipo = "Agent" if type == 1 else 'SNMP'
+        host_interface_params = {
+            'interfaceid': str(interface_id),
+            "type": type,          # Tipo de interfaz: 1 = Zabbix agent, 2 = SNMP, 3 = IPMI, 4 = JMX
+            "useip": 1,         # 1 = Usar IP, 0 = Usar DNS
+            "ip": ip,  # Dirección IP de la interfaz
+            "dns": "",          # DNS (vacío si useip=1)
+            # Puerto del agente Zabbix (por defecto 10050)
+            "port": str(port)
+        }
+        if type == 2:
+            host_interface_params['details'] = {
+                'version': snmp_version,
+                'community': snmp_community
+            }
+        zabbix_api = ZabbixApi()
+        zabbix_request_result = await zabbix_api.do_request_new(method='hostinterface.update', params=host_interface_params)
+        if 'result' in zabbix_request_result:
+            print(zabbix_request_result)
+            response['success'] = True
+            response['detail'] = f"Interface {tipo} actualizada correctamente. "
+            return response
+        else:
+            response['detail'] = f"No se pudo actualizar la interface {tipo}: {zabbix_request_result['error']} "
+            return response
+
+    except Exception as e:
+        response['success'] = False
+        response['detail'] = e
+        return response
+
+
+async def delete_interface_host(interfaceid, type):
+    response = {'success': False, 'detail': '', 'exception': False}
+    try:
+        tipo = "Agent" if type == 1 else 2
+        host_interface_params = [str(interfaceid)]
+        zabbix_api = ZabbixApi()
+        zabbix_request_result = await zabbix_api.do_request_new(method='hostinterface.delete', params=host_interface_params)
+        if 'result' in zabbix_request_result:
+            print(zabbix_request_result)
+            response['success'] = True
+            response['detail'] = f"Interface {tipo} eliminada correctamente. "
+            return response
+        else:
+            response['detail'] = f"No se pudo eliminar la interface {tipo}: {zabbix_request_result['error']} "
+            return response
+
+    except Exception as e:
+        response['success'] = False
+        response['detail'] = e
+        return response
+
+
+async def create_interface(hostid, type, ip, port, snmp_version, snmp_community):
+    response = {'success': False, 'detail': '', 'exception': False}
+    try:
+        tipo = "Agent" if type == 1 else "SNMP"
+        host_interface_params = {
+            'hostid': str(hostid),
+            'type': type,
+            'main': 1,
+            'useip': 1,
+            'ip': ip,
+            'dns': '',
+            'port': str(port)
+        }
+        if type == 2:
+            host_interface_params['details'] = {
+                'version': snmp_version,
+                'community': snmp_community
+            }
+        zabbix_api = ZabbixApi()
+        zabbix_request_result = await zabbix_api.do_request_new(method='hostinterface.create', params=host_interface_params)
+        if 'result' in zabbix_request_result:
+            print(zabbix_request_result)
+            response['success'] = True
+            response['detail'] = F"Interface {tipo} creada correctamente. "
+            return response
+        else:
+            response['detail'] = f"No se pudo crear la interface {tipo}: {zabbix_request_result['error']} "
+            return response
+
+    except Exception as e:
+        response['success'] = False
+        response['detail'] = e
+        return response
 
 
 async def update_host_brand_model(hostid, host_brand_model_current_data, host_new_data, db):
     response = {'result': None, 'success': True}
-    new_host_brand_model_data_fields = get_host_brand_model_data_fields(
-        host_new_data)
+    new_host_brand_model_data_fields = await get_host_brand_model_data_fields(
+        host_new_data.dict())
     if host_brand_model_current_data is not None:  # Si existe la marca y modelo actualizarlos
         current_host_brand_model_data_fields = await get_host_brand_model_data_fields(host_brand_model_current_data)
         host_data_brand_model_sets_are_diferent = await verify_new_vs_current_host_data(current_host_brand_model_data_fields, new_host_brand_model_data_fields)
@@ -129,8 +298,8 @@ async def update_host_brand_model(hostid, host_brand_model_current_data, host_ne
 
 async def update_host_inventory(hostid, host_inventory_data, host_new_data, db):
     response = {'result': None, 'success': True}
-    new_host_inventory_data_fields = get_host_data_inventory_data_fields(
-        host_new_data)
+    new_host_inventory_data_fields = await get_host_data_inventory_data_fields(
+        host_new_data.dict())
     if host_inventory_data is not None:  # Si existe el inventory actualizar
         current_host_inventory_data_fields = await get_host_data_inventory_data_fields(host_inventory_data)
 
@@ -198,17 +367,20 @@ async def update_host_data(hostid, host_current_data: dict, host_new_data: cassi
     response = {'result': None, 'success': True}
 
     # 1 Crear subsets de los dos datos
+    host_current_data['proxy_id'] = host_current_data['proxy_hostid']
+    host_current_data['status'] = host_current_data['status_value']
+
     current_host_data_fields = await get_host_data_fields(host_current_data)
-    new_host_data_fields = await get_host_data_fields(host_new_data)
+    new_host_data_fields = await get_host_data_fields(host_new_data.dict())
     # 2 Verificar si existen cambios a realizar
     host_data_sets_are_diferent = await verify_new_vs_current_host_data(current_host_data_fields, new_host_data_fields)
     # 3 Actualizar el host data de ser necesario
     if host_data_sets_are_diferent:
         # 4 Actualizar host data
         # {'success': False, 'detail': '','exception':False}
-        updated_host_data = await cassia_hosts_repository.update_host_data(hostid, host_new_data, db)
-        if not update_host_data['success']:
-            response['result'] = update_host_data['detail']
+        updated_host_data_result = await cassia_hosts_repository.update_host_data(hostid, host_new_data, db)
+        if not updated_host_data_result['success']:
+            response['result'] = updated_host_data_result['detail']
             response['success'] = False
         else:
             response['result'] = "La informacion del host fue actualizada. "
@@ -235,7 +407,7 @@ async def get_host_data_inventory_data_fields(host_dict):
         'alias': host_dict.alias,
         'location_lat': host_dict.location_lat,
         'location_lon': host_dict.location_lon,
-        'serial_no_a': host_dict.serial_no_a,
+        'serialno_a': host_dict.serialno_a,
         'macaddress_a': host_dict.macaddress_a
     }
 
@@ -440,3 +612,41 @@ async def create_host_by_zabbix(host_data: cassia_hosts_schema.CassiaHostSchema)
         response['success'] = False
         response['detail'] = e
         return response
+
+
+async def delete_host(hostid: int, db: DB):
+    host = await cassia_hosts_repository.get_cassia_host(hostid, db)
+    if host.empty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="El host no existe")
+    try:
+        params = [str(hostid)]
+        zabbix_api = ZabbixApi()
+        zabbix_request_result = await zabbix_api.do_request_new(method='host.delete', params=params)
+        if 'result' in zabbix_request_result:  # Se elimino el host con inventory, interface y grupos
+
+            hostid_eliminado = zabbix_request_result['result']['hostids'][0]
+
+            # eliminar el registro de cassia_hosts (marca y modelo)
+            # response = {'success': False, 'detail': '', 'exception': False}
+            get_host_brand_model = await cassia_hosts_repository.get_cassia_brand_model(hostid, db)
+            if not get_host_brand_model.empty:
+                delete_host_model_brand_result = await cassia_hosts_repository.delete_host_brand_model_by_hostid(hostid, db)
+                if delete_host_model_brand_result['success']:
+                    print("Se elimino marca y modelo.")
+                    return success_response(message=f"Host {hostid} eliminado correctamente.")
+                else:
+                    print("No se elimino marca y modelo.")
+                    return success_response(message=f"Se elimino el host {hostid}. No se pudo eliminar el registro de marca y modelo del host.")
+            else:
+                print("No fue necesario eliminar marca y modelo.")
+                return success_response(message=f"Host {hostid} eliminado correctamente")
+        else:
+            error = zabbix_request_result['error']
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error al eliminar el host {error}")
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al eliminar el host {e}")
