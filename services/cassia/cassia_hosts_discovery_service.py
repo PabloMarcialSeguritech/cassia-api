@@ -9,6 +9,7 @@ import csv
 import io
 from fastapi.responses import StreamingResponse
 from utils.traits import success_response
+import json
 # Diccionario de proxies predefinidos
 PROXIES = {
     1: {"id": 2, "name": "Server-gto", "hostname": "172.18.200.17", "username": "zabbix", "password": "123qwe...", "port": 22},
@@ -70,7 +71,13 @@ async def get_discovered_devices(proxies: discovered_device_schema.ProxyRequest,
 
 
 async def download_discovery_devices(proxies: discovered_device_schema.ProxyRequest, db: DB):
-    devices = await get_discovered_devices(proxies, db)
+    json_response_devices = await get_discovered_devices(proxies, db)
+    response_body = json_response_devices.body
+    response_data = json.loads(response_body)
+    print(response_data)
+    type(response_data)
+
+    devices = response_data['data']['devices']
 
     # Crear el archivo CSV en memoria
     output = io.StringIO()
@@ -79,8 +86,9 @@ async def download_discovery_devices(proxies: discovered_device_schema.ProxyRequ
                     "Proxy Name", "name", "host"])
 
     for device in devices:
-        writer.writerow([device.ip, device.mac_address,
-                        device.proxyId, device.proxyName, device.name, device.host])
+        print(device)
+        writer.writerow([device['ip'], device['mac_address'],
+                        device['proxyId'], device['proxyName'], device['name'], device['host']])
 
     output.seek(0)
 
