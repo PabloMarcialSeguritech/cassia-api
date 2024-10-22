@@ -274,6 +274,12 @@ WHERE rn = 1;
         self.query_statement_get_cassia_host_models = """SELECT chm.*,chb.name_brand FROM cassia_host_model chm
 inner join cassia_host_brand chb 
 on chb.brand_id =chm.brand_id """
+
+        self.query_statement_get_cassia_host_models_by_brand = """SELECT chm.*,chb.name_brand FROM cassia_host_model chm
+inner join cassia_host_brand chb 
+on chb.brand_id =chm.brand_id
+where chm.brand_id= %s """
+
         self.query_statement_get_proxies = """
 SELECT
     h.hostid AS proxy_id,

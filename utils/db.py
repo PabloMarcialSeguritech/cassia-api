@@ -16,7 +16,7 @@ class DB_Auth():
     DB_HOST = settings.db_host
     DB_PORT = settings.db_port
 
-    connection_string = f"mysql+mysqlconnector://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    connection_string = f"mysql+mysqlconnector://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}?ssl_disabled=True"
 
     engine = create_engine(connection_string, echo=True)
 
@@ -32,7 +32,7 @@ class DB_Prueba():
     DB_HOST = settings.dbp_host
     DB_PORT = settings.dbp_port
 
-    connection_string = f"mysql+mysqlconnector://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    connection_string = f"mysql+mysqlconnector://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}?ssl_disabled=True"
     engine = create_engine(connection_string, echo=False,
                            poolclass=NullPool, pool_recycle=1800, pool_pre_ping=True)
 
@@ -67,10 +67,9 @@ class DB_Zabbix():  # Zabbix DB connection class
                                                  settings.ssh_remote_bind_port)),
                                              local_bind_address=("127.0.0.1", 3306))
             self.server.start()
-            self.connection_string = f"mysql+mysqldb://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.server.local_bind_port}/{self.DB_NAME}"
+            self.connection_string = f"mysql+pymysql://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.server.local_bind_port}/{self.DB_NAME}"
         else:
-            self.connection_string = f"mysql+mysqldb://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-
+            self.connection_string = f"mysql+pymysql://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         self.engine = create_engine(
             self.connection_string, echo=False, poolclass=NullPool, pool_recycle=1800)
         self.Session = sessionmaker(bind=self.engine)

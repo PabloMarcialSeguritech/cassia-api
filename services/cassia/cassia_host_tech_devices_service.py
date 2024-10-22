@@ -15,6 +15,8 @@ from schemas import cassia_host_device_tech_schema
 
 async def get_technologies(db):
     host_devices = await cassia_host_tech_devices_repository.get_host_devices(db)
+    if not host_devices.empty:
+        host_devices['id'] = host_devices['dispId']
     return success_response(data=host_devices.to_dict(orient="records"))
 
 
@@ -30,7 +32,7 @@ async def update_technology(technology_data, db):
 
         if is_correct:
             return success_response(
-                    message="Tecnología actualizada correctamente")
+                message="Tecnología actualizada correctamente")
         else:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

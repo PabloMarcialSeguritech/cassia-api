@@ -1,6 +1,6 @@
 [[source]]
 url = "https://pypi.org/simple"
-verify_ssl = true
+verify_ssl = false
 name = "pypi"
 
 [packages]
@@ -32,6 +32,9 @@ aiomysql = "*"
 asyncssh = "*"
 azure-servicebus = "*"
 nest-asyncio = "*"
+typing-extensions = "*"
+pymysql = "*"
+scapy = "*"
 
 [dev-packages]
 

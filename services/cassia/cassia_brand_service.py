@@ -1,4 +1,4 @@
-from fastapi import HTTPException,status
+from fastapi import HTTPException, status
 from infraestructure.database import DB
 from infraestructure.cassia import cassia_brand_repository
 from utils.traits import success_response, get_datetime_now_str_with_tz
@@ -12,12 +12,16 @@ from utils.exports_imports_functions import generate_file_export, get_df_by_file
 import asyncio
 import numpy as np
 
+
 async def fetch_all_brands(db: DB):
     try:
         brands_df = await cassia_brand_repository.get_all_brands(db)
+        if not brands_df.empty:
+            brands_df['id'] = brands_df['brand_id']
         return success_response(data=brands_df.to_dict(orient="records"))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al obtener todos los brands: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error al obtener todos los brands: {e}")
 
 
 async def export_brands_data(export_data, db):
@@ -36,6 +40,8 @@ async def export_brands_data(export_data, db):
                             detail=f"Excepcion en export_technologies_data {e}")
 
 # Servicio para crear un nuevo brand (editable = 0)
+
+
 async def create_new_brand(brand_data: cassia_brand_schema.CassiaBrandSchema, db: DB):
     brand_data_dict = brand_data.dict()
     brand_name = brand_data_dict['name_brand'].strip()
@@ -52,9 +58,9 @@ async def create_new_brand(brand_data: cassia_brand_schema.CassiaBrandSchema, db
 
             # Verificar si la dirección MAC ya existe en el DataFrame
         if brand_mac_address in brands_df['mac_address_brand_OUI'].values:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"La dirección MAC '{brand_mac_address}' ya está registrada")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"La dirección MAC '{brand_mac_address}' ya está registrada")
 
         # Crear la marca usando el repositorio
         new_brand = await cassia_brand_repository.create_host_brand(brand_data, db)
@@ -72,7 +78,9 @@ async def create_new_brand(brand_data: cassia_brand_schema.CassiaBrandSchema, db
             )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al crear el brand: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error al crear el brand: {e}")
+
 
 async def modify_brand(db, brand_id, brand_data):
     brand_data_dict = brand_data.dict()
@@ -86,7 +94,8 @@ async def modify_brand(db, brand_id, brand_data):
 
     # Extraer los datos del brand y validarlos
     brand_name = brand_data_dict['name_brand']
-    brand_mac_address = brand_data_dict['mac_address_brand_OUI']  # Si es el campo correcto
+    # Si es el campo correcto
+    brand_mac_address = brand_data_dict['mac_address_brand_OUI']
 
     # Validar que el nombre de la marca no esté vacío
     if not brand_name or not isinstance(brand_name, str):
@@ -97,7 +106,7 @@ async def modify_brand(db, brand_id, brand_data):
 
     try:
         # Obtener el DataFrame del repositorio
-        brand_df = await  cassia_brand_repository.get_brand_editable(brand_id, db)
+        brand_df = await cassia_brand_repository.get_brand_editable(brand_id, db)
 
         # Verificar si se encontró el registro
         if brand_df.empty:
@@ -219,6 +228,7 @@ async def import_brands_data(file_import, db):
         df_import_results = df_import_results.replace(np.nan, None)
     return success_response(data=df_import_results.to_dict(orient='records'))
 
+
 async def create_host_brand_by_import(db: DB, model_data, brands_df):
     response = model_data
     response['result'] = 'No se creo correctamente el registro'
@@ -239,4 +249,3 @@ async def create_host_brand_by_import(db: DB, model_data, brands_df):
     response['result'] = 'Se creo correctamente el registro'
     response['brand_id_creado'] = create_host_brand.brand_id
     return response
-
