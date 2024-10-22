@@ -1,7 +1,11 @@
 from fastapi import status, HTTPException
 from fastapi.responses import FileResponse
-from infraestructure.cassia import cassia_host_models_repository
+from infraestructure.cassia import cassia_host_models_repository, cassia_brand_repository, cassia_user_repository
 from infraestructure.zabbix.ZabbixApi import ZabbixApi
+from models.cassia_user_session import CassiaUserSession
+from schemas.cassia_audit_schema import CassiaAuditSchema
+from services.cassia import cassia_audit_service
+from utils.actions_modules_enum import AuditModule, AuditAction
 from utils.traits import success_response, get_datetime_now_str_with_tz
 from utils.exports_imports_functions import generate_file_export, get_df_by_filetype
 from fastapi import File
@@ -30,7 +34,7 @@ async def get_host_models(db: DB):
     return success_response(data=host_models.to_dict(orient="records"))
 
 
-async def crate_host_model(db: DB, model_data: cassia_host_models_schema.CassiaHostModelSchema):
+async def create_host_model(db: DB, model_data: cassia_host_models_schema.CassiaHostModelSchema, current_user):
     host_brand_exist = await cassia_host_models_repository.get_cassia_host_brand_by_id(model_data.brand_id, db)
     if host_brand_exist.empty:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
@@ -41,10 +45,11 @@ async def crate_host_model(db: DB, model_data: cassia_host_models_schema.CassiaH
                             detail="Ya existe un modelo con este nombre perteneciente a esta marca")
 
     create_host_model = await cassia_host_models_repository.create_host_model(model_data, db)
+    await create_model_audit_log(create_host_model, current_user, db)
     return success_response("Modelo creado correctamente", data=create_host_model)
 
 
-async def delete_host_model(model_id: int, db: DB):
+async def delete_host_model(model_id: int, current_user, db: DB):
     model = await cassia_host_models_repository.get_cassia_host_model_by_id(model_id, db)
     if model.empty:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
@@ -53,6 +58,7 @@ async def delete_host_model(model_id: int, db: DB):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f"El modelo con el id proporcionado no se puede eliminar")
     delete_model = await cassia_host_models_repository.delete_cassia_host_model_by_id(model_id, db)
+    await delete_model_audit_log(model, current_user, db)
     return success_response(message="El modelo fue eliminado correctamente")
 
 
@@ -136,7 +142,7 @@ async def crate_host_model_by_import(db: DB, model_data):
     return response
 
 
-async def update_host_model(model_id: int, model_data: cassia_host_models_schema.CassiaHostModelSchema, db: DB):
+async def update_host_model(model_id: int, model_data: cassia_host_models_schema.CassiaHostModelSchema, current_user, db: DB):
     model_exist = await cassia_host_models_repository.get_cassia_host_model_by_id(model_id, db)
     if model_exist.empty:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
@@ -154,4 +160,117 @@ async def update_host_model(model_id: int, model_data: cassia_host_models_schema
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail=f"Ya existe un modelo de esta marca con este nombre.")
     update_model = await cassia_host_models_repository.update_host_model(model_id, model_data, db)
+    await update_model_audit_log(model_id, model_data, model_exist, current_user, db)
     return success_response(message="El modelo fue actualizado correctamente")
+
+
+async def create_model_audit_log(model_data: cassia_host_models_schema.CassiaHostModelSchema, current_user: CassiaUserSession, db: DB):
+
+    try:
+        module_id = AuditModule.MODELS.value
+        action_id = AuditAction.CREATE.value
+        user = await cassia_user_repository.get_user_by_id(current_user.user_id, db)
+        brand_df = await  cassia_brand_repository.get_brand_editable(model_data.brand_id, db)
+        brand_type_name = ""
+        if not brand_df.empty:
+            brand_type_name = brand_df.iloc[0]['name_brand']
+
+        detail = f"Se creo un modelo con los siguientes datos, name_model: {model_data.name_model}, brand_name: {brand_type_name}"
+
+        cassia_audit_schema = CassiaAuditSchema(
+            user_name = user.name,
+            user_email = user.mail,
+            summary = detail,
+            id_audit_action = action_id,
+            id_audit_module = module_id
+        )
+
+        await cassia_audit_service.create_audit_log(cassia_audit_schema, db)
+
+    except Exception as e:
+        print(f"Error en create_group_audit_log: {e}")
+
+
+async def delete_model_audit_log(model ,
+                                 current_user: CassiaUserSession, db: DB):
+    try:
+        module_id = AuditModule.MODELS.value
+        action_id = AuditAction.DELETE.value
+
+        user = await cassia_user_repository.get_user_by_id(current_user.user_id, db)
+
+        name_model = ""
+
+        if not model.empty:
+            name_model = model.iloc[0]['name_model']
+
+        detail = f"Se elimino el modelo con los siguientes datos, name_model: {name_model}"
+
+        cassia_audit_schema = CassiaAuditSchema(
+            user_name=user.name,
+            user_email=user.mail,
+            summary=detail,
+            id_audit_action=action_id,
+            id_audit_module=module_id
+        )
+
+        await cassia_audit_service.create_audit_log(cassia_audit_schema, db)
+
+    except Exception as e:
+        print(f"Error en delete_group_audit_log: {e}")
+
+async def update_model_audit_log(model_id, model_data: cassia_host_models_schema.CassiaHostModelSchema,
+                                 model_data_current,
+                                 current_user: CassiaUserSession,
+                                 db: DB):
+    try:
+        module_id = AuditModule.MODELS.value
+        action_id = AuditAction.UPDATE.value
+
+        # Obtener el usuario actual
+        user = await cassia_user_repository.get_user_by_id(current_user.user_id, db)
+
+        models_df = await cassia_host_models_repository.get_cassia_host_models(db)
+
+        brands_df = await cassia_brand_repository.get_all_brands(db)
+
+        if not brands_df.empty:
+
+            # Acceder correctamente a los campos de tipo de grupo usando 'id' en lugar de 'group_type_id'
+            current_brand_type_id = model_data_current.iloc[0]['brand_id']  # Desde el objeto actual
+            new_brand_type_id = model_data.brand_id  # Desde el nuevo objeto (ajustado a type_id)
+
+            # Buscar los nombres de los tipos de grupo correspondientes a los IDs en los datos actuales y nuevos
+            brand_type_name_current = models_df.loc[models_df['brand_id'] == current_brand_type_id, 'name_brand'].values
+            brand_type_name_new = models_df.loc[models_df['brand_id'] == new_brand_type_id, 'name_brand'].values
+
+            # Verificar que se encontró un nombre de tipo de grupo
+            if brand_type_name_current.size == 0:
+                raise ValueError(f"No se encontró el nombre del tipo del modelo  para el ID {current_brand_type_id}")
+            if brand_type_name_new.size == 0:
+                raise ValueError(f"No se encontró el nombre del tipo del modelo  para el ID {new_brand_type_id}")
+
+            # Extraer el valor del array resultante
+            brand_type_name_current = brand_type_name_current[0]
+            brand_type_name_new = brand_type_name_new[0]
+
+            # Crear el detalle de la auditoría con los nombres de los tipos de grupo
+            detail = (f"Se actualizó un modelo. Sus datos anteriores eran: model_name {model_data_current.iloc[0]['name_model']}, "
+                      f"brand_name: {brand_type_name_current}. "
+                      f"Sus nuevos datos son: model_name {model_data.name_model}, "
+                      f"brand_name: {brand_type_name_new}.")
+
+            # Crear el objeto de auditoría
+            cassia_audit_schema = CassiaAuditSchema(
+                user_name=user.name,
+                user_email=user.mail,
+                summary=detail,
+                id_audit_action=action_id,
+                id_audit_module=module_id
+            )
+
+            # Crear el registro de auditoría
+            await cassia_audit_service.create_audit_log(cassia_audit_schema, db)
+
+    except Exception as e:
+        print(f"Error en update_model_audit_log: {e}")
