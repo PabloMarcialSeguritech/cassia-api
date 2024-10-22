@@ -200,11 +200,22 @@ async def delete_model_audit_log(model ,
         user = await cassia_user_repository.get_user_by_id(current_user.user_id, db)
 
         name_model = ""
+        brand_id = None
+        brand_df = pd.DataFrame({})
+        brand_type_name = ""
+
 
         if not model.empty:
             name_model = model.iloc[0]['name_model']
+            brand_id = model.iloc[0]['brand_id']
 
-        detail = f"Se elimino el modelo con los siguientes datos, name_model: {name_model}"
+        if brand_id:
+            brand_df = await  cassia_brand_repository.get_brand_editable(brand_id, db)
+
+        if not brand_df.empty:
+            brand_type_name = brand_df.iloc[0]['name_brand']
+
+        detail = f"Se elimino el modelo con los siguientes datos, name_model: {name_model}, name_brand: {brand_type_name}"
 
         cassia_audit_schema = CassiaAuditSchema(
             user_name=user.name,
