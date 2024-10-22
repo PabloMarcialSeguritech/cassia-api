@@ -13,6 +13,17 @@ cassia_host_models_router = APIRouter(prefix="/host_models")
 
 
 @cassia_host_models_router.get(
+    "/by_brand/{brand_id}",
+    tags=["Host Models"],
+    status_code=status.HTTP_200_OK,
+    summary="Obtiene los modelos de hosts disponibles en CASSIA",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_host_models_by_brand(brand_id: int, db: DB = Depends(get_db)):
+    return await cassia_host_models_service.get_host_models_by_brand(brand_id, db)
+
+
+@cassia_host_models_router.get(
     "/",
     tags=["Host Models"],
     status_code=status.HTTP_200_OK,

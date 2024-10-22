@@ -12,8 +12,21 @@ import pandas as pd
 import numpy as np
 
 
+async def get_host_models_by_brand(brand_id: int, db: DB):
+    brand = await cassia_host_models_repository.get_cassia_host_brand_by_id(brand_id, db)
+    if brand.empty:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="El brand_id proporcionado no existe")
+    host_models = await cassia_host_models_repository.get_cassia_host_models_by_brand(brand_id, db)
+    if not host_models.empty:
+        host_models['id'] = host_models['model_id']
+    return success_response(data=host_models.to_dict(orient="records"))
+
+
 async def get_host_models(db: DB):
     host_models = await cassia_host_models_repository.get_cassia_host_models(db)
+    if not host_models.empty:
+        host_models['id'] = host_models['model_id']
     return success_response(data=host_models.to_dict(orient="records"))
 
 
