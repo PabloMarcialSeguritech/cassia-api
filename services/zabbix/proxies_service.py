@@ -21,6 +21,8 @@ async def get_proxies(db):
     if proxies.empty:
         return success_response(data=[])
     proxies['proxy_id'] = proxies['proxy_id'].astype('int64')
+    if not proxies.empty:
+        proxies['id'] = proxies['proxy_id']
     try:
         zabbix_api = ZabbixApi()
 

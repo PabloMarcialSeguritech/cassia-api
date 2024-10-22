@@ -124,3 +124,18 @@ async def get_cassia_host_models(db: DB) -> pd.DataFrame:
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Error en get_cassia_host_models: {e}")
+
+
+async def get_cassia_host_models_by_brand(brand_id, db: DB) -> pd.DataFrame:
+    host_models_df = None
+    try:
+        query_statement_get_cassia_host_models_by_brand = DBQueries(
+        ).query_statement_get_cassia_host_models_by_brand
+
+        host_models_data = await db.run_query(query_statement_get_cassia_host_models_by_brand, (brand_id))
+        host_models_df = pd.DataFrame(
+            host_models_data).replace(np.nan, None)
+        return host_models_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_cassia_host_models_by_brand: {e}")
