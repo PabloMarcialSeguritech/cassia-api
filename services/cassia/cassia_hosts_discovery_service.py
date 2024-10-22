@@ -8,8 +8,10 @@ import ipaddress
 import csv
 import io
 from fastapi.responses import StreamingResponse
+from utils.traits import success_response
 # Diccionario de proxies predefinidos
 PROXIES = {
+    1: {"id": 2, "name": "Server-gto", "hostname": "172.18.200.17", "username": "zabbix", "password": "123qwe...", "port": 22},
     10436: {"id": 3, "name": "prx-silao", "hostname": "172.18.37.62", "username": "zabbix", "password": "Z4bb1x.gt0", "port": 22},
     10445: {"id": 4, "name": "prx-abasolo", "hostname": "172.18.1.62", "username": "zabbix", "password": "Z4bb1x.gt0", "port": 22},
     10446: {"id": 5, "name": "prx-acambaro", "hostname": "172.18.2.62", "username": "zabbix", "password": "Z4bb1x.gt0", "port": 22},
@@ -47,19 +49,24 @@ def is_valid_ip(ip: str) -> bool:
 
 async def get_discovered_devices(proxies: discovered_device_schema.ProxyRequest, db: DB):
     discovered_devices = []
+    errors = []
     for req in proxies:
         if req.proxyId is None:
             devices = await discover_locally(req.segment)
         elif req.proxyId in PROXIES:
             proxy = PROXIES[req.proxyId]
-            devices = await discover_via_ssh(proxy, req.segment)
+            result_via_ssh = await discover_via_ssh(proxy, req.segment)
+            devices = result_via_ssh['devices']
+            if result_via_ssh['errors'] is not None:
+                errors.append(
+                    {'proxy': proxy['name'], 'proxy_ip': proxy['hostname'], 'errors': result_via_ssh['errors']})
         else:
             raise HTTPException(
                 status_code=400, detail=f"ProxyId {req.proxyId} no encontrado.")
-
         discovered_devices.extend(devices)
-
-    return discovered_devices
+    response = {'devices': discovered_devices,
+                'errors': errors}
+    return success_response(data=response)
 
 
 async def download_discovery_devices(proxies: discovered_device_schema.ProxyRequest, db: DB):
@@ -114,6 +121,11 @@ async def discover_via_ssh(proxy: dict, segment: str) -> List[discovered_device_
     print(
         f"Iniciando conexión SSH a {proxy['hostname']} con usuario {proxy['username']}")
     devices = []
+    result = {
+        'proxy': proxy["hostname"],
+        'devices': [],
+        'errors': None
+    }
     try:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -138,6 +150,7 @@ async def discover_via_ssh(proxy: dict, segment: str) -> List[discovered_device_
 
         if error_output:
             print(f"Errores: {error_output}")
+            result['errors'] = error_output
 
         for line in output.splitlines():
             parts = line.split()
@@ -153,10 +166,11 @@ async def discover_via_ssh(proxy: dict, segment: str) -> List[discovered_device_
                 ))
 
     except Exception as e:
+        result['errors'] = str(e)
+        return result
         print(f"Error en proxy {proxy['hostname']}: {str(e)}")
         raise HTTPException(
             status_code=500, detail=f"Error en proxy {proxy['hostname']}: {str(e)}")
     finally:
         ssh.close()
-
-    return devices
+    return result
