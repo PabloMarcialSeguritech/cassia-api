@@ -39,7 +39,6 @@ async def update_host_device_tech(tech_disp_id, tech_visible_name, db):
     try:
         query = DBQueries().builder_update_host_tech_device(
             tech_disp_id, tech_visible_name)
-        print(query)
         await db.run_query(query)
         return True
     except Exception as e:

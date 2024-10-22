@@ -1,5 +1,7 @@
 from fastapi import APIRouter, UploadFile
 from fastapi import Depends, status, Form, Body, File
+
+from models.cassia_user_session import CassiaUserSession
 from services import auth_service2
 from schemas import cassia_host_groups_schema
 from schemas import cassia_host_models_schema
@@ -10,17 +12,6 @@ from dependencies import get_db
 from infraestructure.database import DB
 
 cassia_host_models_router = APIRouter(prefix="/host_models")
-
-
-@cassia_host_models_router.get(
-    "/by_brand/{brand_id}",
-    tags=["Host Models"],
-    status_code=status.HTTP_200_OK,
-    summary="Obtiene los modelos de hosts disponibles en CASSIA",
-    dependencies=[Depends(auth_service2.get_current_user_session)]
-)
-async def get_host_models_by_brand(brand_id: int, db: DB = Depends(get_db)):
-    return await cassia_host_models_service.get_host_models_by_brand(brand_id, db)
 
 
 @cassia_host_models_router.get(
@@ -41,9 +32,9 @@ async def get_host_models(db: DB = Depends(get_db)):
     summary="Crea un modelo de host de CASSIA",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def crate_host_model(model_data: cassia_host_models_schema.CassiaHostModelSchema, db: DB = Depends(get_db)):
-    print(model_data)
-    return await cassia_host_models_service.crate_host_model(db, model_data)
+async def create_host_model(model_data: cassia_host_models_schema.CassiaHostModelSchema,
+                           current_user: CassiaUserSession = Depends(auth_service2.get_current_user_session), db: DB = Depends(get_db)):
+    return await cassia_host_models_service.create_host_model(db, model_data, current_user)
 
 
 @cassia_host_models_router.delete(
@@ -53,8 +44,8 @@ async def crate_host_model(model_data: cassia_host_models_schema.CassiaHostModel
     summary="Eliminar un modelo de host de Cassia",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def delete_host_model(model_id: int, db: DB = Depends(get_db)):
-    return await cassia_host_models_service.delete_host_model(model_id, db)
+async def delete_host_model(model_id: int, current_user: CassiaUserSession = Depends(auth_service2.get_current_user_session), db: DB = Depends(get_db)):
+    return await cassia_host_models_service.delete_host_model(model_id, current_user, db)
 
 
 @cassia_host_models_router.post(
@@ -85,5 +76,7 @@ async def import_models_data(file_import: UploadFile = File(...), db: DB = Depen
     status_code=status.HTTP_200_OK,
     summary="Actualiza el modelo de host de CASSIA (nombre y marca)",
     dependencies=[Depends(auth_service2.get_current_user_session)])
-async def update_host_group(model_id: int, model_data: cassia_host_models_schema.CassiaHostModelSchema, db: DB = Depends(get_db)):
-    return await cassia_host_models_service.update_host_model(model_id, model_data, db)
+async def update_host_group(model_id: int, model_data: cassia_host_models_schema.CassiaHostModelSchema,
+                            current_user: CassiaUserSession = Depends(auth_service2.get_current_user_session),
+                            db: DB = Depends(get_db)):
+    return await cassia_host_models_service.update_host_model(model_id, model_data, current_user, db)

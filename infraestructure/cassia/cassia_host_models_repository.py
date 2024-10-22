@@ -16,7 +16,7 @@ async def update_host_model(model_id: int, model_data: cassia_host_models_schema
         return True
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Error en get_cassia_host_model_by_name_and_brand_id: {e}")
+                            detail=f"Error en update_host_model: {e}")
 
 
 async def get_cassia_host_model_by_name_and_brand_id(model_data: cassia_host_models_schema.CassiaHostModelSchema, db: DB) -> pd.DataFrame:
@@ -24,12 +24,9 @@ async def get_cassia_host_model_by_name_and_brand_id(model_data: cassia_host_mod
     try:
         query_statement_get_cassia_host_models_by_name_and_brand_id = DBQueries(
         ).builder_query_statement_get_cassia_host_models_by_name_and_brand_id(model_data)
-        print(query_statement_get_cassia_host_models_by_name_and_brand_id)
-
         host_model_data = await db.run_query(query_statement_get_cassia_host_models_by_name_and_brand_id)
         host_model_df = pd.DataFrame(
             host_model_data).replace(np.nan, None)
-        print(host_model_df)
         return host_model_df
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

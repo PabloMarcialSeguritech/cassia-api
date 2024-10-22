@@ -1,5 +1,7 @@
 from fastapi import APIRouter, UploadFile
 from fastapi import Depends, status, Form, Body, File
+
+from models.cassia_user_session import CassiaUserSession
 from services import auth_service2
 from schemas import cassia_host_device_tech_schema
 from typing import List, Optional
@@ -24,8 +26,9 @@ async def get_tech_devices_cat(db: DB = Depends(get_db)):
     status_code=status.HTTP_200_OK,
     summary="Actualiza la tecnología de CASSIA",
     dependencies=[Depends(auth_service2.get_current_user_session)])
-async def update_technology_cat(tecnology_data: cassia_host_device_tech_schema.CassiaHostDeviceTechSchema, db: DB = Depends(get_db)):
-    return await cassia_host_tech_devices_service.update_technology(tecnology_data, db)
+async def update_technology_cat(technology_data: cassia_host_device_tech_schema.CassiaHostDeviceTechSchema,
+                            current_user: CassiaUserSession = Depends(auth_service2.get_current_user_session), db: DB = Depends(get_db)):
+    return await cassia_host_tech_devices_service.update_technology(technology_data, current_user, db)
 
 
 @cassia_tech_devices_router.post(

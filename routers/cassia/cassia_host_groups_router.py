@@ -6,6 +6,7 @@ from typing import List, Optional
 from services.cassia import cassia_host_groups_service
 from dependencies import get_db
 from infraestructure.database import DB
+from models.cassia_user_session import CassiaUserSession
 
 cassia_host_groups_router = APIRouter(prefix="/host_groups")
 
@@ -28,9 +29,9 @@ async def get_host_groups(db: DB = Depends(get_db)):
     summary="Crea un host group de Zabbix con tipado de CASSIA",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def crate_host_group(group_data: cassia_host_groups_schema.CassiaHostGroupSchema = Body(..., exclude={"groupid"}), db: DB = Depends(get_db)):
-    print(group_data)
-    return await cassia_host_groups_service.crate_host_group(db, group_data)
+async def create_host_group(group_data: cassia_host_groups_schema.CassiaHostGroupSchema = Body(..., exclude={"groupid"}),
+                           db: DB = Depends(get_db), current_user: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+    return await cassia_host_groups_service.create_host_group(db, group_data, current_user)
 
 
 @cassia_host_groups_router.delete(
@@ -40,8 +41,8 @@ async def crate_host_group(group_data: cassia_host_groups_schema.CassiaHostGroup
     summary="Eliminar un host group de Zabbix",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def delete_host_group(groupid: int, db: DB = Depends(get_db)):
-    return await cassia_host_groups_service.delete_host_group(groupid, db)
+async def delete_host_group(groupid: int, db: DB = Depends(get_db), current_user: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+    return await cassia_host_groups_service.delete_host_group(groupid, current_user, db)
 
 
 @cassia_host_groups_router.post(
@@ -71,5 +72,6 @@ async def import_groups_data(file_import: UploadFile = File(...), db: DB = Depen
                                status_code=status.HTTP_200_OK,
                                summary="Actualiza el host group de CASSIA (nombre y tipo)",
                                dependencies=[Depends(auth_service2.get_current_user_session)])
-async def update_host_group(group_data: cassia_host_groups_schema.CassiaHostGroupSchema, db: DB = Depends(get_db)):
-    return await cassia_host_groups_service.update_host_group(group_data, db)
+async def update_host_group(group_data: cassia_host_groups_schema.CassiaHostGroupSchema,
+                            current_user: CassiaUserSession = Depends(auth_service2.get_current_user_session), db: DB = Depends(get_db)):
+    return await cassia_host_groups_service.update_host_group(group_data, current_user, db)

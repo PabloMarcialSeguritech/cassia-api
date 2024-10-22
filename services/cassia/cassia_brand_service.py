@@ -1,6 +1,11 @@
-from fastapi import HTTPException, status
+from fastapi import HTTPException,status
 from infraestructure.database import DB
-from infraestructure.cassia import cassia_brand_repository
+from infraestructure.cassia import cassia_brand_repository, cassia_user_repository
+from models.cassia_host_brands import CassiaHostBrandModel
+from models.cassia_user_session import CassiaUserSession
+from schemas.cassia_audit_schema import CassiaAuditSchema
+from services.cassia import cassia_audit_service
+from utils.actions_modules_enum import AuditModule, AuditAction
 from utils.traits import success_response, get_datetime_now_str_with_tz
 from utils.exports_imports_functions import generate_file_export
 import csv
@@ -40,9 +45,7 @@ async def export_brands_data(export_data, db):
                             detail=f"Excepcion en export_technologies_data {e}")
 
 # Servicio para crear un nuevo brand (editable = 0)
-
-
-async def create_new_brand(brand_data: cassia_brand_schema.CassiaBrandSchema, db: DB):
+async def create_new_brand(brand_data: cassia_brand_schema.CassiaBrandSchema, current_user, db: DB):
     brand_data_dict = brand_data.dict()
     brand_name = brand_data_dict['name_brand'].strip()
     brand_mac_address = brand_data_dict['mac_address_brand_OUI'].strip()
@@ -67,6 +70,7 @@ async def create_new_brand(brand_data: cassia_brand_schema.CassiaBrandSchema, db
 
         # Verificar si la marca tiene un ID (lo que indicaría que fue creada con éxito)
         if new_brand.brand_id:
+            await create_brand_audit_log(new_brand, current_user, db)
             return success_response(
                 message="Marca creada correctamente",
                 data=new_brand
@@ -78,11 +82,9 @@ async def create_new_brand(brand_data: cassia_brand_schema.CassiaBrandSchema, db
             )
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error al crear el brand: {e}")
+        raise HTTPException(status_code=500, detail=f"Error al crear el brand: {e}")
 
-
-async def modify_brand(db, brand_id, brand_data):
+async def modify_brand(db, brand_id, brand_data, current_user):
     brand_data_dict = brand_data.dict()
 
     # Validar si los campos están presentes en brand_data_dict
@@ -94,8 +96,7 @@ async def modify_brand(db, brand_id, brand_data):
 
     # Extraer los datos del brand y validarlos
     brand_name = brand_data_dict['name_brand']
-    # Si es el campo correcto
-    brand_mac_address = brand_data_dict['mac_address_brand_OUI']
+    brand_mac_address = brand_data_dict['mac_address_brand_OUI']  # Si es el campo correcto
 
     # Validar que el nombre de la marca no esté vacío
     if not brand_name or not isinstance(brand_name, str):
@@ -127,6 +128,7 @@ async def modify_brand(db, brand_id, brand_data):
         )
 
         if is_correct:
+            await update_brand_audit_log(brand_data_dict, brand_df, current_user, db)
             return success_response(
                 message="Marca actualizada correctamente"
             )
@@ -145,7 +147,7 @@ async def modify_brand(db, brand_id, brand_data):
         )
 
 
-async def remove_brand(brand_id, db):
+async def remove_brand(brand_id, current_user, db):
     try:
         # Obtener el DataFrame del repositorio
         brand_df = await cassia_brand_repository.get_brand_editable(brand_id, db)
@@ -168,6 +170,7 @@ async def remove_brand(brand_id, db):
         is_correct = await cassia_brand_repository.delete_brand(db, brand_id)
 
         if is_correct:
+            await delete_brand_audit_log(brand_df, current_user, db)
             return success_response(
                 message="Marca borrada correctamente"
             )
@@ -228,7 +231,6 @@ async def import_brands_data(file_import, db):
         df_import_results = df_import_results.replace(np.nan, None)
     return success_response(data=df_import_results.to_dict(orient='records'))
 
-
 async def create_host_brand_by_import(db: DB, model_data, brands_df):
     response = model_data
     response['result'] = 'No se creo correctamente el registro'
@@ -249,3 +251,102 @@ async def create_host_brand_by_import(db: DB, model_data, brands_df):
     response['result'] = 'Se creo correctamente el registro'
     response['brand_id_creado'] = create_host_brand.brand_id
     return response
+
+async def create_brand_audit_log(new_brand: CassiaHostBrandModel, current_user: CassiaUserSession, db: DB):
+
+    try:
+        module_id = AuditModule.BRANDS.value
+        action_id = AuditAction.CREATE.value
+
+        user = await cassia_user_repository.get_user_by_id(current_user.user_id, db)
+
+        detail = f"Se creo una  marca con los siguientes datos, name_brand: {new_brand.name_brand}, mac_address_brand_OUI: {new_brand.mac_address_brand_OUI}"
+
+        cassia_audit_schema = CassiaAuditSchema(
+            user_name = user.name,
+            user_email = user.mail,
+            summary = detail,
+            id_audit_action = action_id,
+            id_audit_module = module_id
+        )
+
+        await cassia_audit_service.create_audit_log(cassia_audit_schema, db)
+
+    except Exception as e:
+        print(f"Error en create_brand_audit_log: {e}")
+
+
+async def delete_brand_audit_log(brand ,
+                                 current_user: CassiaUserSession, db: DB):
+    try:
+        module_id = AuditModule.BRANDS.value
+        action_id = AuditAction.DELETE.value
+
+        user = await cassia_user_repository.get_user_by_id(current_user.user_id, db)
+
+        detail = f"Se elimino la marca con los siguientes datos, name_brand: {brand.iloc[0]['name_brand']}, mac_address_brand_OUI: {brand.iloc[0]['mac_address_brand_OUI']}"
+
+        cassia_audit_schema = CassiaAuditSchema(
+            user_name=user.name,
+            user_email=user.mail,
+            summary=detail,
+            id_audit_action=action_id,
+            id_audit_module=module_id
+        )
+
+        await cassia_audit_service.create_audit_log(cassia_audit_schema, db)
+
+    except Exception as e:
+        print(f"Error en delete_brand_audit_log: {e}")
+
+async def update_brand_audit_log(brand_data_new: dict,
+                                 brand_data_current,
+                                 current_user: CassiaUserSession,
+                                 db: DB):
+    try:
+        module_id = AuditModule.BRANDS.value
+        action_id = AuditAction.UPDATE.value
+
+        # Obtener el usuario actual
+        user = await cassia_user_repository.get_user_by_id(current_user.user_id, db)
+
+        # Verificar que brand_data_current no esté vacío
+        if brand_data_current is None or brand_data_new is None:
+            raise ValueError("Los datos de la marca actual o nuevos son inválidos o están vacíos.")
+
+        # Si brand_data_current es un DataFrame, usa iloc; de lo contrario, accede directamente al diccionario o lista
+        if isinstance(brand_data_current, pd.DataFrame):
+            name_brand_current = brand_data_current.iloc[0]['name_brand']
+            mac_address_current = brand_data_current.iloc[0]['mac_address_brand_OUI']
+        else:
+            name_brand_current = brand_data_current['name_brand']
+            mac_address_current = brand_data_current['mac_address_brand_OUI']
+
+        # Acceder a los datos de brand_data_new desde el diccionario
+        name_brand_new = brand_data_new['name_brand']
+        mac_address_new = brand_data_new['mac_address_brand_OUI']
+
+        # Crear el detalle de la auditoría
+        detail = (f"Se actualizó una marca. Sus datos anteriores eran, name_brand: {name_brand_current}, "
+                  f"mac_address_brand_OUI: {mac_address_current}. "
+                  f"Sus nuevos datos son: name_brand {name_brand_new}, "
+                  f"mac_address_brand_OUI: {mac_address_new}")
+
+        # Crear el objeto de auditoría
+        cassia_audit_schema = CassiaAuditSchema(
+            user_name=user.name,
+            user_email=user.mail,
+            summary=detail,
+            id_audit_action=action_id,
+            id_audit_module=module_id
+        )
+
+        # Crear el registro de auditoría
+        await cassia_audit_service.create_audit_log(cassia_audit_schema, db)
+
+    except ValueError as ve:
+        print(f"Error de validación: {ve}")
+    except Exception as e:
+        print(f"Error en update_brand_audit_log: {e}")
+
+

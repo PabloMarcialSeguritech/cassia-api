@@ -1898,7 +1898,7 @@ WHERE h.status in (0,1) and h.hostid in ({hostids})
 
     def builder_query_statement_get_brand_by(self, brand_id):
         self.query_statement_get_brand_by_id = f"""
-                        SELECT editable FROM cassia_host_brand WHERE brand_id = {brand_id}"""
+                        SELECT editable, name_brand, mac_address_brand_OUI FROM cassia_host_brand WHERE brand_id = {brand_id}"""
         return self.query_statement_get_brand_by_id
 
     def builder_update_brand(self, brand_id, name_brand, brand_mac_address):
@@ -1913,7 +1913,7 @@ WHERE h.status in (0,1) and h.hostid in ({hostids})
                                        DELETE FROM cassia_host_brand WHERE brand_id = {brand_id} AND editable = 1"""
         return self.query_statement_delete_brand_by_id
 
-    def builder_query_statement_get_audit_logs(self, start_date, end_date, user_email, module_id, page, page_size):
+    def builder_query_statement_get_audit_logs(self, start_date, end_date, user_email, module_id):
         query_parts = [
             "SELECT cal.user_name, cal.user_email, cal.summary, cal.timestamp,",
             "caa.name as name_action, cam.name as name_module",
@@ -1940,9 +1940,6 @@ WHERE h.status in (0,1) and h.hostid in ({hostids})
 
         query_parts.append("ORDER BY cal.timestamp DESC")
         query_parts.append("LIMIT %s OFFSET %s")
-
-        params.append(int(page_size))
-        params.append(int(page))
 
         query = " ".join(query_parts)
 

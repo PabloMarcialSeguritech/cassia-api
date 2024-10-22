@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, status, Body, UploadFile, File
+
+from models.cassia_user_session import CassiaUserSession
 from services.cassia import cassia_brand_service
 from infraestructure.database import DB
 from dependencies import get_db
@@ -27,8 +29,9 @@ async def get_brands(db: DB = Depends(get_db)):
     summary="Crea la Marca",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def create_brand(brand_data: cassia_brand_schema.CassiaBrandSchema = Body(..., exclude={"brand_id"}), db: DB = Depends(get_db)):
-    return await cassia_brand_service.create_new_brand(brand_data, db)
+async def create_brand(brand_data: cassia_brand_schema.CassiaBrandSchema = Body(..., exclude={"brand_id"}),
+                       current_user: CassiaUserSession = Depends(auth_service2.get_current_user_session), db: DB = Depends(get_db)):
+    return await cassia_brand_service.create_new_brand(brand_data, current_user, db)
 
 # Actualizar un brand existente (solo si editable = 1)
 @cassia_brand_router.put(
@@ -37,8 +40,9 @@ async def create_brand(brand_data: cassia_brand_schema.CassiaBrandSchema = Body(
     status_code=status.HTTP_200_OK,
     summary="Actualiza la Marca",
     dependencies=[Depends(auth_service2.get_current_user_session)])
-async def update_brand(brand_id: int, brand_data: cassia_brand_schema.CassiaBrandSchema, db: DB = Depends(get_db)):
-    return await cassia_brand_service.modify_brand(db, brand_id, brand_data)
+async def update_brand(brand_id: int, brand_data: cassia_brand_schema.CassiaBrandSchema,
+                       current_user: CassiaUserSession = Depends(auth_service2.get_current_user_session), db: DB = Depends(get_db)):
+    return await cassia_brand_service.modify_brand(db, brand_id, brand_data, current_user)
 
 # Eliminar un brand (solo si editable = 1)
 @cassia_brand_router.delete(
@@ -48,8 +52,8 @@ async def update_brand(brand_id: int, brand_data: cassia_brand_schema.CassiaBran
     summary="Borra la Marca",
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
-async def delete_brand(brand_id: int, db: DB = Depends(get_db)):
-    return await cassia_brand_service.remove_brand(brand_id, db)
+async def delete_brand(brand_id: int, current_user: CassiaUserSession = Depends(auth_service2.get_current_user_session), db: DB = Depends(get_db)):
+    return await cassia_brand_service.remove_brand(brand_id, current_user, db)
 
 @cassia_brand_router.post(
     "/export",
