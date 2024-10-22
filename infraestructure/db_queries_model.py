@@ -1939,7 +1939,6 @@ WHERE h.status in (0,1) and h.hostid in ({hostids})
             params.append(module_id)
 
         query_parts.append("ORDER BY cal.timestamp DESC")
-        query_parts.append("LIMIT %s OFFSET %s")
 
         query = " ".join(query_parts)
 
