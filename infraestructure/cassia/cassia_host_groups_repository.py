@@ -116,3 +116,18 @@ async def update_host_group_name_and_type_id(hostgroup_id, hostgroup_name, hostg
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Excepcion generada en update_cassia_maintenance {e}"
         )
+
+
+async def get_cassia_host_groups_by_type(type_id, db: DB) -> pd.DataFrame:
+    host_groups_df = None
+    try:
+        query_statement_get_cassia_host_groups_by_type = DBQueries(
+        ).query_statement_get_cassia_host_groups_by_type
+
+        host_groups_data = await db.run_query(query_statement_get_cassia_host_groups_by_type, (type_id))
+        host_groups_df = pd.DataFrame(
+            host_groups_data).replace(np.nan, None)
+        return host_groups_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_cassia_host_groups_by_type: {e}")

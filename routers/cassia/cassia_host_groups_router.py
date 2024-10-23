@@ -12,6 +12,17 @@ cassia_host_groups_router = APIRouter(prefix="/host_groups")
 
 
 @cassia_host_groups_router.get(
+    "/by_type/{type_id}",
+    tags=["Host Groups"],
+    status_code=status.HTTP_200_OK,
+    summary="Obtiene los tipos de hosts de CASSIA de un tipo",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_host_groups_by_type(type_id: int, db: DB = Depends(get_db)):
+    return await cassia_host_groups_service.get_host_groups_by_type(type_id, db)
+
+
+@cassia_host_groups_router.get(
     "/",
     tags=["Host Groups"],
     status_code=status.HTTP_200_OK,
@@ -30,7 +41,7 @@ async def get_host_groups(db: DB = Depends(get_db)):
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def create_host_group(group_data: cassia_host_groups_schema.CassiaHostGroupSchema = Body(..., exclude={"groupid"}),
-                           db: DB = Depends(get_db), current_user: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
+                            db: DB = Depends(get_db), current_user: CassiaUserSession = Depends(auth_service2.get_current_user_session)):
     return await cassia_host_groups_service.create_host_group(db, group_data, current_user)
 
 
