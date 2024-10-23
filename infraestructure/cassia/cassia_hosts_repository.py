@@ -1,5 +1,6 @@
 from infraestructure.database import DB
 from infraestructure.db_queries_model import DBQueries
+
 from fastapi import HTTPException, status
 from schemas import cassia_hosts_schema
 import pandas as pd

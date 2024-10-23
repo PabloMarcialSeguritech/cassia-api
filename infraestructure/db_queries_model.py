@@ -465,9 +465,19 @@ where hostid = %s"""
 
         self.query_statement_get_host_brand_model_by_hostid = """select * from cassia_host ch where ch.host_id = %s"""
 
-        self.query_statement_delete_host_brand_model_by_hostid="""
+        self.query_statement_delete_host_brand_model_by_hostid = """
         DELETE FROM cassia_host ch where
         ch.host_id = %s"""
+
+
+        self.query_statement_get_telegram_groups = """SELECT id, name, groupid, description
+    FROM telegram_groups"""
+
+        self.query_insert_telegram_group = """INSERT INTO telegram_groups (name, groupid) 
+    VALUES (%s, %s)"""
+        
+        self.query_statement_get_telegram_config = """SELECT * FROM telegram_config"""
+        
 
         self.query_statement_get_audit_modules = "SELECT id, name FROM zabbix.cassia_audit_module"
 
@@ -476,6 +486,7 @@ where hostid = %s"""
         self.query_statement_update_user_group = None
 
         self.query_statement_get_user_group_by_id = None
+
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
