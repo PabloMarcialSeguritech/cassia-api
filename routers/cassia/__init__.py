@@ -30,6 +30,8 @@ from .cassia_host_models_router import cassia_host_models_router
 from .cassia_hosts_router import cassia_hosts_router
 from .cassia_audit_router import cassia_audit_router
 from .cassia_hosts_discovery_router import cassia_hosts_discovery_router
+from .cassia_media_telegram_router import media_telegram_router
+from .cassia_user_groups_router import cassia_user_groups_router
 from infraestructure.database import DB
 from dependencies import get_db
 cassia_router = APIRouter(prefix="/api/v1/cassia")
@@ -78,3 +80,5 @@ cassia_router.include_router(cassia_host_models_router)
 cassia_router.include_router(cassia_hosts_router)
 cassia_router.include_router(cassia_audit_router)
 cassia_router.include_router(cassia_hosts_discovery_router)
+cassia_router.include_router(media_telegram_router)
+cassia_router.include_router(cassia_user_groups_router)

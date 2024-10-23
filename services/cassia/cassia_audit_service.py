@@ -51,4 +51,9 @@ async def create_audit_log(model_data: CassiaAuditSchema, db: DB):
                                 detail=f"Excepción en create_audit_log {e}")
 
 
-
+async def get_audit_modules(db: DB):
+    try:
+        audit_logs_df = await cassia_audit_repository.get_audit_modules(db)
+        return success_response(data=audit_logs_df.to_dict(orient="records"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener todos los modulos: {e}")

@@ -30,10 +30,10 @@ class CassiaHostUpdateSchema(BaseModel):
     alias: str = Field("",
                        max_length=128,
                        example="GTO-SUB-ABAS-001")
-    location_lat: str = Field("",
+    location_lat: str = Field(...,
                               max_length=16,
                               example="12.12")
-    location_lon: str = Field("",
+    location_lon: str = Field(...,
                               max_length=16,
                               example="12.12")
     serialno_a: str = Field("",
@@ -48,10 +48,10 @@ class CassiaHostUpdateSchema(BaseModel):
     model_id: int = Field(None, example=1)
 
     # HOST INTERFACE DATA
-    agent_ip: str = Field("",
+    agent_ip: str = Field(...,
                           max_length=64,
                           example="127.0.0.1")
-    agent_port: str = Field("",
+    agent_port: str = Field("10050",
                             max_length=64,
                             example="10050")
     snmp_ip: str = Field("",
@@ -92,10 +92,10 @@ class CassiaHostSchema(BaseModel):
     alias: str = Field("",
                        max_length=128,
                        example="GTO-SUB-ABAS-001")
-    location_lat: str = Field("",
+    location_lat: str = Field(...,
                               max_length=16,
                               example="12.12")
-    location_lon: str = Field("",
+    location_lon: str = Field(...,
                               max_length=16,
                               example="12.12")
     serialno_a: str = Field("",
@@ -110,10 +110,10 @@ class CassiaHostSchema(BaseModel):
     model_id: int = Field(None, example=1)
 
     # HOST INTERFACE DATA
-    agent_ip: str = Field("",
+    agent_ip: str = Field(...,
                           max_length=64,
                           example="127.0.0.1")
-    agent_port: str = Field("",
+    agent_port: str = Field("10050",
                             max_length=64,
                             example="10050")
     snmp_ip: str = Field("",

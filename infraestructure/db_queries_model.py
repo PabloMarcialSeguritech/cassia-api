@@ -465,9 +465,34 @@ where hostid = %s"""
 
         self.query_statement_get_host_brand_model_by_hostid = """select * from cassia_host ch where ch.host_id = %s"""
 
-        self.query_statement_delete_host_brand_model_by_hostid="""
+        self.query_statement_delete_host_brand_model_by_hostid = """
         DELETE FROM cassia_host ch where
         ch.host_id = %s"""
+
+
+        self.query_statement_get_telegram_groups = """SELECT id, name, groupid, description
+    FROM telegram_groups"""
+
+        self.query_insert_telegram_group = """INSERT INTO telegram_groups (name, groupid) 
+    VALUES (%s, %s)"""
+        
+        self.query_statement_get_telegram_config = """SELECT * FROM telegram_config"""
+        
+
+        self.query_statement_get_audit_modules = "SELECT id, name FROM zabbix.cassia_audit_module"
+
+        self.query_statement_get_users_groups = "SELECT id, name FROM cassia_user_groups"
+        
+        self.query_statement_update_user_group = None
+
+        self.query_statement_get_user_group_by_id = None
+
+        self.query_statement_get_host_group_type_zona_by_groupid= """select * from hstgrp h inner join cassia_host_groups_types chgt 
+on chgt.groupid =h.groupid inner join cassia_group_types cgt 
+on cgt.id = chgt.cassia_group_type_id 
+where cgt.id =2 and h.groupid = %s"""
+
+
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
         return self.query_statement_get_metrics_template
@@ -1953,3 +1978,20 @@ WHERE h.status in (0,1) and h.hostid in ({hostids})
                        LEFT JOIN cassia_audit_module cam ON cal.id_audit_module = cam.id 
                        WHERE cal.id IN ({audit_ids})"""
         return self.query_statement_get_audits_by_ids
+
+    def builder_query_statement_get_user_group_by_id(self, user_group_id):
+        self.query_statement_get_user_group_by_id = f"""
+        SELECT id, name
+        FROM zabbix.cassia_user_groups;
+        WHERE id = {user_group_id}
+        """
+        return self.query_statement_get_user_group_by_id
+
+
+    def builder_query_statement_update_user_group_by_id(self, user_group_id):
+        self.query_statement_update_user_group = f"""
+        UPDATE cassia_user_groups
+            SET name='', description=''
+        WHERE id={user_group_id}
+        """
+        return self.query_statement_update_user_group

@@ -15,6 +15,17 @@ cassia_host_models_router = APIRouter(prefix="/host_models")
 
 
 @cassia_host_models_router.get(
+    "/by_brand/{brand_id}",
+    tags=["Host Models"],
+    status_code=status.HTTP_200_OK,
+    summary="Obtiene los modelos de hosts disponibles en CASSIA",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_host_models_by_brand(brand_id: int, db: DB = Depends(get_db)):
+    return await cassia_host_models_service.get_host_models_by_brand(brand_id, db)
+
+
+@cassia_host_models_router.get(
     "/",
     tags=["Host Models"],
     status_code=status.HTTP_200_OK,
@@ -33,7 +44,7 @@ async def get_host_models(db: DB = Depends(get_db)):
     dependencies=[Depends(auth_service2.get_current_user_session)]
 )
 async def create_host_model(model_data: cassia_host_models_schema.CassiaHostModelSchema,
-                           current_user: CassiaUserSession = Depends(auth_service2.get_current_user_session), db: DB = Depends(get_db)):
+                            current_user: CassiaUserSession = Depends(auth_service2.get_current_user_session), db: DB = Depends(get_db)):
     return await cassia_host_models_service.create_host_model(db, model_data, current_user)
 
 
@@ -77,6 +88,7 @@ async def import_models_data(file_import: UploadFile = File(...), db: DB = Depen
     summary="Actualiza el modelo de host de CASSIA (nombre y marca)",
     dependencies=[Depends(auth_service2.get_current_user_session)])
 async def update_host_group(model_id: int, model_data: cassia_host_models_schema.CassiaHostModelSchema,
-                            current_user: CassiaUserSession = Depends(auth_service2.get_current_user_session),
+                            current_user: CassiaUserSession = Depends(
+                                auth_service2.get_current_user_session),
                             db: DB = Depends(get_db)):
     return await cassia_host_models_service.update_host_model(model_id, model_data, current_user, db)

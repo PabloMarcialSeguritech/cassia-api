@@ -1,5 +1,6 @@
 from infraestructure.database import DB
 from infraestructure.db_queries_model import DBQueries
+
 from fastapi import HTTPException, status
 from schemas import cassia_hosts_schema
 import pandas as pd
@@ -27,6 +28,22 @@ async def delete_host_brand_model_by_hostid(hostid, db: DB) -> pd.DataFrame:
         response['detail'] = e
         response['exception'] = True
         return response
+
+
+async def get_cassia_group_zona_type_by_groupid(groupid, db: DB) -> pd.DataFrame:
+    hosts_group_zona_df = None
+    try:
+        query_statement_get_host_group_type_zona_by_groupid = DBQueries(
+        ).query_statement_get_host_group_type_zona_by_groupid
+        init = time.time()
+        hosts_group_zona_data = await db.run_query(query_statement_get_host_group_type_zona_by_groupid, (groupid))
+        print(f"DURACION DB QUERY INTERFACE HOST: {time.time()-init}")
+        hosts_group_zona_df = pd.DataFrame(
+            hosts_group_zona_data).replace(np.nan, None)
+        return hosts_group_zona_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_cassia_group_zona_type_by_groupid: {e}")
 
 
 async def get_cassia_brand_model(hostid, db: DB) -> pd.DataFrame:
