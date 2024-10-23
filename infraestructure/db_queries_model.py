@@ -583,6 +583,8 @@ on chgt.groupid =h.groupid inner join cassia_group_types cgt
 on cgt.id = chgt.cassia_group_type_id 
 where cgt.id =1 and h.groupid in (%s) """
 
+        self.query_statement_get_host_groups_by_hostid = """select * from hosts_groups hg where hg.hostid = %s """
+
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
         return self.query_statement_get_metrics_template
