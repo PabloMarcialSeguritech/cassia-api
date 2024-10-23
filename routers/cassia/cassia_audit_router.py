@@ -48,3 +48,14 @@ async def export_audit_data(export_data: cassia_audit_schema.CassiaAuditExportSc
 )
 async def create_audit_log(model_data: cassia_audit_schema.CassiaAuditSchema, db : DB = Depends(get_db)):
     return await cassia_audit_service.create_audit_log(model_data, db)
+
+@cassia_audit_router.get(
+    "/modules",
+    tags=["Cassia - Audit"],
+    status_code=status.HTTP_200_OK,
+    summary="Obtiene los modulos de auditoria",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def get_modules(db: DB = Depends(get_db)
+):
+    return await cassia_audit_service.get_audit_modules(db)
