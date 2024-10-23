@@ -21,6 +21,10 @@ from infraestructure.cassia import cassia_user_repository, cassia_group_types_re
 from services.cassia import cassia_audit_service
 
 
+async def get_host_groups_by_type(type_id: int, db: DB):
+    host_groups = await cassia_host_groups_repository.get_cassia_host_groups_by_type(type_id, db)
+    return success_response(data=host_groups.to_dict(orient="records"))
+
 
 async def get_host_groups(db: DB):
     host_groups = await cassia_host_groups_repository.get_cassia_host_groups(db)
@@ -236,6 +240,7 @@ async def update_host_group(group_data, current_user: CassiaUserSession, db):
             detail=f"No existe el host group con ID {hostgroup_id}."
         )
 
+
 async def create_group_audit_log(group_data: cassia_host_groups_schema.CassiaHostGroupSchema, current_user: CassiaUserSession, db: DB):
 
     try:
@@ -253,11 +258,11 @@ async def create_group_audit_log(group_data: cassia_host_groups_schema.CassiaHos
         detail = f"Se creo un grupo con los siguientes datos, group_name: {group_data.name}, group_type: {group_type_name}"
 
         cassia_audit_schema = CassiaAuditSchema(
-            user_name = user.name,
-            user_email = user.mail,
-            summary = detail,
-            id_audit_action = action_id,
-            id_audit_module = module_id
+            user_name=user.name,
+            user_email=user.mail,
+            summary=detail,
+            id_audit_action=action_id,
+            id_audit_module=module_id
         )
 
         await cassia_audit_service.create_audit_log(cassia_audit_schema, db)
@@ -266,7 +271,7 @@ async def create_group_audit_log(group_data: cassia_host_groups_schema.CassiaHos
         print(f"Error en create_group_audit_log: {e}")
 
 
-async def delete_group_audit_log(group ,
+async def delete_group_audit_log(group,
                                  current_user: CassiaUserSession, db: DB):
     try:
         module_id = AuditModule.GROUPS.value
@@ -278,7 +283,6 @@ async def delete_group_audit_log(group ,
         if not group.empty:
             group_name = group.iloc[0]['name']
             group_id = group.iloc[0]['groupid']
-
 
         detail = f"Se elimino el host group con los siguientes datos, group_id: {group_id}, group_name: {group_name}"
 
@@ -294,6 +298,7 @@ async def delete_group_audit_log(group ,
 
     except Exception as e:
         print(f"Error en delete_group_audit_log: {e}")
+
 
 async def update_group_audit_log(group_data_new: cassia_host_groups_schema.CassiaHostGroupSchema,
                                  group_data_current,
@@ -312,18 +317,24 @@ async def update_group_audit_log(group_data_new: cassia_host_groups_schema.Cassi
         if not groups_types_df.empty:
 
             # Acceder correctamente a los campos de tipo de grupo usando 'id' en lugar de 'group_type_id'
-            current_group_type_id = group_data_current.iloc[0]['cassia_group_type_id']  # Desde el objeto actual
-            new_group_type_id = group_data_new.type_id  # Desde el nuevo objeto (ajustado a type_id)
+            # Desde el objeto actual
+            current_group_type_id = group_data_current.iloc[0]['cassia_group_type_id']
+            # Desde el nuevo objeto (ajustado a type_id)
+            new_group_type_id = group_data_new.type_id
 
             # Buscar los nombres de los tipos de grupo correspondientes a los IDs en los datos actuales y nuevos
-            group_type_name_current = groups_types_df.loc[groups_types_df['id'] == current_group_type_id, 'name'].values
-            group_type_name_new = groups_types_df.loc[groups_types_df['id'] == new_group_type_id, 'name'].values
+            group_type_name_current = groups_types_df.loc[groups_types_df['id']
+                                                          == current_group_type_id, 'name'].values
+            group_type_name_new = groups_types_df.loc[groups_types_df['id']
+                                                      == new_group_type_id, 'name'].values
 
             # Verificar que se encontró un nombre de tipo de grupo
             if group_type_name_current.size == 0:
-                raise ValueError(f"No se encontró el nombre del tipo de grupo para el ID {current_group_type_id}")
+                raise ValueError(
+                    f"No se encontró el nombre del tipo de grupo para el ID {current_group_type_id}")
             if group_type_name_new.size == 0:
-                raise ValueError(f"No se encontró el nombre del tipo de grupo para el ID {new_group_type_id}")
+                raise ValueError(
+                    f"No se encontró el nombre del tipo de grupo para el ID {new_group_type_id}")
 
             # Extraer el valor del array resultante
             group_type_name_current = group_type_name_current[0]
@@ -349,6 +360,3 @@ async def update_group_audit_log(group_data_new: cassia_host_groups_schema.Cassi
 
     except Exception as e:
         print(f"Error en update_group_audit_log: {e}")
-
-
-

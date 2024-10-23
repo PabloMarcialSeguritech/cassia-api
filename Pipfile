@@ -35,6 +35,7 @@ nest-asyncio = "*"
 typing-extensions = "*"
 pymysql = "*"
 scapy = "*"
+cachetools = "*"
 
 [dev-packages]
 

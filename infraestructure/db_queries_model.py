@@ -271,6 +271,16 @@ WHERE rn = 1;
             RIGHT JOIN hstgrp h ON h.groupid = chgt.groupid
             LEFT JOIN hosts_groups hg ON hg.groupid = h.groupid
             GROUP BY h.groupid, h.name, cgt.id, cgt.name;"""
+
+        self.query_statement_get_cassia_host_groups_by_type = """SELECT h.groupid as id,h.groupid, h.name as group_name, cgt.id as group_type_id, 
+            cgt.name as group_type_name, 
+            COUNT(hg.hostid) as host_count
+            FROM cassia_host_groups_types chgt 
+            INNER JOIN cassia_group_types cgt ON cgt.id = chgt.cassia_group_type_id 
+            RIGHT JOIN hstgrp h ON h.groupid = chgt.groupid
+            LEFT JOIN hosts_groups hg ON hg.groupid = h.groupid
+            where chgt.cassia_group_type_id = %s
+            GROUP BY h.groupid, h.name, cgt.id, cgt.name;"""
         self.query_statement_get_cassia_host_models = """SELECT chm.*,chb.name_brand FROM cassia_host_model chm
 inner join cassia_host_brand chb 
 on chb.brand_id =chm.brand_id """
@@ -330,87 +340,165 @@ GROUP BY h.hostid, h.host, hi.ip, h.status, hi.dns, hi.useip, hi.port, h.descrip
         self.query_statement_get_cassia_hosts = """
 SELECT 
     h.hostid,
-	h.host,
-	h.name,
-	proxy.hostid as proxy_hostid,
-	proxy.host as proxy_name,
-	agent_inteface.ip as agent_ip,
-	agent_inteface.port as agent_port,
-	snmp_inteface.ip as snmp_ip,
-	snmp_inteface.port as snmp_port,
-	ch.brand_id,
-	chb.name_brand,
-	ch.model_id,
-	chm.name_model,
-	h.description,
-	h.status as status_value,
-	CASE 
-		WHEN h.status =0 THEN 'Habilitado'
-		ELSE 'Deshabilitado'
-	END
-	as status_description,
-	
-	hi.device_id as technology_id,
-	hd.name as technology_name,
-	hd.visible_name technology_visible_name,
-	hi.alias,
-	hi.location_lat ,
-	hi.location_lon,
-	hi.serialno_a,
-	hi.macaddress_a 
+    h.host,
+    h.name,
+    proxy.hostid as proxy_hostid,
+    proxy.host as proxy_name,
+    agent_inteface.ip as agent_ip,
+    agent_inteface.port as agent_port,
+    snmp_inteface.ip as snmp_ip,
+    snmp_inteface.port as snmp_port,
+    snmp_interface_desc.version  as snmp_version,
+    snmp_interface_desc.community  as snmp_community,
+    ch.brand_id,
+    chb.name_brand,
+    ch.model_id,
+    chm.name_model,
+    h.description,
+    h.status as status_value,
+    CASE 
+        WHEN h.status = 0 THEN 'Habilitado'
+        ELSE 'Deshabilitado'
+    END as status_description,
+    hi.device_id as technology_id,
+    hd.name as technology_name,
+    hd.visible_name as technology_visible_name,
+    hi.alias,
+    hi.location_lat,
+    hi.location_lon,
+    hi.serialno_a,
+    hi.macaddress_a,
+    GROUP_CONCAT(hg.groupid ORDER BY hg.groupid SEPARATOR ',') as groupids, -- Concatenación de groupids
+    zona.groupid as zona_groupid
 FROM hosts h
 LEFT JOIN host_inventory hi ON h.hostid = hi.hostid
-LEFT JOIN interface agent_inteface ON h.hostid = agent_inteface.hostid  and agent_inteface.type = 1
-LEFT JOIN interface snmp_inteface ON h.hostid = snmp_inteface.hostid  and snmp_inteface.type = 2
-LEFT JOIN cassia_host ch ON h.hostid  = ch.host_id
-LEFT JOIN cassia_host_brand chb  ON ch.brand_id = chb.brand_id
-LEFT JOIN cassia_host_model chm  ON ch.model_id = chm.model_id 
+LEFT JOIN interface agent_inteface ON h.hostid = agent_inteface.hostid AND agent_inteface.type = 1
+LEFT JOIN interface snmp_inteface ON h.hostid = snmp_inteface.hostid AND snmp_inteface.type = 2
+left join interface_snmp snmp_interface_desc on snmp_interface_desc.interfaceid = snmp_inteface.interfaceid 
+LEFT JOIN cassia_host ch ON h.hostid = ch.host_id
+LEFT JOIN cassia_host_brand chb ON ch.brand_id = chb.brand_id
+LEFT JOIN cassia_host_model chm ON ch.model_id = chm.model_id 
 LEFT JOIN host_device hd ON hi.device_id = hd.dispId
-LEFT JOIN hosts proxy ON  h.proxy_hostid = proxy.hostid and proxy.status IN (5, 6)
-WHERE h.status in (0,1);
+LEFT JOIN hosts proxy ON h.proxy_hostid = proxy.hostid AND proxy.status IN (5, 6)
+LEFT JOIN hosts_groups hg ON h.hostid = hg.hostid AND hg.groupid IN(select h.groupid from hstgrp h inner join cassia_host_groups_types chgt 
+on chgt.groupid =h.groupid inner join cassia_group_types cgt 
+on cgt.id = chgt.cassia_group_type_id 
+where cgt.id =1)  -- Unión con la tabla hosts_groups
+LEFT JOIN hosts_groups zona ON h.hostid = zona.hostid AND zona.groupid IN(
+select h.groupid from hstgrp h inner join cassia_host_groups_types chgt 
+on chgt.groupid =h.groupid inner join cassia_group_types cgt 
+on cgt.id = chgt.cassia_group_type_id 
+where cgt.id =2)
+WHERE h.status IN (0,1)
+GROUP BY 
+    h.hostid, 
+    h.host, 
+    h.name, 
+    proxy.hostid, 
+    proxy.host, 
+    agent_inteface.ip, 
+    agent_inteface.port, 
+    snmp_inteface.ip, 
+    snmp_inteface.port, 
+    snmp_interface_desc.version ,
+    snmp_interface_desc.community,
+    ch.brand_id, 
+    chb.name_brand, 
+    ch.model_id, 
+    chm.name_model, 
+    h.description, 
+    h.status, 
+    hi.device_id, 
+    hd.name, 
+    hd.visible_name, 
+    hi.alias, 
+    hi.location_lat, 
+    hi.location_lon, 
+    hi.serialno_a, 
+    hi.macaddress_a,
+   zona.groupid ;
 """
 
         self.query_statement_get_cassia_host = """
 SELECT 
     h.hostid,
-	h.host,
-	h.name,
-	proxy.hostid as proxy_hostid,
-	proxy.host as proxy_name,
-	agent_inteface.ip as agent_ip,
-	agent_inteface.port as agent_port,
-	snmp_inteface.ip as snmp_ip,
-	snmp_inteface.port as snmp_port,
-	ch.brand_id,
-	chb.name_brand,
-	ch.model_id,
-	chm.name_model,
-	h.description,
-	h.status as status_value,
-	CASE 
-		WHEN h.status =0 THEN 'Habilitado'
-		ELSE 'Deshabilitado'
-	END
-	as status_description,
-	
-	hi.device_id as technology_id,
-	hd.name as technology_name,
-	hd.visible_name technology_visible_name,
-	hi.alias,
-	hi.location_lat ,
-	hi.location_lon,
-	hi.serialno_a,
-	hi.macaddress_a 
+    h.host,
+    h.name,
+    proxy.hostid as proxy_hostid,
+    proxy.host as proxy_name,
+    agent_inteface.ip as agent_ip,
+    agent_inteface.port as agent_port,
+    snmp_inteface.ip as snmp_ip,
+    snmp_inteface.port as snmp_port,
+    snmp_interface_desc.version  as snmp_version,
+    snmp_interface_desc.community  as snmp_community,
+    ch.brand_id,
+    chb.name_brand,
+    ch.model_id,
+    chm.name_model,
+    h.description,
+    h.status as status_value,
+    CASE 
+        WHEN h.status = 0 THEN 'Habilitado'
+        ELSE 'Deshabilitado'
+    END as status_description,
+    hi.device_id as technology_id,
+    hd.name as technology_name,
+    hd.visible_name as technology_visible_name,
+    hi.alias,
+    hi.location_lat,
+    hi.location_lon,
+    hi.serialno_a,
+    hi.macaddress_a,
+    GROUP_CONCAT(hg.groupid ORDER BY hg.groupid SEPARATOR ',') as groupids, -- Concatenación de groupids
+    zona.groupid as zona_groupid
 FROM hosts h
 LEFT JOIN host_inventory hi ON h.hostid = hi.hostid
-LEFT JOIN interface agent_inteface ON h.hostid = agent_inteface.hostid  and agent_inteface.type = 1
-LEFT JOIN interface snmp_inteface ON h.hostid = snmp_inteface.hostid  and snmp_inteface.type = 2
-LEFT JOIN cassia_host ch ON h.hostid  = ch.host_id
-LEFT JOIN cassia_host_brand chb  ON ch.brand_id = chb.brand_id
-LEFT JOIN cassia_host_model chm  ON ch.model_id = chm.model_id 
+LEFT JOIN interface agent_inteface ON h.hostid = agent_inteface.hostid AND agent_inteface.type = 1
+LEFT JOIN interface snmp_inteface ON h.hostid = snmp_inteface.hostid AND snmp_inteface.type = 2
+left join interface_snmp snmp_interface_desc on snmp_interface_desc.interfaceid = snmp_inteface.interfaceid 
+LEFT JOIN cassia_host ch ON h.hostid = ch.host_id
+LEFT JOIN cassia_host_brand chb ON ch.brand_id = chb.brand_id
+LEFT JOIN cassia_host_model chm ON ch.model_id = chm.model_id 
 LEFT JOIN host_device hd ON hi.device_id = hd.dispId
-LEFT JOIN hosts proxy ON  h.proxy_hostid = proxy.hostid and proxy.status IN (5, 6)
-WHERE h.status in (0,1) and h.hostid=%s
+LEFT JOIN hosts proxy ON h.proxy_hostid = proxy.hostid AND proxy.status IN (5, 6)
+LEFT JOIN hosts_groups hg ON h.hostid = hg.hostid AND hg.groupid IN(select h.groupid from hstgrp h inner join cassia_host_groups_types chgt 
+on chgt.groupid =h.groupid inner join cassia_group_types cgt 
+on cgt.id = chgt.cassia_group_type_id 
+where cgt.id =1)  -- Unión con la tabla hosts_groups
+LEFT JOIN hosts_groups zona ON h.hostid = zona.hostid AND zona.groupid IN(
+select h.groupid from hstgrp h inner join cassia_host_groups_types chgt 
+on chgt.groupid =h.groupid inner join cassia_group_types cgt 
+on cgt.id = chgt.cassia_group_type_id 
+where cgt.id =2)
+WHERE h.status IN (0,1) and h.hostid = %s
+GROUP BY 
+    h.hostid, 
+    h.host, 
+    h.name, 
+    proxy.hostid, 
+    proxy.host, 
+    agent_inteface.ip, 
+    agent_inteface.port, 
+    snmp_inteface.ip, 
+    snmp_inteface.port, 
+    snmp_interface_desc.version ,
+    snmp_interface_desc.community,
+    ch.brand_id, 
+    chb.name_brand, 
+    ch.model_id, 
+    chm.name_model, 
+    h.description, 
+    h.status, 
+    hi.device_id, 
+    hd.name, 
+    hd.visible_name, 
+    hi.alias, 
+    hi.location_lat, 
+    hi.location_lon, 
+    hi.serialno_a, 
+    hi.macaddress_a,
+   zona.groupid ;
 """
         self.query_update_host_data = """UPDATE hosts 
     SET host = %s, name = %s, description = %s, proxy_hostid = %s, status = %s
@@ -469,29 +557,31 @@ where hostid = %s"""
         DELETE FROM cassia_host ch where
         ch.host_id = %s"""
 
-
         self.query_statement_get_telegram_groups = """SELECT id, name, groupid, description
     FROM telegram_groups"""
 
         self.query_insert_telegram_group = """INSERT INTO telegram_groups (name, groupid) 
     VALUES (%s, %s)"""
-        
+
         self.query_statement_get_telegram_config = """SELECT * FROM telegram_config"""
-        
 
         self.query_statement_get_audit_modules = "SELECT id, name FROM zabbix.cassia_audit_module"
 
         self.query_statement_get_users_groups = "SELECT id, name FROM cassia_user_groups"
-        
+
         self.query_statement_update_user_group = None
 
         self.query_statement_get_user_group_by_id = None
 
-        self.query_statement_get_host_group_type_zona_by_groupid= """select * from hstgrp h inner join cassia_host_groups_types chgt 
+        self.query_statement_get_host_group_type_zona_by_groupid = """select * from hstgrp h inner join cassia_host_groups_types chgt 
 on chgt.groupid =h.groupid inner join cassia_group_types cgt 
 on cgt.id = chgt.cassia_group_type_id 
 where cgt.id =2 and h.groupid = %s"""
 
+        self.query_statement_get_host_groups_type_host_by_groupids = """select * from hstgrp h inner join cassia_host_groups_types chgt 
+on chgt.groupid =h.groupid inner join cassia_group_types cgt 
+on cgt.id = chgt.cassia_group_type_id 
+where cgt.id =1 and h.groupid in (%s) """
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
@@ -1873,44 +1963,84 @@ SELECT
         self.query_statement_get_cassia_hosts_by_ids = f"""
 SELECT 
     h.hostid,
-	h.host,
-	h.name,
-	proxy.hostid as proxy_hostid,
-	proxy.host as proxy_name,
-	agent_inteface.ip as agent_ip,
-	agent_inteface.port as agent_port,
-	snmp_inteface.ip as snmp_ip,
-	snmp_inteface.port as snmp_port,
-	ch.brand_id,
-	chb.name_brand,
-	ch.model_id,
-	chm.name_model,
-	h.description,
-	h.status as status_value,
-	CASE 
-		WHEN h.status =0 THEN 'Habilitado'
-		ELSE 'Deshabilitado'
-	END
-	as status_description,
-	
-	hi.device_id as technology_id,
-	hd.name as technology_name,
-	hd.visible_name technology_visible_name,
-	hi.alias,
-	hi.location_lat ,
-	hi.location_lon,
-	hi.serialno_a,
-	hi.macaddress_a 
+    h.host,
+    h.name,
+    proxy.hostid as proxy_hostid,
+    proxy.host as proxy_name,
+    agent_inteface.ip as agent_ip,
+    agent_inteface.port as agent_port,
+    snmp_inteface.ip as snmp_ip,
+    snmp_inteface.port as snmp_port,
+    snmp_interface_desc.version  as snmp_version,
+    snmp_interface_desc.community  as snmp_community,
+    ch.brand_id,
+    chb.name_brand,
+    ch.model_id,
+    chm.name_model,
+    h.description,
+    h.status as status_value,
+    CASE 
+        WHEN h.status = 0 THEN 'Habilitado'
+        ELSE 'Deshabilitado'
+    END as status_description,
+    hi.device_id as technology_id,
+    hd.name as technology_name,
+    hd.visible_name as technology_visible_name,
+    hi.alias,
+    hi.location_lat,
+    hi.location_lon,
+    hi.serialno_a,
+    hi.macaddress_a,
+    GROUP_CONCAT(hg.groupid ORDER BY hg.groupid SEPARATOR ',') as groupids, -- Concatenación de groupids
+    zona.groupid as zona_groupid
 FROM hosts h
 LEFT JOIN host_inventory hi ON h.hostid = hi.hostid
-LEFT JOIN interface agent_inteface ON h.hostid = agent_inteface.hostid  and agent_inteface.type = 1
-LEFT JOIN interface snmp_inteface ON h.hostid = snmp_inteface.hostid  and snmp_inteface.type = 2
-LEFT JOIN cassia_host ch ON h.hostid  = ch.host_id
-LEFT JOIN cassia_host_brand chb  ON ch.brand_id = chb.brand_id
-LEFT JOIN cassia_host_model chm  ON ch.model_id = chm.model_id 
+LEFT JOIN interface agent_inteface ON h.hostid = agent_inteface.hostid AND agent_inteface.type = 1
+LEFT JOIN interface snmp_inteface ON h.hostid = snmp_inteface.hostid AND snmp_inteface.type = 2
+left join interface_snmp snmp_interface_desc on snmp_interface_desc.interfaceid = snmp_inteface.interfaceid 
+LEFT JOIN cassia_host ch ON h.hostid = ch.host_id
+LEFT JOIN cassia_host_brand chb ON ch.brand_id = chb.brand_id
+LEFT JOIN cassia_host_model chm ON ch.model_id = chm.model_id 
 LEFT JOIN host_device hd ON hi.device_id = hd.dispId
-LEFT JOIN hosts proxy ON  h.proxy_hostid = proxy.hostid and proxy.status IN (5, 6)
-WHERE h.status in (0,1) and h.hostid in ({hostids})
+LEFT JOIN hosts proxy ON h.proxy_hostid = proxy.hostid AND proxy.status IN (5, 6)
+LEFT JOIN hosts_groups hg ON h.hostid = hg.hostid AND hg.groupid IN(select h.groupid from hstgrp h inner join cassia_host_groups_types chgt 
+on chgt.groupid =h.groupid inner join cassia_group_types cgt 
+on cgt.id = chgt.cassia_group_type_id 
+where cgt.id =1)  -- Unión con la tabla hosts_groups
+LEFT JOIN hosts_groups zona ON h.hostid = zona.hostid AND zona.groupid IN(
+select h.groupid from hstgrp h inner join cassia_host_groups_types chgt 
+on chgt.groupid =h.groupid inner join cassia_group_types cgt 
+on cgt.id = chgt.cassia_group_type_id 
+where cgt.id =2)
+WHERE h.status IN (0,1)
+and h.hostid in ({hostids})
+GROUP BY 
+    h.hostid, 
+    h.host, 
+    h.name, 
+    proxy.hostid, 
+    proxy.host, 
+    agent_inteface.ip, 
+    agent_inteface.port, 
+    snmp_inteface.ip, 
+    snmp_inteface.port, 
+    snmp_interface_desc.version ,
+    snmp_interface_desc.community,
+    ch.brand_id, 
+    chb.name_brand, 
+    ch.model_id, 
+    chm.name_model, 
+    h.description, 
+    h.status, 
+    hi.device_id, 
+    hd.name, 
+    hd.visible_name, 
+    hi.alias, 
+    hi.location_lat, 
+    hi.location_lon, 
+    hi.serialno_a, 
+    hi.macaddress_a,
+   zona.groupid ;
 """
         return self.query_statement_get_cassia_hosts_by_ids
 
@@ -1986,7 +2116,6 @@ WHERE h.status in (0,1) and h.hostid in ({hostids})
         WHERE id = {user_group_id}
         """
         return self.query_statement_get_user_group_by_id
-
 
     def builder_query_statement_update_user_group_by_id(self, user_group_id):
         self.query_statement_update_user_group = f"""

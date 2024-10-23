@@ -77,7 +77,7 @@ async def export_models_data(export_data: cassia_host_models_schema.CassiaHostMo
                             detail=f"Excepcion en export_models_data {e}")
 
 
-async def import_models_data(file_import: File, db):
+async def import_models_data(file_import: File, db: DB):
     file_types = ('.csv', '.xlsx', '.xls', '.json')
     if not file_import.filename.endswith(file_types):
         raise HTTPException(
@@ -170,7 +170,7 @@ async def create_model_audit_log(model_data: cassia_host_models_schema.CassiaHos
         module_id = AuditModule.MODELS.value
         action_id = AuditAction.CREATE.value
         user = await cassia_user_repository.get_user_by_id(current_user.user_id, db)
-        brand_df = await  cassia_brand_repository.get_brand_editable(model_data.brand_id, db)
+        brand_df = await cassia_brand_repository.get_brand_editable(model_data.brand_id, db)
         brand_type_name = ""
         if not brand_df.empty:
             brand_type_name = brand_df.iloc[0]['name_brand']
@@ -178,11 +178,11 @@ async def create_model_audit_log(model_data: cassia_host_models_schema.CassiaHos
         detail = f"Se creo un modelo con los siguientes datos, name_model: {model_data.name_model}, brand_name: {brand_type_name}"
 
         cassia_audit_schema = CassiaAuditSchema(
-            user_name = user.name,
-            user_email = user.mail,
-            summary = detail,
-            id_audit_action = action_id,
-            id_audit_module = module_id
+            user_name=user.name,
+            user_email=user.mail,
+            summary=detail,
+            id_audit_action=action_id,
+            id_audit_module=module_id
         )
 
         await cassia_audit_service.create_audit_log(cassia_audit_schema, db)
@@ -191,7 +191,7 @@ async def create_model_audit_log(model_data: cassia_host_models_schema.CassiaHos
         print(f"Error en create_group_audit_log: {e}")
 
 
-async def delete_model_audit_log(model ,
+async def delete_model_audit_log(model,
                                  current_user: CassiaUserSession, db: DB):
     try:
         module_id = AuditModule.MODELS.value
@@ -204,13 +204,12 @@ async def delete_model_audit_log(model ,
         brand_df = pd.DataFrame({})
         brand_type_name = ""
 
-
         if not model.empty:
             name_model = model.iloc[0]['name_model']
             brand_id = model.iloc[0]['brand_id']
 
         if brand_id:
-            brand_df = await  cassia_brand_repository.get_brand_editable(brand_id, db)
+            brand_df = await cassia_brand_repository.get_brand_editable(brand_id, db)
 
         if not brand_df.empty:
             brand_type_name = brand_df.iloc[0]['name_brand']
@@ -230,6 +229,7 @@ async def delete_model_audit_log(model ,
     except Exception as e:
         print(f"Error en delete_group_audit_log: {e}")
 
+
 async def update_model_audit_log(model_id, model_data: cassia_host_models_schema.CassiaHostModelSchema,
                                  model_data_current,
                                  current_user: CassiaUserSession,
@@ -248,18 +248,24 @@ async def update_model_audit_log(model_id, model_data: cassia_host_models_schema
         if not brands_df.empty:
 
             # Acceder correctamente a los campos de tipo de grupo usando 'id' en lugar de 'group_type_id'
-            current_brand_type_id = model_data_current.iloc[0]['brand_id']  # Desde el objeto actual
-            new_brand_type_id = model_data.brand_id  # Desde el nuevo objeto (ajustado a type_id)
+            # Desde el objeto actual
+            current_brand_type_id = model_data_current.iloc[0]['brand_id']
+            # Desde el nuevo objeto (ajustado a type_id)
+            new_brand_type_id = model_data.brand_id
 
             # Buscar los nombres de los tipos de grupo correspondientes a los IDs en los datos actuales y nuevos
-            brand_type_name_current = models_df.loc[models_df['brand_id'] == current_brand_type_id, 'name_brand'].values
-            brand_type_name_new = models_df.loc[models_df['brand_id'] == new_brand_type_id, 'name_brand'].values
+            brand_type_name_current = models_df.loc[models_df['brand_id']
+                                                    == current_brand_type_id, 'name_brand'].values
+            brand_type_name_new = models_df.loc[models_df['brand_id']
+                                                == new_brand_type_id, 'name_brand'].values
 
             # Verificar que se encontró un nombre de tipo de grupo
             if brand_type_name_current.size == 0:
-                raise ValueError(f"No se encontró el nombre del tipo del modelo  para el ID {current_brand_type_id}")
+                raise ValueError(
+                    f"No se encontró el nombre del tipo del modelo  para el ID {current_brand_type_id}")
             if brand_type_name_new.size == 0:
-                raise ValueError(f"No se encontró el nombre del tipo del modelo  para el ID {new_brand_type_id}")
+                raise ValueError(
+                    f"No se encontró el nombre del tipo del modelo  para el ID {new_brand_type_id}")
 
             # Extraer el valor del array resultante
             brand_type_name_current = brand_type_name_current[0]
