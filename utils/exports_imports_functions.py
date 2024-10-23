@@ -90,7 +90,9 @@ async def get_df_by_filetype(file, expected_columns: list) -> pd.DataFrame:
                 exception = e
                 result = False
     columnas_esperadas = all(elem in df.columns for elem in expected_columns)
+    print(df)
+    print(df.columns)
     if not columnas_esperadas:
-        exception = "El archivo no tiene el formato correcto para importa(Revisa que las columnas sean correctas)"
+        exception = "El archivo no tiene el formato correcto para importar(Revisa que las columnas sean correctas)"
         result = False
     return {'df': df, 'result': result, 'exception': exception}
