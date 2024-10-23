@@ -267,6 +267,22 @@ async def get_cassia_hosts_by_ids(hostids, db: DB) -> pd.DataFrame:
                             detail=f"Error en get_cassia_hosts_by_ids: {e}")
 
 
+async def get_cassia_hosts_export_by_ids(hostids, db: DB) -> pd.DataFrame:
+    hosts_df = None
+    try:
+        query_statement_get_cassia_hosts_by_ids = DBQueries(
+        ).builder_query_statement_get_cassia_hosts_export_by_ids(hostids)
+        init = time.time()
+        hosts_data = await db.run_query(query_statement_get_cassia_hosts_by_ids)
+        print(f"DURACION DB QUERY HOST: {time.time()-init}")
+        hosts_df = pd.DataFrame(
+            hosts_data).replace(np.nan, None)
+        return hosts_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_cassia_hosts_by_ids: {e}")
+
+
 async def update_host_data(hostid, host_new_data, db: DB):
     response = {'success': False, 'detail': '', 'exception': False}
     try:

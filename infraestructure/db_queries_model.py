@@ -2124,3 +2124,74 @@ GROUP BY
         WHERE id={user_group_id}
         """
         return self.query_statement_update_user_group
+
+    def builder_query_statement_get_cassia_hosts_export_by_ids(self, hostids):
+        self.query_statement_get_cassia_hosts_export_by_ids = f"""
+SELECT 
+    h.hostid,
+    h.host,
+    h.name,
+    proxy.hostid as proxy_id,
+    agent_inteface.ip as agent_ip,
+    agent_inteface.port as agent_port,
+    snmp_inteface.ip as snmp_ip,
+    snmp_inteface.port as snmp_port,
+    snmp_interface_desc.version  as snmp_version,
+    snmp_interface_desc.community  as snmp_community,
+    ch.brand_id,
+    ch.model_id,
+    h.description,
+    h.status as status,
+    hi.device_id as device_id,
+    hi.alias,
+    hi.location_lat,
+    hi.location_lon,
+    hi.serialno_a,
+    hi.macaddress_a,
+    GROUP_CONCAT(hg.groupid ORDER BY hg.groupid SEPARATOR ',') as groupids, -- Concatenación de groupids
+    zona.groupid as zona_groupid
+FROM hosts h
+LEFT JOIN host_inventory hi ON h.hostid = hi.hostid
+LEFT JOIN interface agent_inteface ON h.hostid = agent_inteface.hostid AND agent_inteface.type = 1
+LEFT JOIN interface snmp_inteface ON h.hostid = snmp_inteface.hostid AND snmp_inteface.type = 2
+left join interface_snmp snmp_interface_desc on snmp_interface_desc.interfaceid = snmp_inteface.interfaceid 
+LEFT JOIN cassia_host ch ON h.hostid = ch.host_id
+LEFT JOIN cassia_host_brand chb ON ch.brand_id = chb.brand_id
+LEFT JOIN cassia_host_model chm ON ch.model_id = chm.model_id 
+LEFT JOIN host_device hd ON hi.device_id = hd.dispId
+LEFT JOIN hosts proxy ON h.proxy_hostid = proxy.hostid AND proxy.status IN (5, 6)
+LEFT JOIN hosts_groups hg ON h.hostid = hg.hostid AND hg.groupid IN(select h.groupid from hstgrp h inner join cassia_host_groups_types chgt 
+on chgt.groupid =h.groupid inner join cassia_group_types cgt 
+on cgt.id = chgt.cassia_group_type_id 
+where cgt.id =1)  -- Unión con la tabla hosts_groups
+LEFT JOIN hosts_groups zona ON h.hostid = zona.hostid AND zona.groupid IN(
+select h.groupid from hstgrp h inner join cassia_host_groups_types chgt 
+on chgt.groupid =h.groupid inner join cassia_group_types cgt 
+on cgt.id = chgt.cassia_group_type_id 
+where cgt.id =2)
+WHERE h.status IN (0,1)
+and h.hostid in ({hostids})
+GROUP BY 
+    h.hostid, 
+    h.host, 
+    h.name, 
+    proxy.hostid,
+    agent_inteface.ip, 
+    agent_inteface.port, 
+    snmp_inteface.ip, 
+    snmp_inteface.port, 
+    snmp_interface_desc.version ,
+    snmp_interface_desc.community,
+    ch.brand_id, 
+    ch.model_id, 
+    h.description, 
+    h.status, 
+    hi.device_id, 
+    hi.alias, 
+    hi.location_lat, 
+    hi.location_lon, 
+    hi.serialno_a, 
+    hi.macaddress_a,
+   zona.groupid ;
+"""
+        return self.query_statement_get_cassia_hosts_export_by_ids
