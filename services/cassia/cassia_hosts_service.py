@@ -62,7 +62,7 @@ async def export_hosts_data(export_data: cassia_hosts_schema.CassiaHostExportSch
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f"Selecciona al menos un host")
     hostids = ",".join([str(hostid) for hostid in export_data.hostids])
-    hosts_data = await cassia_hosts_repository.get_cassia_hosts_by_ids(hostids, db)
+    hosts_data = await cassia_hosts_repository.get_cassia_hosts_export_by_ids(hostids, db)
     try:
         now = get_datetime_now_str_with_tz()
         export_file = await generate_file_export(hosts_data, page_name='hosts', filename=f"hosts - {now}", file_type=export_data.file_type)
@@ -110,6 +110,7 @@ async def update_hosts_data(hostid, host_new_data: cassia_hosts_schema.CassiaHos
     update_interface_data_result = await update_host_interface_data(hostid, host_new_data, db)
     response['result'] += update_interface_data_result['result']
     # 6 Actualizar groups data
+
     return success_response(message="Host actualizado correctamente", data=response['result'])
 
 
@@ -696,10 +697,10 @@ async def import_hosts_data(file_import: File, db: DB):
             detail="El archivo debe ser un CSV, JSON, XLS o XLSX"
         )
     processed_data = await get_df_by_filetype(file_import,
-                                              ['host', 'name', 'proxy_hostid', 'agent_ip', 'agent_port',
+                                              ['host', 'name', 'proxy_id', 'agent_ip', 'agent_port',
                                                'snmp_ip', 'snmp_port', 'snmp_version', 'snmp_community', 'brand_id', 'model_id',
-                                               'description', 'status_value',
-                                               'technology_id', 'alias', 'location_lon',
+                                               'description', 'status',
+                                               'device_id', 'alias', 'location_lon',
                                                'location_lat', 'serialno_a', 'macaddress_a',
                                                'groupids', 'zona_groupid'])
     result = processed_data['result']
@@ -718,9 +719,6 @@ async def import_hosts_data(file_import: File, db: DB):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Existen nombres de host duplicados en el archivo.")
 
-    df_import = df_import.rename(columns={'proxy_hostid': 'proxy_id',
-                                          'status_value': 'status',
-                                          'technology_id': 'device_id'})
     df_import['snmp_port'] = df_import['snmp_port'].replace(np.nan, 0)
     df_import['snmp_port'] = df_import['snmp_port'].astype('int64')
     df_import['snmp_port'] = df_import['snmp_port'].replace(0, None)
@@ -886,7 +884,7 @@ async def validate_info_schema_import(host_new_data: cassia_hosts_schema.CassiaH
     if host_new_data.device_id is not None:
         exist_device_id = dfs['exist_device_id']
         if exist_device_id.empty:
-            result['result'] += 'El technology_id proporcionado no existe. '
+            result['result'] += 'El device_id proporcionado no existe. '
     if host_new_data.zona_groupid is not None:
         exist_zona_groupid = dfs['exist_zona_groupid']
         if exist_zona_groupid.empty:
