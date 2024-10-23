@@ -30,6 +30,22 @@ async def delete_host_brand_model_by_hostid(hostid, db: DB) -> pd.DataFrame:
         return response
 
 
+async def get_cassia_groups_by_hostid(hostid, db: DB) -> pd.DataFrame:
+    hosts_groups_df = None
+    try:
+        query_statement_get_host_groups_by_hostid = DBQueries(
+        ).query_statement_get_host_groups_by_hostid
+        init = time.time()
+        hosts_groups_data = await db.run_query(query_statement_get_host_groups_by_hostid, (hostid))
+        print(f"DURACION DB QUERY HOTS_GROUPS: {time.time()-init}")
+        hosts_groups_df = pd.DataFrame(
+            hosts_groups_data).replace(np.nan, None)
+        return hosts_groups_df
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error en get_cassia_groups_by_hostid: {e}")
+
+
 async def get_cassia_groups_type_host_by_groupids(groupids, db: DB) -> pd.DataFrame:
     hosts_groups_df = None
     try:

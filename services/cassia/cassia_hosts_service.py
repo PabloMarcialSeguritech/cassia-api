@@ -110,8 +110,56 @@ async def update_hosts_data(hostid, host_new_data: cassia_hosts_schema.CassiaHos
     update_interface_data_result = await update_host_interface_data(hostid, host_new_data, db)
     response['result'] += update_interface_data_result['result']
     # 6 Actualizar groups data
-
+    update_host_groups_result = await update_host_groups(hostid, host_new_data, db)
+    response['result'] += update_host_groups_result['result']
     return success_response(message="Host actualizado correctamente", data=response['result'])
+
+
+async def update_host_groups(hostid, host_new_data, db: DB):
+    response = {'result': '', 'success': True}
+    actual_groups = await cassia_hosts_repository.get_cassia_groups_by_hostid(hostid, db)
+    zona_groupid = host_new_data.zona_groupid
+    new_groupids = [str(groupid) for groupid in host_new_data.groupids]
+    actual_groupids = []
+    if zona_groupid is not None:
+        new_groupids.append(zona_groupid)
+    if not actual_groups.empty:
+        actual_groupids = actual_groups['groupid'].astype('str').to_list()
+    if set(new_groupids) != set(actual_groupids):  # actualizar groups
+        update_host_groups_zabbix_result = await update_host_groups_zabbix(hostid, new_groupids)
+        response['result'] = update_host_groups_zabbix_result['detail']
+    else:
+        response['result'] = "No fue necesario actualizar los groups."
+    return response
+
+
+async def update_host_groups_zabbix(hostid, new_groupids):
+    response = {'success': False, 'detail': '', 'exception': False}
+    try:
+        groups = [{'groupid': '192'}]
+        if len(new_groupids) > 0:
+            groups = [{"groupid": group_id} for group_id in new_groupids]
+
+        host_groups_params = {
+            'hostid': str(hostid),
+            'groups': groups
+        }
+
+        zabbix_api = ZabbixApi()
+        zabbix_request_result = await zabbix_api.do_request_new(method='host.update', params=host_groups_params)
+        if 'result' in zabbix_request_result:
+            print(zabbix_request_result)
+            response['success'] = True
+            response['detail'] = f"Grupos actualizados correctamente. "
+            return response
+        else:
+            response['detail'] = f"No se pudo actualizar los grupos: {zabbix_request_result['error']} "
+            return response
+
+    except Exception as e:
+        response['success'] = False
+        response['detail'] = e
+        return response
 
 
 async def update_host_interface_data(hostid, host_new_data, db):
