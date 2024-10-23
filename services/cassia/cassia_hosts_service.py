@@ -473,8 +473,9 @@ async def validate_info_schema(host_new_data: cassia_hosts_schema.CassiaHostSche
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="La ip Agent no es valida")
         if host_new_data.agent_port == "":
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="El puerto ip Agent no es valido")
+            host_new_data.agent_port = "10050"
+            """ raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="El puerto ip Agent no es valido") """
     # valida ip y puerto de snmp ip
     if host_new_data.snmp_ip != "":
         try:
@@ -505,7 +506,9 @@ async def validate_info_schema(host_new_data: cassia_hosts_schema.CassiaHostSche
     if host_new_data.device_id is not None:
         tasks['exist_device_id'] = asyncio.create_task(
             cassia_host_tech_devices_repository.get_host_tech_device_by_id(host_new_data.device_id, db))
-
+    if host_new_data.zona_groupid is not None:
+        tasks['exist_zona_groupid'] = asyncio.create_task(
+            cassia_hosts_repository.get_cassia_group_zona_type_by_groupid(host_new_data.zona_groupid, db))
     results = await asyncio.gather(*tasks.values())
     dfs = dict(zip(tasks.keys(), results))
     exist_host_name = dfs['exist_name']
@@ -538,6 +541,11 @@ async def validate_info_schema(host_new_data: cassia_hosts_schema.CassiaHostSche
         if exist_device_id.empty:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail="El device_id proporcionado no existe")
+    if host_new_data.zona_groupid is not None:
+        exist_zona_groupid = dfs['exist_zona_groupid']
+        if exist_zona_groupid.empty:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="El zona_groupid proporcionado no existe")
     return True
 
 

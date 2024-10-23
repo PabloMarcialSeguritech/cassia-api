@@ -482,10 +482,15 @@ where hostid = %s"""
         self.query_statement_get_audit_modules = "SELECT id, name FROM zabbix.cassia_audit_module"
 
         self.query_statement_get_users_groups = "SELECT id, name FROM cassia_user_groups"
-
+        
         self.query_statement_update_user_group = None
 
         self.query_statement_get_user_group_by_id = None
+
+        self.query_statement_get_host_group_type_zona_by_groupid= """select * from hstgrp h inner join cassia_host_groups_types chgt 
+on chgt.groupid =h.groupid inner join cassia_group_types cgt 
+on cgt.id = chgt.cassia_group_type_id 
+where cgt.id =2 and h.groupid = %s"""
 
 
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
