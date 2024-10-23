@@ -53,3 +53,16 @@ async def create_audit_log(model_data: CassiaAuditSchema, db: DB):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                                 detail=f"Error en create_audit_log: {e}")
+
+
+async def get_audit_modules(db):
+    modules_df = None
+    try:
+        query_statement_get_modules = DBQueries(
+        ).query_statement_get_audit_modules
+        modules_data = await db.run_query(query_statement_get_modules)
+        modules_df = pd.DataFrame(
+            modules_data).replace(np.nan, None)
+        return modules_df
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener los modulos: {e}")
