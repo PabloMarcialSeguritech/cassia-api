@@ -585,6 +585,10 @@ where cgt.id =1 and h.groupid in (%s) """
 
         self.query_statement_get_host_groups_by_hostid = """select * from hosts_groups hg where hg.hostid = %s """
 
+        self.query_statement_create_link_user_groups = None
+        self.query_statement_get_groups_ids_by_user_id = None
+        self.query_statement_get_user_by_email = None
+
     def builder_query_statement_get_metrics_template(self, tech_id, alineacion_id):
         self.query_statement_get_metrics_template = f"""select * from metrics_template mt where device_id ='{tech_id}' and group_id ='{alineacion_id}'"""
         return self.query_statement_get_metrics_template
@@ -2197,3 +2201,36 @@ GROUP BY
    zona.groupid ;
 """
         return self.query_statement_get_cassia_hosts_export_by_ids
+
+    def builder_query_statement_get_user_by_email(self, mail):
+        self.query_statement_get_user_by_email = f"""
+             SELECT name, mail, deleted_at 
+             FROM cassia_users
+             WHERE mail = '{mail}'
+         """
+        print(self.query_statement_get_user_by_email)
+        return self.query_statement_get_user_by_email
+
+    def builder_get_groups_ids_by_user_id(self, id):
+        self.query_statement_get_groups_ids_by_user_id = f"""
+             SELECT * from cassia_users_usergroups cuu 
+             WHERE cuu.user_id = {id}    
+         """
+        return self.query_statement_get_groups_ids_by_user_id
+
+    def builder_query_statement_create_link_user_groups(self, user_id, new_group_ids):
+        # Comenzar a construir la consulta de inserción
+        query_base = f"INSERT INTO cassia_users_usergroups (user_id, id_usergroup) VALUES "
+
+        # Crear una lista con los valores para cada group_id
+        values = ', '.join([f"({user_id}, {group_id})" for group_id in new_group_ids])
+
+        # Completar la consulta
+        self.query_statement_create_link_user_groups = query_base + values + ";"
+        print(self.query_statement_create_link_user_groups)
+
+        return self.query_statement_create_link_user_groups
+
+    def builder_query_statement_delete_user_groups(self, user_id):
+        query = f"DELETE FROM cassia_users_usergroups WHERE user_id = {user_id};"
+        return query

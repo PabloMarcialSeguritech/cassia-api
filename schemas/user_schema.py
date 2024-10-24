@@ -33,3 +33,27 @@ class UserRegister(UserBase):
     ) """
     roles: Optional[str]
     authorizer: Optional[int]
+
+class UserRegister_(UserBase):
+    """ password: str = Field(
+        ...,
+        min_length=8,
+        max_length=64,
+        example="strongpass"
+    ) """
+    roles: Optional[str]
+    authorizer: Optional[int]
+    group_ids: Optional[list[int]]  # Modificación: Lista de enteros
+
+class UserUpdate(UserBase):
+    """ password: str = Field(
+        ...,
+        min_length=8,
+        max_length=64,
+        example="strongpass"
+    ) """
+    roles: Optional[str]
+    authorizer: Optional[int]
+    group_ids: Optional[list[int]]  # Modificación: Lista de enteros
+
+

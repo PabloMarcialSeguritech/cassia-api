@@ -8,6 +8,8 @@ from models.user_model import User
 from fastapi import File, UploadFile, Form
 from typing import Optional
 from schemas import user_schema, update_user_password
+from infraestructure.database import DB
+from dependencies import get_db
 users_router = APIRouter(prefix="/users")
 
 
@@ -49,7 +51,7 @@ def get_user(user_id: int):
                    status_code=status.HTTP_201_CREATED,
                    summary="Create a new user",
                    dependencies=[Depends(auth_service2.get_current_user_session)])
-async def create_user(user: user_schema.UserRegister = Body(...)):
+async def create_user(user: user_schema.UserRegister = Body(...), db: DB = Depends(get_db)):
     """
     ## Create a new user in the app
 
@@ -63,6 +65,30 @@ async def create_user(user: user_schema.UserRegister = Body(...)):
     - user: User info
     """
     return await users_service.create_user(user)
+
+
+
+
+
+@users_router.post('_/',
+                   tags=["Cassia - Users"],
+                   status_code=status.HTTP_201_CREATED,
+                   summary="Create a new user clone",
+                   dependencies=[Depends(auth_service2.get_current_user_session)])
+async def create_user_(user: user_schema.UserRegister_ = Body(...), db: DB = Depends(get_db)):
+    """
+    ## Create a new user in the app
+
+    ### Args
+    The app can recive next fields into a JSON
+    - email: A valid email
+    - name: The name of the user
+    - roles: Id of roles separated by comma. Example: 1,2,3
+
+    ### Returns
+    - user: User info
+    """
+    return await users_service.create_user_(user, db)
 
 
 @users_router.put('/{user_id}',
@@ -84,6 +110,28 @@ async def update_user(user_id: int, user: user_schema.UserRegister = Body(...)):
     - user: User info
     """
     return await users_service.update_user(user_id, user)
+
+@users_router.put('_/{user_id}',
+                  tags=["Cassia - Users"],
+                  status_code=status.HTTP_201_CREATED,
+                  summary="Update an user",
+                  dependencies=[Depends(auth_service2.get_current_user_session)])
+async def update_user_(user_id: int, user: user_schema.UserUpdate = Body(...), db: DB = Depends(get_db)):
+    """
+    ## Create a new user in the app
+
+    ### Args
+    The app can recive next fields into a JSON
+    - email: A valid email
+    - name: The name of the user
+    - roles: Id of roles separated by comma. Example: 1,2,3
+
+    ### Returns
+    - user: User info
+    """
+    print("update_nuevo_router")
+    return await users_service.update_user_(user_id, user, db)
+
 
 
 @users_router.delete(

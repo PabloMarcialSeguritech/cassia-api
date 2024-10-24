@@ -1,3 +1,4 @@
+from infraestructure.cassia import cassia_user_repository
 from utils.settings import Settings
 import pandas as pd
 from utils.db import DB_Zabbix, DB_Prueba
@@ -463,3 +464,392 @@ async def update_password(data: update_user_password.UpdateUserPassword, user_id
     session.refresh(actual_user)
     session.close()
     return success_response(message=f"Password updated correctly")
+
+
+async def verify_email_exist(user, db):
+    print("func verify_email_exist")
+    user_df = pd.DataFrame()
+    print(1)
+    user_df = await cassia_user_repository.get_user_by_email(user.mail, db)
+    print(2)
+    if user_df.empty:
+        print(3)
+        return False, user_df
+    else:
+        return True, user_df
+
+
+def verify_is_user_delete(current_user):
+    if current_user['deleted_at'] is None:
+        return False
+    else:
+        return True
+
+
+async def link_user_groups_user_creation(user, db_user_id, db):
+    # 3 Revisar si existen grupos en la petición de creación (JSON)
+    print("func link_user_groups_user_creation")
+    try:
+        new_group_ids = user.group_ids
+        user_id = db_user_id
+        #current_group_ids = cassia_user_repository.get_groups_ids_by_user_id(user.id, db)
+
+        # Validar si 'group_ids' está vacío o no
+        if not new_group_ids:
+            # Si está vacío o no viene, ejecuta la lógica adecuada
+            print("El campo 'group_ids' está vacío o no fue enviado.")
+        else:
+            # Si 'group_ids' tiene valores, ejecuta la lógica correspondiente
+            print("Grupos recibidos:", new_group_ids)
+
+            # 5 Crear relaciones que aun no existen pero que vienen en la petición (cassia_users_groups)
+            is_correct_insert = await cassia_user_repository.link_user_groups(user_id, new_group_ids, db)
+            print(55)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al tratar de ligar el grupo de usuarios al usuario: {e}"
+        )
+
+async def link_user_groups_update(user, db_user_id, db):
+    # 3 Revisar si existen grupos en la petición de creación (JSON)
+    print("func link_user_groups_update")
+    try:
+        new_group_ids = user.group_ids
+        user_id = db_user_id
+        #current_group_ids = cassia_user_repository.get_groups_ids_by_user_id(user.id, db)
+
+        print("Validar si 'group_ids' está vacío o no")
+        # Validar si 'group_ids' está vacío o no
+        if not new_group_ids:
+            # Si está vacío o no viene, se quitan todas la relaciones de grupos para ese user_id
+            print("El campo 'group_ids' está vacío o no fue enviado.")
+            await cassia_user_repository.unlink_all_user_groups(user_id, db)
+        else:
+            # Si 'group_ids' tiene valores, ejecuta la lógica correspondiente
+            print("Grupos recibidos:", new_group_ids)
+            await cassia_user_repository.unlink_all_user_groups(user_id, db)
+            # 5 Crear relaciones que aun no existen pero que vienen en la petición (cassia_users_groups)
+            is_correct_insert = await cassia_user_repository.link_user_groups(user_id, new_group_ids, db)
+            print(55)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al tratar de ligar el grupo de usuarios al usuario: {e}"
+        )
+
+
+
+async def create_user_(user: user_schema.UserRegister_, db):
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    get_user = session.query(User).filter(
+        User.mail == user.mail
+    ).first()
+    # get_user = UserModel.filter((UserModel.email == user.email) | (
+    #    UserModel.username == user.username)).first()
+    if get_user and not get_user.deleted_at:
+        msg = "Email already registered"
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=msg
+        )
+    try:
+        roles = [int(role) for role in user.roles.split(",")]
+        roles = set(roles)
+    except:
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The role_ids values are not a valid numbers"
+        )
+    statement = text(
+        f"SELECT rol_id from cassia_roles where deleted_at IS NULL")
+    roles_ids = session.execute(statement)
+    roles_ids = pd.DataFrame(roles_ids)
+    invalid_roles = []
+    for role in roles:
+        if role not in roles_ids.values:
+            invalid_roles.append(role)
+    if len(invalid_roles):
+        invalid_roles = ','.join(str(e) for e in invalid_roles)
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"The next role_ids values are not a valid role_id: {invalid_roles} "
+        )
+    password = create_password_v2(8)
+    if get_user and get_user.deleted_at:
+        get_user.mail = user.mail
+        get_user.name = user.name
+        get_user.deleted_at = None
+        get_user.password = get_password_hash(password)
+        session.commit()
+        session.refresh(get_user)
+        roles_actual = session.query(UserHasRole).filter(
+            UserHasRole.user_id == get_user.user_id
+        ).all()
+        for role_model in roles_actual:
+            session.delete(role_model)
+        session.commit()
+        db_user = get_user
+    else:
+        db_user = User(
+            name=user.name,
+            mail=user.mail,
+            password=get_password_hash(password),
+        )
+        session.add(db_user)
+        session.commit()
+        session.refresh(db_user)
+
+    authorizer = UserAuthorizer(
+        user_id=db_user.user_id
+    )
+    session.add(authorizer)
+    session.commit()
+    session.refresh(authorizer)
+    for role in roles:
+        role_user = UserHasRole(
+            user_id=db_user.user_id,
+            role_id=role,
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
+        session.add(role_user)
+        session.commit()
+        session.refresh(role_user)
+    """  print(db_user.username, password) """
+    url = ""
+    if settings.env == "prod":
+        url = f"{settings.cassia_server_ip}:8001/"
+    else:
+        url = f"{settings.cassia_server_ip}:8003/"
+
+    body = {
+        "name": db_user.name,
+        "password": password,
+        "url": url
+    }
+    print(url)
+    session.close()
+    await link_user_groups_user_creation(user, db_user.user_id , db)
+    await send_email(email_to=db_user.mail, body=body)
+    # db_user.save()
+
+    return success_response(message=f"User created", data=user_schema.User(
+        user_id=db_user.user_id,
+        name=db_user.name,
+        mail=db_user.mail))
+
+async def update_user_(user_id, user: user_schema.UserUpdate, db):
+    print(" update_nuevo_user")
+    db_zabbix = DB_Zabbix()
+    session = db_zabbix.Session()
+    actual_user = session.query(User).filter(
+        User.user_id == user_id, User.deleted_at == None).first()
+    if not actual_user:
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    get_user = session.query(User).filter(
+        or_(User.mail == user.mail)
+    ).first()
+    if get_user and not actual_user.user_id == get_user.user_id:
+        msg = "Email already registered"
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=msg
+        )
+    if user.roles:
+        try:
+            roles = [int(role) for role in user.roles.split(",")]
+            roles = set(roles)
+        except:
+            session.close()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The role_ids values are not a valid numbers"
+            )
+        statement = text(
+            f"SELECT rol_id from cassia_roles where deleted_at IS NULL")
+        roles_ids = session.execute(statement)
+        roles_ids = pd.DataFrame(roles_ids)
+        invalid_roles = []
+        for role in roles:
+            if role not in roles_ids.values:
+                invalid_roles.append(role)
+        if len(invalid_roles):
+            invalid_roles = ','.join(str(e) for e in invalid_roles)
+            session.close()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"The next role_ids values are not a valid role_id: {invalid_roles} "
+            )
+    actual_user.name = user.name
+    mail_nuevo = False
+    if actual_user.mail != user.mail:
+        actual_user.mail = user.mail
+        password = create_password_v2(8)
+        actual_user.password = get_password_hash(password)
+        actual_user.verified_at = None
+        url = ""
+
+        if settings.env == "prod":
+            url = f"{settings.cassia_server_ip}:8001/"
+        else:
+            url = f"{settings.cassia_server_ip}:8003/"
+
+        body = {
+            "username": actual_user.name,
+            "password": password,
+            "url": url
+        }
+        mail_nuevo = True
+    actual_user.updated_at = datetime.now()
+    session.commit()
+    session.refresh(actual_user)
+    roles_actual = session.query(UserHasRole).filter(
+        UserHasRole.user_id == actual_user.user_id
+    ).all()
+    if user.roles:
+        for role_model in roles_actual:
+            session.delete(role_model)
+        for role in roles:
+            role_user = UserHasRole(
+                user_id=actual_user.user_id,
+                role_id=role,
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            session.add(role_user)
+            session.commit()
+    if mail_nuevo:
+        await send_email(email_to=actual_user.mail, body=body)
+
+    if user.authorizer:
+        authroizer = session.query(UserAuthorizer).filter(
+            UserAuthorizer.user_id == actual_user.user_id).first()
+        if user.authorizer == 0:
+            if authroizer:
+                session.delete(authroizer)
+                session.commit()
+        if user.authorizer:
+            if not authroizer:
+                authorizer_create = UserAuthorizer(
+                    user_id=actual_user.user_id
+                )
+                session.add(authorizer_create)
+                session.commit()
+                session.refresh(authorizer_create)
+    # db_user.save()
+    user_response = user_schema.User(
+        user_id=actual_user.user_id,
+        name=actual_user.name,
+        mail=actual_user.mail
+    )
+    session.close()
+    await link_user_groups_update(user, actual_user.user_id, db)
+    return success_response(message=f"User updated successfully", data=user_response)
+
+
+    '''if get_user and not get_user.deleted_at:
+        msg = "Email already registered"
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=msg
+        )
+    try:
+        roles = [int(role) for role in user.roles.split(",")]
+        roles = set(roles)
+    except:
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The role_ids values are not a valid numbers"
+        )
+    statement = text(
+        f"SELECT rol_id from cassia_roles where deleted_at IS NULL")
+    roles_ids = session.execute(statement)
+    roles_ids = pd.DataFrame(roles_ids)
+    invalid_roles = []
+    for role in roles:
+        if role not in roles_ids.values:
+            invalid_roles.append(role)
+    if len(invalid_roles):
+        invalid_roles = ','.join(str(e) for e in invalid_roles)
+        session.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"The next role_ids values are not a valid role_id: {invalid_roles} "
+        )
+    password = create_password_v2(8)
+    if get_user and get_user.deleted_at:
+        get_user.mail = user.mail
+        get_user.name = user.name
+        get_user.deleted_at = None
+        get_user.password = get_password_hash(password)
+        session.commit()
+        session.refresh(get_user)
+        roles_actual = session.query(UserHasRole).filter(
+            UserHasRole.user_id == get_user.user_id
+        ).all()
+        for role_model in roles_actual:
+            session.delete(role_model)
+        session.commit()
+        db_user = get_user
+    else:
+        db_user = User(
+            name=user.name,
+            mail=user.mail,
+            password=get_password_hash(password),
+        )
+        session.add(db_user)
+        session.commit()
+        session.refresh(db_user)
+
+    authorizer = UserAuthorizer(
+        user_id=db_user.user_id
+    )
+    session.add(authorizer)
+    session.commit()
+    session.refresh(authorizer)
+    for role in roles:
+        role_user = UserHasRole(
+            user_id=db_user.user_id,
+            role_id=role,
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
+        session.add(role_user)
+        session.commit()
+        session.refresh(role_user)
+    """  print(db_user.username, password) """
+    url = ""
+    if settings.env == "prod":
+        url = f"{settings.cassia_server_ip}:8001/"
+    else:
+        url = f"{settings.cassia_server_ip}:8003/"
+
+    body = {
+        "name": db_user.name,
+        "password": password,
+        "url": url
+    }
+    print(url)
+    session.close()
+    await send_email(email_to=db_user.mail, body=body)
+    # db_user.save()
+
+    return success_response(message=f"User created", data=user_schema.User(
+        user_id=db_user.user_id,
+        name=db_user.name,
+        mail=db_user.mail
+    ))'''
