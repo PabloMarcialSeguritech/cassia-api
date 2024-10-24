@@ -785,7 +785,7 @@ async def import_hosts_data(file_import: File, db: DB):
                  'description', 'status',
                  'device_id', 'alias', 'location_lon',
                  'location_lat', 'serialno_a', 'macaddress_a',
-                 'groupids', 'zona_groupid'])
+                 'groupids', 'zona_groupid', 'result', 'detail', 'hostid_creado'])
     for i in range(0, len(tasks_create), 10):
         lote = tasks_create[i:i + 10]
         # Ejecutar las corutinas de forma concurrente
@@ -850,7 +850,7 @@ async def create_host_import(host_new_data: cassia_hosts_schema.CassiaHostSchema
         return response
     else:
         detail = host_was_created['detail']
-        response['detail'] = detail
+        response['detail'] = str(detail)
         return response
 
 
@@ -951,3 +951,205 @@ async def validate_info_schema_import(host_new_data: cassia_hosts_schema.CassiaH
     if result['result'] == '':
         result['success'] = True
     return result
+
+
+async def import_hosts_data_by_discovery(file_import: File, db: DB):
+    file_types = ('.csv', '.xlsx', '.xls', '.json')
+    if not file_import.filename.endswith(file_types):
+        raise HTTPException(
+            status_code=400,
+            detail="El archivo debe ser un CSV, JSON, XLS o XLSX"
+        )
+    processed_data = await get_df_by_filetype(file_import,
+                                              ['ip', 'mac_address', 'proxyId', 'proxyName', 'name',
+                                               'host'])
+    result = processed_data['result']
+    if not result:
+        exception = processed_data['exception']
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Error al procesar el archivo: {exception}")
+    df_import = processed_data['df']
+    if df_import.empty:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"El archivo esta vacio")
+    duplicados = df_import.duplicated(
+        subset=['name'], keep=False).any()
+
+    if duplicados:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Existen nombres de host duplicados en el archivo.")
+
+    df_import = df_import.replace(np.nan, None)
+    tasks_create = [
+        asyncio.create_task(create_host_import_by_discovery(df_import.iloc[ind].to_dict(), db)) for ind in df_import.index
+    ]
+    df_import_results = pd.DataFrame(
+        columns=['ip', 'mac_address', 'proxyId', 'proxyName', 'name',
+                 'host', 'result', 'detail', 'hostid_creado'])
+    for i in range(0, len(tasks_create), 10):
+        lote = tasks_create[i:i + 10]
+        # Ejecutar las corutinas de forma concurrente
+        resultados = await asyncio.gather(*lote)
+        for resultado in resultados:
+            print(resultado)
+            new_row = pd.DataFrame(resultado, index=[0])
+            # Concatenar el nuevo registro al DataFrame original
+            df_import_results = pd.concat(
+                [df_import_results, new_row], ignore_index=True)
+    if not df_import_results.empty:
+        df_import_results = df_import_results.replace(np.nan, None)
+
+    return success_response(data=df_import_results.to_dict(orient='records'))
+
+
+async def create_host_import_by_discovery(host_data: dict, db: DB):
+    response = host_data
+    print(response)
+    response['result'] = 'No se creo correctamente el host.'
+    response['detail'] = ''
+    response['hostid_creado'] = ''
+
+    init_1 = time.time()
+    # Validar info del schema
+    init = time.time()
+    # result = {'success': False, 'result': ''}
+    is_valid_info = await validate_info_schema_import_by_discovery(host_data, db, False, None)
+    if not is_valid_info['success']:
+        response['detail'] = is_valid_info['result']
+        return response
+    print(f"TIEMPO DE VALIDACION: {time.time()-init}")
+    # 2 Crear host con inventory, interface y grupos
+    # {'success': False, 'detail': '', 'hostid': 0}
+    init = time.time()
+    host_was_created = await create_host_by_zabbix_by_discovery(host_data)
+    print(f"TIEMPO DE CREACION ZABBIX: {time.time()-init} ")
+    if host_was_created['success']:
+        print(host_was_created)
+        # Obtener hostid creado
+        hostid = host_was_created['hostid']
+        response['hostid_creado'] = hostid
+        response['result'] = 'Se creo el host.'
+        response['detail'] = "Se creo el host en zabbix. "
+        """ if host_new_data.device_id is not None:
+            # 3 Actualizar device_id en el inventory
+            # {'success': False, 'detail': '', 'exception': False}
+            created_device_id = await cassia_hosts_repository.update_host_device_id_by_hostid(hostid, host_new_data.device_id, db)
+            if not created_device_id['success']:
+                response['detail'] += "No se logro asignar el device_id. "
+            else:
+                response['detail'] += "Se asigno correctamente el device_id. "
+        else:
+            response['detail'] += "No se asigno ningun device_id. "
+        # 4 Crear registro de marca y modelo
+        assign_brand_model_result = await cassia_hosts_repository.assign_brand_model_affiliation_by_hostid(hostid, host_new_data, db)
+        if not assign_brand_model_result['success']:
+            response['detail'] += "No se logro asignar el modelo y marca."
+        else:
+            response['detail'] += "Se logro asignar el modelo y marca correctamente."
+        print(f"TIEMPO DE TOTAL: {time.time()-init_1} ") """
+        return response
+    else:
+        detail = host_was_created['detail']
+        print("AQUIIIIIII")
+        print(detail)
+        response['detail'] = str(detail)
+
+        return response
+
+
+async def validate_info_schema_import_by_discovery(host_data, db: DB, is_update: bool, hostid):
+    result = {'success': False, 'result': ''}
+
+    # valida ip y puerto de agent ip
+    if host_data['ip'] != "" and host_data['ip'] is not None:
+        try:
+            valid_ip = IPv4Address(host_data['ip'])
+
+        except Exception as e:
+            result['result'] += 'La ip no es valida. '
+    # 1 Verificar que el host name no exista
+    tasks = {
+        'exist_name': asyncio.create_task(proxies_repository.search_host_by_name(host_data['name'], db))
+    }
+
+    if host_data['proxyId'] is not None:
+        tasks['exist_proxy_id'] = asyncio.create_task(
+            proxies_repository.get_proxy_by_id(host_data['proxyId'], db))
+
+    results = await asyncio.gather(*tasks.values())
+    dfs = dict(zip(tasks.keys(), results))
+    exist_host_name = dfs['exist_name']
+    # Retornar excepciones correspondientes
+    if not exist_host_name.empty:
+        if is_update:
+            if exist_host_name['hostid'].astype('int64')[0] != hostid:
+                result['result'] += 'El nombre del host ya existe. '
+        else:
+            result['result'] += 'El nombre del host ya existe. '
+
+    if host_data['proxyId'] is not None:
+        exist_proxy_id = dfs['exist_proxy_id']
+        if exist_proxy_id.empty:
+            result['result'] += 'El proxy proporcionado no existe. '
+
+    if result['result'] == '':
+        result['success'] = True
+    return result
+
+
+async def create_host_by_zabbix_by_discovery(host_data):
+    response = {'success': False, 'detail': '', 'hostid': 0}
+    try:
+        groups = []
+        if not len(groups):
+            groups = [{
+                "groupid": "192"
+            }]
+
+        host_request_params = {
+            'host': host_data['host'],
+            'name': host_data['name'],
+            'description': "",
+            'status': 0,
+            'inventory_mode': 0,
+            'inventory': {
+                'alias': "",
+                'location_lat': "",
+                'location_lon': "",
+                'serialno_a': "",
+                'macaddress_a': host_data['mac_address']
+            },
+            "groups": groups,
+
+        }
+        if host_data['proxyId'] is not None:
+            host_request_params['proxy_hostid'] = host_data['proxy_id']
+        interfaces = []
+        if host_data['ip'] != "" and host_data['ip'] is not None:
+            interfaces.append({"type": 1,  # 1 = Agent, 2 = SNMP, 3 = IPMI, 4 = JMX
+                               "main": 1,  # Es la interfaz principal
+                               "useip": 1,  # Si utiliza IP en lugar de nombre DNS
+                               "ip": host_data['ip'],  # IP del host
+                               "dns": "",  # DNS vacío si useip=1
+                               # Puerto de la interfaz (por defecto para Zabbix Agent)
+                               "port": "10050"
+                               })
+
+        if len(interfaces):
+            host_request_params['interfaces'] = interfaces
+        zabbix_api = ZabbixApi()
+        zabbix_request_result = await zabbix_api.do_request_new(method='host.create', params=host_request_params)
+        if 'result' in zabbix_request_result:
+            print(zabbix_request_result)
+            response['success'] = True
+            response['detail'] = zabbix_request_result
+            response['hostid'] = zabbix_request_result['result']['hostids'][0]
+            return response
+        else:
+            response['detail'] = zabbix_request_result['error']
+            return response
+
+    except Exception as e:
+        response['success'] = False
+        response['detail'] = e
+        return response
