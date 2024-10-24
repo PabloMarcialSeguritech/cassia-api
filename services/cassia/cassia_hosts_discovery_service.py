@@ -82,8 +82,8 @@ async def download_discovery_devices(proxies: discovered_device_schema.ProxyRequ
     # Crear el archivo CSV en memoria
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["IP", "MAC Address", "Proxy ID",
-                    "Proxy Name", "name", "host"])
+    writer.writerow(["ip", "mac_address", "proxyId",
+                    "proxyName", "name", "host"])
 
     for device in devices:
         print(device)
@@ -111,13 +111,15 @@ async def discover_locally(segment: str) -> List[discovered_device_schema.Discov
 
     for sent, received in answered:
         if is_valid_ip(received.psrc):
+            name = f"{received.psrc}_{received.hwsrc}".replace(
+                '.', "_").replace(":", "_")
             devices.append(discovered_device_schema.DiscoveredDevice(
                 ip=received.psrc,
                 mac_address=received.hwsrc,
                 proxyId=None,
                 proxyName="Local",
-                name=f"{received.psrc}{received.hwsrc}",
-                host=f"{received.psrc}{received.hwsrc}"
+                name=name,
+                host=name
             ))
     print(f"Dispositivos encontrados: {devices}")
     return devices
@@ -164,6 +166,8 @@ async def discover_via_ssh(proxy: dict, segment: str) -> List[discovered_device_
             parts = line.split()
             if len(parts) >= 2 and is_valid_ip(parts[0]):
                 ip, mac = parts[0], parts[1]
+                name = f"{ip}_{mac}".replace(
+                    '.', "_").replace(":", "_")
                 devices.append(discovered_device_schema.DiscoveredDevice(
                     ip=ip,
                     mac_address=mac,

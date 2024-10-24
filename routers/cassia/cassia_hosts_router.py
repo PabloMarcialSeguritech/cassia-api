@@ -76,6 +76,17 @@ async def import_hosts_data(file_import: UploadFile = File(...), db: DB = Depend
     return await cassia_hosts_service.import_hosts_data(file_import, db)
 
 
+@cassia_hosts_router.post(
+    "/import/by_discovery",
+    tags=["Cassia Hosts", "CASSIA Exports"],
+    status_code=status.HTTP_200_OK,
+    summary="Importa los hosts de Zabbix con el resultado de descubrimiento",
+    dependencies=[Depends(auth_service2.get_current_user_session)]
+)
+async def import_hosts_data_by_discovery(file_import: UploadFile = File(...), db: DB = Depends(get_db)):
+    return await cassia_hosts_service.import_hosts_data_by_discovery(file_import, db)
+
+
 @cassia_hosts_router.delete(
     "/{hostid}",
     tags=["Cassia Hosts", "CASSIA Exports"],
